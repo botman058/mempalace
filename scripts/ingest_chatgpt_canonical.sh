@@ -21,9 +21,9 @@ heuristic-only and is disabled unless --allow-legacy-signals is supplied.
 Default is a dry run. Use --apply to mine for real. If the canonical palace
 already exists, --apply also requires --allow-existing-palace.
 
-For LLM-derived classification, run the exocortex LocalAI bridge first and then
-mine the exported transcript stage. Do not use this helper as the semantic
-classification pass for a full ChatGPT privacy export.
+For LLM-derived classification, run scripts/localai_chatgpt_signals.py after the
+raw exchange mine. Do not use this helper as the semantic classification pass
+for a full ChatGPT privacy export.
 USAGE
 }
 
@@ -93,7 +93,7 @@ if [[ "$ALLOW_LEGACY_SIGNALS" -eq 1 ]]; then
 else
   echo
   echo "Skipped chatgpt_signals: legacy --extract general is heuristic-only."
-  echo "Use the exocortex LocalAI bridge for LLM-derived classification."
+  echo "Use scripts/localai_chatgpt_signals.py for LLM-derived classification."
 fi
 
 if [[ "$APPLY" -eq 0 ]]; then

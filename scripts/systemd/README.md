@@ -15,6 +15,7 @@ Default layout:
   tmp/
   logs/
   secrets/http_token
+  secrets/localai_token
 ```
 
 Install:
@@ -67,20 +68,21 @@ scripts/ingest_chatgpt_canonical.sh /path/to/chatgpt-export --apply --allow-exis
 
 `scripts/ingest_chatgpt_canonical.sh` mines only the raw `chatgpt` exchange
 wing by default. The legacy `chatgpt_signals` pass uses local heuristics, not
-LocalAI, and only runs with `--allow-legacy-signals`. For LLM-derived
-classification, first export per-conversation transcripts from exocortex with
-`ARCHIVEKG_LLM_REMOTE=1` and `ARCHIVEKG_OPENAI_BASE_URL` pointed at LocalAI on
-`snow-white-iii`, then mine that bridge stage into MemPalace.
+LocalAI, and only runs with `--allow-legacy-signals`.
 
-Expected LocalAI bridge environment:
+Run the LocalAI-derived classification pass with:
 
 ```bash
-export ARCHIVEKG_LLM_REMOTE=1
-export ARCHIVEKG_OPENAI_BASE_URL=http://snow-white-iii:8080/v1
-export ARCHIVEKG_OPENAI_API_KEY="$(cat /path/to/localai_token)"
-export ARCHIVEKG_OPENAI_SKIP_MODEL_CATALOG=1
+/media/u0/OneDrive_Backup/mempalace/venv/bin/python \
+  /media/u0/OneDrive_Backup/mempalace/app/scripts/localai_chatgpt_signals.py \
+  --source-dir /media/u0/OneDrive_Backup/mempalace/sources/chatgpt \
+  --checkpoint /media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_signals.checkpoint.jsonl \
+  --wing chatgpt_signals \
+  --model qwen3-vl-8b-instruct
 ```
 
-The bridge must abort if `ARCHIVEKG_OPENAI_BASE_URL` is unset or points at a
+The script reads `secrets/http_token` for MemPalace HTTP MCP and
+`secrets/localai_token` for LocalAI. It aborts if LocalAI is unreachable, the
+model does not return valid JSON, or the configured LocalAI base URL points at a
 cloud endpoint. The intended LLM is LocalAI hosted on `snow-white-iii`; this
 deployment should not send ChatGPT exports to cloud APIs.

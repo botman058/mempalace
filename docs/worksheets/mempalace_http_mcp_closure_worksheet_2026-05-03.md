@@ -148,6 +148,7 @@ Final intended scope, subject to O-0 reread before staging:
 - `mempalace/normalize.py`
 - `pyproject.toml`
 - `scripts/ingest_chatgpt_canonical.sh`
+- `scripts/localai_chatgpt_signals.py`
 - `scripts/systemd/install_snow_white_iii.sh`
 - `scripts/systemd/mempalace-http-run`
 - `scripts/systemd/mempalace-http.service`
@@ -221,3 +222,29 @@ Explicitly excluded from staging:
 
 - `git commit -m "Host MemPalace over tailnet HTTP MCP"` created the scoped closure commit.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` succeeded and created the fork branch.
+
+### 2026-05-03 - Remote Re-Mining and LocalAI Pass
+
+- Raw ChatGPT mining was restarted on `snow-white-iii` as
+  `mempalace-mine-chatgpt.service` with `User=mempalace`,
+  `CPUQuota=200%`, `MemoryMax=16G`, and
+  `MEMPALACE_EMBEDDING_DEVICE=cuda`.
+- The initial raw mining attempt failed before writing embeddings because the
+  transient unit lacked the venv CUDA/cuDNN `LD_LIBRARY_PATH`; the fixed unit
+  uses the same CUDA library path as `mempalace-http.service`.
+- CUDA was proven under `User=mempalace` by embedding a probe sentence with
+  `MEMPALACE_EMBEDDING_DEVICE=cuda`, returning `device cuda` and
+  `embedding_dims 384`.
+- `scripts/localai_chatgpt_signals.py` was added as a fail-closed LocalAI
+  classification bridge. It parses ChatGPT `conversations.json`, calls
+  `http://snow-white-iii:8080/v1/chat/completions`, refuses
+  `api.openai.com`, and files classified signal drawers through
+  `mempalace_add_drawer` in the HTTP MCP service.
+- Remote secrets were staged under
+  `/media/u0/OneDrive_Backup/mempalace/secrets/` as `root:mempalace` with mode
+  `0640`; token values were not printed.
+- `mempalace-localai-chatgpt-signals.service` was queued as `User=mempalace`
+  with `CPUQuota=200%` and `MemoryMax=16G`. It waits for
+  `mempalace-mine-chatgpt.service` to stop before starting the LocalAI pass, so
+  raw embedding and LLM classification do not compete for the GPU at the same
+  time.
