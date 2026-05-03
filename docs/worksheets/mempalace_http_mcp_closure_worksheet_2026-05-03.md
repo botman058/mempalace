@@ -248,3 +248,10 @@ Explicitly excluded from staging:
   `mempalace-mine-chatgpt.service` to stop before starting the LocalAI pass, so
   raw embedding and LLM classification do not compete for the GPU at the same
   time.
+- Raw mining completed successfully at `2026-05-03T19:10:35-04:00`: 19
+  `conversations.json` files processed, 135,182 raw `chatgpt` drawers filed,
+  and peak memory was 3.7G.
+- After the raw mine stopped, `mempalace-localai-chatgpt-signals.service`
+  started `scripts/localai_chatgpt_signals.py` as `mempalace`. The first
+  checkpoint recorded one classified conversation and six filed
+  `chatgpt_signals` drawers, with the HTTP service remaining healthy.
