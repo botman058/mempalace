@@ -570,6 +570,26 @@ def cmd_sweep(args):
 
 
 def cmd_search(args):
+    from .http_client import RemoteMCPError, call_tool, format_search, should_use_remote
+
+    if should_use_remote(explicit_palace=args.palace):
+        try:
+            result = call_tool(
+                "mempalace_search",
+                {
+                    "query": args.query,
+                    "wing": args.wing,
+                    "room": args.room,
+                    "limit": args.results,
+                },
+            )
+        except RemoteMCPError as e:
+            print(f"\n  Remote MemPalace search failed: {e}", file=sys.stderr)
+            print("  Set MEMPALACE_LOCAL=1 to force local search.", file=sys.stderr)
+            sys.exit(1)
+        print(format_search(args.query, result, wing=args.wing, room=args.room))
+        return
+
     from .searcher import search, SearchError
 
     palace_path = os.path.expanduser(args.palace) if args.palace else MempalaceConfig().palace_path
@@ -635,6 +655,20 @@ def cmd_migrate(args):
 
 
 def cmd_status(args):
+    from .http_client import RemoteMCPError, call_tool, format_status, should_use_remote
+
+    if should_use_remote(explicit_palace=args.palace):
+        try:
+            result = call_tool("mempalace_get_taxonomy", {})
+            status_result = call_tool("mempalace_status", {})
+            status_result["taxonomy"] = result.get("taxonomy", {})
+        except RemoteMCPError as e:
+            print(f"\n  Remote MemPalace status failed: {e}", file=sys.stderr)
+            print("  Set MEMPALACE_LOCAL=1 to force local status.", file=sys.stderr)
+            sys.exit(1)
+        print(format_status(status_result))
+        return
+
     from .miner import status
 
     palace_path = os.path.expanduser(args.palace) if args.palace else MempalaceConfig().palace_path

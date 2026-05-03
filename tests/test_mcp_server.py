@@ -212,6 +212,44 @@ class TestHandleRequest:
 
 
 class TestReadTools:
+    def test_status_absent_palace_does_not_create_path(self, monkeypatch, tmp_dir, kg):
+        from mempalace.config import MempalaceConfig
+
+        missing_palace = f"{tmp_dir}/missing-palace"
+        cfg_dir = f"{tmp_dir}/config-missing"
+        import json
+        import os
+
+        os.makedirs(cfg_dir)
+        with open(os.path.join(cfg_dir, "config.json"), "w") as f:
+            json.dump({"palace_path": missing_palace}, f)
+        _patch_mcp_server(monkeypatch, MempalaceConfig(config_dir=cfg_dir), kg)
+
+        from mempalace.mcp_server import tool_status
+
+        result = tool_status()
+        assert result["error"] == "No palace found"
+        assert not os.path.exists(missing_palace)
+
+    def test_taxonomy_absent_palace_does_not_create_path(self, monkeypatch, tmp_dir, kg):
+        from mempalace.config import MempalaceConfig
+
+        missing_palace = f"{tmp_dir}/missing-palace"
+        cfg_dir = f"{tmp_dir}/config-missing-taxonomy"
+        import json
+        import os
+
+        os.makedirs(cfg_dir)
+        with open(os.path.join(cfg_dir, "config.json"), "w") as f:
+            json.dump({"palace_path": missing_palace}, f)
+        _patch_mcp_server(monkeypatch, MempalaceConfig(config_dir=cfg_dir), kg)
+
+        from mempalace.mcp_server import tool_get_taxonomy
+
+        result = tool_get_taxonomy()
+        assert result["error"] == "No palace found"
+        assert not os.path.exists(missing_palace)
+
     def test_status_cold_start_no_collection(self, monkeypatch, config, palace_path, kg):
         """Status on a valid palace with no ChromaDB collection yet (#830).
 
@@ -263,6 +301,9 @@ class TestReadTools:
 
         _patch_mcp_server(monkeypatch, config, kg)
         from mempalace.mcp_server import tool_status
+
+        _client, _col = _get_collection(palace_path, create=True)
+        del _client, _col
 
         # Inject a metadata cache where one entry is None
         with _patch("mempalace.mcp_server._get_collection") as mock_get_col:
@@ -352,6 +393,25 @@ class TestSearchTool:
 
         result = tool_search(query="database", room="backend")
         assert all(r["room"] == "backend" for r in result["results"])
+
+    def test_search_defaults_to_union_candidates(self, monkeypatch, config, kg):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace import mcp_server
+
+        captured = {}
+
+        def fake_search_memories(*args, **kwargs):
+            captured.update(kwargs)
+            return {"results": []}
+
+        monkeypatch.setattr(mcp_server, "_refresh_vector_disabled_flag", lambda: None)
+        monkeypatch.setattr(mcp_server, "search_memories", fake_search_memories)
+
+        result = mcp_server.tool_search(query="database")
+
+        assert result == {"results": []}
+        assert captured["candidate_strategy"] == "union"
+        assert captured["max_distance"] == 0.0
 
     def test_search_min_similarity_backwards_compat(
         self, monkeypatch, config, palace_path, seeded_collection, kg

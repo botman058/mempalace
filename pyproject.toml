@@ -40,6 +40,7 @@ Repository = "https://github.com/MemPalace/mempalace"
 [project.scripts]
 mempalace = "mempalace.cli:main"
 mempalace-mcp = "mempalace.mcp_server:main"
+mempalace-mcp-http = "mempalace.http_mcp_server:main"
 
 [project.entry-points."mempalace.backends"]
 chroma = "mempalace.backends.chroma:ChromaBackend"
@@ -53,12 +54,20 @@ chroma = "mempalace.backends.chroma:ChromaBackend"
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0", "psutil>=5.9"]
 spellcheck = ["autocorrect>=2.0"]
+server = ["fastapi>=0.110,<1", "uvicorn[standard]>=0.23,<1"]
 # Hardware acceleration for the ONNX embedding model. Install exactly one:
 #   pip install mempalace[gpu]       — NVIDIA CUDA
 #   pip install mempalace[dml]       — DirectML (Windows AMD/Intel/NVIDIA)
 #   pip install mempalace[coreml]    — macOS Neural Engine
 # After install, set MEMPALACE_EMBEDDING_DEVICE=cuda|dml|coreml (or "auto").
-gpu = ["onnxruntime-gpu>=1.16"]
+gpu = [
+    "onnxruntime-gpu>=1.16",
+    "nvidia-cublas-cu12>=12,<13; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "nvidia-cuda-runtime-cu12>=12,<13; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "nvidia-cudnn-cu12>=9,<10; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "nvidia-cufft-cu12>=11,<12; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "nvidia-curand-cu12>=10,<11; platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
 dml = ["onnxruntime-directml>=1.16"]
 coreml = ["onnxruntime>=1.16"]
 

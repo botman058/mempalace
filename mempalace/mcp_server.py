@@ -276,6 +276,8 @@ def _get_client():
 def _get_collection(create=False):
     """Return the ChromaDB collection, caching the client between calls."""
     global _collection_cache, _metadata_cache, _metadata_cache_time
+    if not create and not os.path.isdir(_config.palace_path):
+        return None
     try:
         client = _get_client()
         # ChromaDB 1.x persists the EF *identity* (its ``name()``) with the
@@ -482,6 +484,8 @@ def tool_status():
     # Use create=True only when a palace DB already exists on disk -- this
     # bootstraps the ChromaDB collection on a valid-but-empty palace without
     # accidentally creating a palace in a non-existent directory (#830).
+    if not db_exists:
+        return _no_palace()
     col = _get_collection(create=db_exists)
     if not col:
         return _no_palace()
@@ -613,9 +617,10 @@ def tool_search(
     limit: int = 5,
     wing: str = None,
     room: str = None,
-    max_distance: float = 1.5,
+    max_distance: float = 0.0,
     min_similarity: float = None,
     context: str = None,
+    candidate_strategy: str = "union",
 ):
     limit = max(1, min(limit, _MAX_RESULTS))
     try:
@@ -634,15 +639,19 @@ def tool_search(
     # here would defeat the fallback — it constructs a PersistentClient
     # which can segfault on segment load in the #1222 failure mode.
     _refresh_vector_disabled_flag()
-    result = search_memories(
-        sanitized["clean_query"],
-        palace_path=_config.palace_path,
-        wing=wing,
-        room=room,
-        n_results=limit,
-        max_distance=dist,
-        vector_disabled=_vector_disabled,
-    )
+    try:
+        result = search_memories(
+            sanitized["clean_query"],
+            palace_path=_config.palace_path,
+            wing=wing,
+            room=room,
+            n_results=limit,
+            max_distance=dist,
+            vector_disabled=_vector_disabled,
+            candidate_strategy=candidate_strategy,
+        )
+    except ValueError as e:
+        return {"error": str(e)}
     if _vector_disabled:
         result["vector_disabled"] = True
         result["vector_disabled_reason"] = _vector_disabled_reason
@@ -1661,7 +1670,7 @@ TOOLS = {
         "handler": tool_follow_tunnels,
     },
     "mempalace_search": {
-        "description": "Semantic search. Returns verbatim drawer content with similarity scores. IMPORTANT: 'query' must contain ONLY search keywords. Use 'context' for background. Results with cosine distance > max_distance are filtered out.",
+        "description": "Hybrid vector+BM25 search with re-ranking. Returns verbatim drawer content with similarity scores. IMPORTANT: 'query' must contain ONLY search keywords. Use 'context' for background. Results with cosine distance > max_distance are filtered out when max_distance is non-zero.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -1680,7 +1689,12 @@ TOOLS = {
                 "room": {"type": "string", "description": "Filter by room (optional)"},
                 "max_distance": {
                     "type": "number",
-                    "description": "Max cosine distance threshold (0=identical, 2=opposite). Results further than this are dropped. Lower = stricter. Default 1.5. Set to 0 to disable.",
+                    "description": "Max cosine distance threshold (0=identical, 2=opposite). Results further than this are dropped. Lower = stricter. Default 0 disables filtering and allows BM25-only union candidates.",
+                },
+                "candidate_strategy": {
+                    "type": "string",
+                    "enum": ["vector", "union"],
+                    "description": "Candidate pool strategy. 'union' merges vector candidates with BM25 candidates before hybrid re-ranking. Default union.",
                 },
                 "context": {
                     "type": "string",
@@ -2011,6 +2025,17 @@ def _restore_stdout():
 
 def main():
     _restore_stdout()
+    try:
+        from .http_client import should_use_remote
+
+        if should_use_remote(explicit_palace=_args.palace):
+            from .http_stdio_proxy import main as proxy_main
+
+            proxy_main()
+            return
+    except Exception:
+        logger.exception("Failed to initialize remote MCP proxy; falling back to local stdio")
+
     logger.info("MemPalace MCP Server starting...")
     # Pre-flight: probe HNSW capacity before any tool call so the warning
     # is visible at startup rather than on first use (#1222). Pure

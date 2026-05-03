@@ -24,6 +24,51 @@ claude mcp add mempalace -- python -m mempalace.mcp_server
 claude mcp add mempalace -- python -m mempalace.mcp_server --palace /path/to/palace
 ```
 
+### HTTP MCP Server
+
+For a hosted palace, install the HTTP server extra and serve the same MCP tools
+over a bearer-token-protected endpoint:
+
+```bash
+pip install "mempalace[server]"
+export MEMPALACE_PALACE_PATH=/path/to/palace
+export MEMPALACE_HTTP_HOST=100.x.y.z
+export MEMPALACE_HTTP_PORT=8765
+export MEMPALACE_HTTP_TOKEN_FILE=/path/to/http_token
+mempalace-mcp-http --host "$MEMPALACE_HTTP_HOST" --port "$MEMPALACE_HTTP_PORT"
+```
+
+The HTTP transport exposes:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /mcp` | MCP JSON-RPC requests: `initialize`, `tools/list`, `tools/call`, `ping`, and notifications |
+| `GET /healthz` | Service status, palace path, configured/effective embedding device, and drawer count when readable |
+
+Both endpoints require `Authorization: Bearer <token>` unless
+`MEMPALACE_HTTP_ALLOW_NO_AUTH=1` is set for isolated local development.
+
+### Remote Client Mode
+
+On a thin client, point the CLI and stdio MCP wrapper at the hosted endpoint:
+
+```bash
+export MEMPALACE_HTTP_URL=http://100.112.179.49:8765
+export MEMPALACE_HTTP_TOKEN_FILE=/path/to/http_token
+
+mempalace status
+mempalace search "pricing discussion"
+claude mcp add mempalace -- mempalace-mcp
+```
+
+With `MEMPALACE_HTTP_URL` set, `mempalace status`, `mempalace search`, and
+`mempalace-mcp` forward to HTTP instead of opening a local palace. Use
+`MEMPALACE_LOCAL=1` or pass `--palace /path/to/local/palace` to force local
+access.
+
+Hosted `mempalace_search` uses hybrid retrieval: vector candidates and BM25
+candidates are merged, then re-ranked with both similarity and lexical scores.
+
 Now your AI has all 29 tools available. Ask it anything:
 
 > *"What did we decide about auth last month?"*

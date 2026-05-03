@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from mempalace.normalize import (
     _SLACK_PROVENANCE_FOOTER,
+    TRANSCRIPT_SEPARATOR,
     _extract_content,
     _format_tool_result,
     _format_tool_use,
@@ -834,6 +835,152 @@ def test_chatgpt_json_valid():
     result = _try_chatgpt_json(data)
     assert result is not None
     assert "> Hello ChatGPT" in result
+    assert "Hello! How can I help?" in result
+
+
+def test_chatgpt_json_privacy_export_list():
+    """Real ChatGPT conversations.json is a list of conversation objects."""
+    data = [
+        {
+            "title": "First",
+            "current_node": "a1",
+            "mapping": {
+                "root": {"parent": None, "message": None, "children": ["u1"]},
+                "u1": {
+                    "parent": "root",
+                    "message": {
+                        "author": {"role": "user"},
+                        "content": {"parts": ["First question"]},
+                    },
+                    "children": ["a1"],
+                },
+                "a1": {
+                    "parent": "u1",
+                    "message": {
+                        "author": {"role": "assistant"},
+                        "content": {"parts": ["First answer"]},
+                    },
+                    "children": [],
+                },
+            },
+        },
+        {
+            "title": "Second",
+            "current_node": "a2",
+            "mapping": {
+                "root": {"parent": None, "message": None, "children": ["u2"]},
+                "u2": {
+                    "parent": "root",
+                    "message": {
+                        "author": {"role": "user"},
+                        "content": {"parts": ["Second question"]},
+                    },
+                    "children": ["a2"],
+                },
+                "a2": {
+                    "parent": "u2",
+                    "message": {
+                        "author": {"role": "assistant"},
+                        "content": {"parts": ["Second answer"]},
+                    },
+                    "children": [],
+                },
+            },
+        },
+    ]
+
+    result = _try_chatgpt_json(data)
+    assert result is not None
+    assert "> First question" in result
+    assert "First answer" in result
+    assert TRANSCRIPT_SEPARATOR in result
+    assert "> Second question" in result
+    assert "Second answer" in result
+
+
+def test_chatgpt_json_uses_current_node_selected_path():
+    """When branches exist, use ChatGPT's selected current_node path."""
+    data = {
+        "current_node": "selected_a",
+        "mapping": {
+            "root": {"parent": None, "message": None, "children": ["u1"]},
+            "u1": {
+                "parent": "root",
+                "message": {
+                    "author": {"role": "user"},
+                    "content": {"parts": ["Question"]},
+                },
+                "children": ["old_a", "selected_a"],
+            },
+            "old_a": {
+                "parent": "u1",
+                "message": {
+                    "author": {"role": "assistant"},
+                    "content": {"parts": ["Old branch"]},
+                },
+                "children": [],
+            },
+            "selected_a": {
+                "parent": "u1",
+                "message": {
+                    "author": {"role": "assistant"},
+                    "content": {"parts": ["Selected branch"]},
+                },
+                "children": [],
+            },
+        },
+    }
+
+    result = _try_chatgpt_json(data)
+    assert result is not None
+    assert "Selected branch" in result
+    assert "Old branch" not in result
+
+
+def test_chatgpt_json_privacy_export_skips_empty_conversations():
+    data = [
+        {
+            "current_node": "u1",
+            "mapping": {
+                "root": {"parent": None, "message": None, "children": ["u1"]},
+                "u1": {
+                    "parent": "root",
+                    "message": {
+                        "author": {"role": "user"},
+                        "content": {"parts": ["Lonely"]},
+                    },
+                    "children": [],
+                },
+            },
+        },
+        {
+            "current_node": "a2",
+            "mapping": {
+                "root": {"parent": None, "message": None, "children": ["u2"]},
+                "u2": {
+                    "parent": "root",
+                    "message": {
+                        "author": {"role": "user"},
+                        "content": {"parts": ["Real question"]},
+                    },
+                    "children": ["a2"],
+                },
+                "a2": {
+                    "parent": "u2",
+                    "message": {
+                        "author": {"role": "assistant"},
+                        "content": {"parts": ["Real answer"]},
+                    },
+                    "children": [],
+                },
+            },
+        },
+    ]
+
+    result = _try_chatgpt_json(data)
+    assert result is not None
+    assert "Lonely" not in result
+    assert "> Real question" in result
 
 
 def test_chatgpt_json_no_mapping():

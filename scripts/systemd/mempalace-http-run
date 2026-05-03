@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${MEMPALACE_ROOT:-/media/u0/OneDrive_Backup/mempalace}"
+ENV_FILE="${MEMPALACE_ENV_FILE:-$ROOT/mempalace.env}"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+APP="${MEMPALACE_APP:-$ROOT/app}"
+VENV="${MEMPALACE_VENV:-$ROOT/venv}"
+PALACE="${MEMPALACE_PALACE_PATH:-$ROOT/data/palace}"
+HOST="${MEMPALACE_HTTP_HOST:-127.0.0.1}"
+PORT="${MEMPALACE_HTTP_PORT:-8765}"
+
+export MEMPALACE_ROOT="$ROOT"
+export MEMPALACE_APP="$APP"
+export MEMPALACE_VENV="$VENV"
+export MEMPALACE_PALACE_PATH="$PALACE"
+export MEMPALACE_EMBEDDING_DEVICE="${MEMPALACE_EMBEDDING_DEVICE:-cuda}"
+export MEMPALACE_CACHE_DIR="${MEMPALACE_CACHE_DIR:-$ROOT/cache}"
+export HF_HOME="${HF_HOME:-$ROOT/cache/huggingface}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$ROOT/cache/xdg}"
+export TMPDIR="${TMPDIR:-$ROOT/tmp}"
+export ANONYMIZED_TELEMETRY="${ANONYMIZED_TELEMETRY:-False}"
+export CHROMA_TELEMETRY="${CHROMA_TELEMETRY:-False}"
+
+if [[ ! -x "$VENV/bin/python" ]]; then
+  echo "missing MemPalace venv python: $VENV/bin/python" >&2
+  exit 1
+fi
+
+site_lib="$("$VENV/bin/python" - <<'PY'
+import site
+paths = site.getsitepackages()
+print(paths[0] if paths else "")
+PY
+)"
+
+cuda_dirs=()
+if [[ -n "$site_lib" ]]; then
+  for dir in \
+    "$site_lib"/nvidia/cublas/lib \
+    "$site_lib"/nvidia/cuda_cupti/lib \
+    "$site_lib"/nvidia/cuda_nvrtc/lib \
+    "$site_lib"/nvidia/cuda_runtime/lib \
+    "$site_lib"/nvidia/cudnn/lib \
+    "$site_lib"/nvidia/cufft/lib \
+    "$site_lib"/nvidia/curand/lib \
+    "$site_lib"/nvidia/cusolver/lib \
+    "$site_lib"/nvidia/cusparse/lib \
+    "$site_lib"/nvidia/nccl/lib \
+    "$site_lib"/nvidia/nvjitlink/lib \
+    "$site_lib"/nvidia/nvtx/lib; do
+    [[ -d "$dir" ]] && cuda_dirs+=("$dir")
+  done
+fi
+
+if ((${#cuda_dirs[@]})); then
+  IFS=:
+  export LD_LIBRARY_PATH="${cuda_dirs[*]}"
+  unset IFS
+else
+  unset LD_LIBRARY_PATH
+fi
+
+cd "$APP"
+exec "$VENV/bin/python" -m uvicorn mempalace.http_mcp_server:app --host "$HOST" --port "$PORT"

@@ -1,12 +1,34 @@
+import json
 import os
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
 import chromadb
 
 from mempalace.convo_miner import mine_convos
 from mempalace.palace import file_already_mined
+
+
+def _chatgpt_conversation(title: str, node_prefix: str, turns: list[tuple[str, str]]) -> dict:
+    mapping = {"root": {"parent": None, "message": None, "children": []}}
+    parent = "root"
+    for idx, (question, answer) in enumerate(turns, 1):
+        user_id = f"{node_prefix}_u{idx}"
+        assistant_id = f"{node_prefix}_a{idx}"
+        mapping[parent]["children"] = [user_id]
+        mapping[user_id] = {
+            "parent": parent,
+            "message": {"author": {"role": "user"}, "content": {"parts": [question]}},
+            "children": [assistant_id],
+        }
+        mapping[assistant_id] = {
+            "parent": user_id,
+            "message": {"author": {"role": "assistant"}, "content": {"parts": [answer]}},
+            "children": [],
+        }
+        parent = assistant_id
+    return {"title": title, "current_node": parent, "mapping": mapping}
 
 
 def test_convo_mining():
@@ -156,5 +178,69 @@ def test_mine_convos_rebuilds_stale_drawers_after_schema_bump(capsys):
         for meta in rebuilt["metadatas"]:
             assert meta.get("normalize_version") == NORMALIZE_VERSION
         del col, client
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_mine_convos_rooms_chatgpt_privacy_export_per_thread(capsys):
+    """A single conversations.json file can contain threads from different rooms."""
+    tmpdir = tempfile.mkdtemp()
+    try:
+        export_path = Path(tmpdir) / "conversations.json"
+        export_path.write_text(
+            json.dumps(
+                [
+                    _chatgpt_conversation(
+                        "Technical thread",
+                        "tech",
+                        [
+                            (
+                                "Can you debug this Python API server error?",
+                                "The bug is in the database function; add a test before refactor.",
+                            ),
+                            (
+                                "What should the function do when the API fails?",
+                                "Return a typed error and log the failing server response.",
+                            ),
+                            (
+                                "How do we deploy the fix?",
+                                "Run the test suite, commit the code, then deploy the patched server.",
+                            ),
+                        ],
+                    ),
+                    _chatgpt_conversation(
+                        "Planning thread",
+                        "plan",
+                        [
+                            (
+                                "Can you help shape the roadmap and milestone plan?",
+                                "Set the deadline, scope the backlog, and pick sprint priorities.",
+                            ),
+                            (
+                                "What is the next requirement?",
+                                "Define the launch milestone and keep one planning owner.",
+                            ),
+                            (
+                                "How should we sequence the deadline work?",
+                                "Prioritize the roadmap items before adding optional backlog scope.",
+                            ),
+                        ],
+                    ),
+                ]
+            )
+        )
+        palace_path = os.path.join(tmpdir, "palace")
+
+        mine_convos(tmpdir, palace_path, wing="chatgpt")
+        capsys.readouterr()
+
+        client = chromadb.PersistentClient(path=palace_path)
+        col = client.get_collection("mempalace_drawers")
+        resolved = str(export_path.resolve())
+        result = col.get(where={"source_file": resolved}, include=["metadatas"])
+        rooms = {meta.get("room") for meta in result["metadatas"]}
+
+        assert "technical" in rooms
+        assert "planning" in rooms
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

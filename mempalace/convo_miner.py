@@ -13,9 +13,9 @@ import sys
 import hashlib
 from pathlib import Path
 from datetime import datetime
-from collections import defaultdict
+from collections import Counter, defaultdict
 
-from .normalize import normalize
+from .normalize import TRANSCRIPT_SEPARATOR, normalize
 from .palace import (
     NORMALIZE_VERSION,
     SKIP_DIRS,
@@ -108,6 +108,43 @@ def chunk_exchanges(content: str) -> list:
         return _chunk_by_exchange(lines)
     else:
         return _chunk_by_paragraph(content)
+
+
+def _split_normalized_transcripts(content: str) -> list:
+    """Return one or more independent transcript blocks from normalized text."""
+    parts = [part.strip() for part in content.split(TRANSCRIPT_SEPARATOR)]
+    parts = [part for part in parts if part]
+    return parts or [content]
+
+
+def _chunks_from_transcripts(transcript_blocks: list, extract_mode: str) -> list:
+    """Chunk normalized transcript blocks while preserving per-thread rooms."""
+    chunks = []
+    if extract_mode == "general":
+        from .general_extractor import extract_memories
+
+        for block in transcript_blocks:
+            for chunk in extract_memories(block):
+                chunk = dict(chunk)
+                chunk["chunk_index"] = len(chunks)
+                chunks.append(chunk)
+        return chunks
+
+    for block in transcript_blocks:
+        room = detect_convo_room(block)
+        for chunk in chunk_exchanges(block):
+            chunk = dict(chunk)
+            chunk["chunk_index"] = len(chunks)
+            chunk["room"] = room
+            chunks.append(chunk)
+    return chunks
+
+
+def _chunk_room_counts(chunks: list, extract_mode: str) -> Counter:
+    """Count the rooms represented by a chunk list."""
+    if extract_mode == "general":
+        return Counter(c.get("memory_type", "general") for c in chunks)
+    return Counter(c.get("room", "general") for c in chunks)
 
 
 def _chunk_by_exchange(lines: list) -> list:
@@ -343,9 +380,11 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
             batch_ids: list = []
             batch_metas: list = []
             for chunk in chunks[batch_start : batch_start + DRAWER_UPSERT_BATCH_SIZE]:
-                chunk_room = chunk.get("memory_type", room) if extract_mode == "general" else room
                 if extract_mode == "general":
-                    room_counts_delta[chunk_room] += 1
+                    chunk_room = chunk.get("memory_type") or room or "general"
+                else:
+                    chunk_room = chunk.get("room") or room or "general"
+                room_counts_delta[chunk_room] += 1
                 drawer_id = f"drawer_{wing}_{chunk_room}_{hashlib.sha256((source_file + str(chunk['chunk_index'])).encode()).hexdigest()[:24]}"
                 batch_docs.append(chunk["content"])
                 batch_ids.append(drawer_id)
@@ -440,46 +479,31 @@ def mine_convos(
                 _register_file(collection, source_file, wing, agent)
             continue
 
-        # Chunk — either exchange pairs or general extraction
-        if extract_mode == "general":
-            from .general_extractor import extract_memories
+        transcript_blocks = _split_normalized_transcripts(content)
 
-            chunks = extract_memories(content)
-            # Each chunk already has memory_type; use it as the room name
-        else:
-            chunks = chunk_exchanges(content)
+        # Chunk per transcript block so multi-thread exports do not collapse
+        # into one room. The helper keeps chunk_index unique across the file.
+        chunks = _chunks_from_transcripts(transcript_blocks, extract_mode)
 
         if not chunks:
             if not dry_run:
                 _register_file(collection, source_file, wing, agent)
             continue
 
-        # Detect room from content (general mode uses memory_type instead)
-        if extract_mode != "general":
-            room = detect_convo_room(content)
-        else:
-            room = None  # set per-chunk below
+        # general mode uses memory_type; exchange mode stores room per chunk.
+        room = None
 
         if dry_run:
+            counts = _chunk_room_counts(chunks, extract_mode)
+            counts_str = ", ".join(f"{r}:{n}" for r, n in counts.most_common())
             if extract_mode == "general":
-                from collections import Counter
-
-                type_counts = Counter(c.get("memory_type", "general") for c in chunks)
-                types_str = ", ".join(f"{t}:{n}" for t, n in type_counts.most_common())
-                print(f"    [DRY RUN] {filepath.name} → {len(chunks)} memories ({types_str})")
+                print(f"    [DRY RUN] {filepath.name} → {len(chunks)} memories ({counts_str})")
             else:
-                print(f"    [DRY RUN] {filepath.name} → room:{room} ({len(chunks)} drawers)")
+                print(f"    [DRY RUN] {filepath.name} → {len(chunks)} drawers ({counts_str})")
             total_drawers += len(chunks)
-            # Track room counts
-            if extract_mode == "general":
-                for c in chunks:
-                    room_counts[c.get("memory_type", "general")] += 1
-            else:
-                room_counts[room] += 1
+            for chunk_room, count in counts.items():
+                room_counts[chunk_room] += count
             continue
-
-        if extract_mode != "general":
-            room_counts[room] += 1
 
         # Lock + purge stale + file fresh chunks. Lock serializes concurrent
         # agents; purge removes pre-v2 drawers so the schema bump applies.
@@ -503,7 +527,7 @@ def mine_convos(
     if room_counts:
         print("\n  By room:")
         for room, count in sorted(room_counts.items(), key=lambda x: x[1], reverse=True):
-            print(f"    {room:20} {count} files")
+            print(f"    {room:20} {count} drawers")
     print('\n  Next: mempalace search "what you\'re looking for"')
     print(f"{'=' * 55}\n")
 
