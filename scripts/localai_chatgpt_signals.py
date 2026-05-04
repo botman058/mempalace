@@ -22,6 +22,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 try:
+    from mempalace.chatgpt_identity import extract_chatgpt_identity
     from mempalace.normalize import _collect_chatgpt_messages, _messages_to_transcript
 except ImportError as exc:  # pragma: no cover - deployment/environment failure.
     raise SystemExit(f"Could not import mempalace normalization helpers: {exc}") from exc
@@ -185,6 +186,10 @@ def conversation_key(source_file: Path, conversation: dict[str, Any]) -> str:
     return f"{source_file.name}:sha256:{digest}"
 
 
+def legacy_checkpoint_key(source_file: Path, conversation_id: str) -> str:
+    return f"{source_file.name}:{conversation_id}"
+
+
 def iter_conversations(source_dir: Path):
     files = sorted(source_dir.rglob("conversations.json"))
     if not files:
@@ -203,8 +208,8 @@ def iter_conversations(source_dir: Path):
                 yield path, conversation
 
 
-def load_checkpoint(path: Path) -> set[str]:
-    seen: set[str] = set()
+def load_checkpoint(path: Path) -> dict[str, str]:
+    seen: dict[str, str] = {}
     if not path.exists():
         return seen
     with path.open("r", encoding="utf-8", errors="replace") as fh:
@@ -217,7 +222,8 @@ def load_checkpoint(path: Path) -> set[str]:
                 continue
             key = row.get("key")
             if isinstance(key, str):
-                seen.add(key)
+                status = row.get("status")
+                seen[key] = status if isinstance(status, str) else ""
     return seen
 
 
@@ -226,6 +232,31 @@ def append_checkpoint(path: Path, row: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, sort_keys=True) + "\n")
         fh.flush()
+
+
+def _checkpoint_status(seen: Any, key: str) -> str | None:
+    if isinstance(seen, dict):
+        return seen.get(key)
+    if key in seen:
+        return ""
+    return None
+
+
+def seen_checkpoint_key(seen: Any, source_file: Path, identity: Any) -> bool:
+    logical_source_id = getattr(identity, "logical_source_id", None)
+    if isinstance(logical_source_id, str):
+        status = _checkpoint_status(seen, logical_source_id)
+        if status is not None and status != "skipped_empty":
+            return True
+
+    conversation_id = getattr(identity, "conversation_id", None)
+    if isinstance(conversation_id, str):
+        legacy_key = legacy_checkpoint_key(source_file, conversation_id)
+        status = _checkpoint_status(seen, legacy_key)
+        if status is not None and status != "skipped_empty":
+            return True
+
+    return False
 
 
 def sanitize_room(value: Any, fallback: str = "general") -> str:
@@ -366,17 +397,28 @@ def run(args: argparse.Namespace) -> int:
     filed = 0
     started = time.time()
     for source_file, conversation in iter_conversations(source_dir):
-        key = conversation_key(source_file, conversation)
-        if key in seen:
-            skipped += 1
-            continue
-        messages = _collect_chatgpt_messages(conversation)
-        if len(messages) < 2:
-            append_checkpoint(checkpoint, {"key": key, "status": "skipped_empty"})
-            skipped += 1
-            continue
-        title = str(conversation.get("title") or "").strip()
-        transcript = _messages_to_transcript(messages, spellcheck=False)
+        identity = extract_chatgpt_identity(conversation)
+        if identity is None:
+            key = conversation_key(source_file, conversation)
+            if key in seen:
+                skipped += 1
+                continue
+            messages = _collect_chatgpt_messages(conversation)
+            if len(messages) < 2:
+                append_checkpoint(checkpoint, {"key": key, "status": "skipped_empty"})
+                seen[key] = "skipped_empty"
+                skipped += 1
+                continue
+            title = str(conversation.get("title") or "").strip()
+            transcript = _messages_to_transcript(messages, spellcheck=False)
+        else:
+            key = identity.logical_source_id
+            if seen_checkpoint_key(seen, source_file, identity):
+                skipped += 1
+                continue
+            title = identity.title or ""
+            transcript = identity.transcript
+
         if len(transcript) > args.max_chars:
             transcript = transcript[: args.max_chars] + "\n\n[truncated for classification]"
         classification = localai_chat_completion(
@@ -421,7 +463,9 @@ def run(args: argparse.Namespace) -> int:
                 "elapsed_seconds": round(time.time() - started, 2),
             },
         )
-        seen.add(key)
+        seen[key] = "classified"
+        if identity is not None and isinstance(identity.conversation_id, str):
+            seen[legacy_checkpoint_key(source_file, identity.conversation_id)] = "classified"
         processed += 1
         if processed % args.progress_every == 0:
             print(

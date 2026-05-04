@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import Counter, defaultdict
 
+from .chatgpt_identity import iter_chatgpt_identity_records_from_json_file
 from .normalize import TRANSCRIPT_SEPARATOR, normalize
 from .palace import (
     NORMALIZE_VERSION,
@@ -66,28 +67,44 @@ MAX_FILE_SIZE = 500 * 1024 * 1024  # 500 MB — skip files larger than this.
 # use also scales with source size.
 
 
-def _register_file(collection, source_file: str, wing: str, agent: str):
-    """Write a sentinel so file_already_mined() returns True for 0-chunk files.
+def _build_chatgpt_record_metadata(record, source_path: str) -> dict:
+    """Build stored metadata for one ChatGPT logical source."""
+    metadata = {
+        "logical_source_id": record.logical_source_id,
+        "source_format": "chatgpt",
+        "source_path": source_path,
+        "source_hash": record.source_hash,
+    }
+    if record.conversation_id:
+        metadata["conversation_id"] = record.conversation_id
+    if record.title:
+        metadata["conversation_title"] = record.title
+    return metadata
+
+
+def _register_file(collection, source_file: str, wing: str, agent: str, extra_metadata: dict = None):
+    """Write a sentinel so file_already_mined() returns True for 0-chunk sources.
 
     Without this, files that normalize to nothing or produce zero chunks are
     re-read and re-processed on every mine run because nothing was written to
     ChromaDB on the first pass.
     """
+    metadata = {
+        "wing": wing,
+        "room": "_registry",
+        "source_file": source_file,
+        "added_by": agent,
+        "filed_at": datetime.now().isoformat(),
+        "ingest_mode": "registry",
+        "normalize_version": NORMALIZE_VERSION,
+    }
+    if extra_metadata:
+        metadata.update(extra_metadata)
     sentinel_id = f"_reg_{hashlib.sha256(source_file.encode()).hexdigest()[:24]}"
     collection.upsert(
         documents=[f"[registry] {source_file}"],
         ids=[sentinel_id],
-        metadatas=[
-            {
-                "wing": wing,
-                "room": "_registry",
-                "source_file": source_file,
-                "added_by": agent,
-                "filed_at": datetime.now().isoformat(),
-                "ingest_mode": "registry",
-                "normalize_version": NORMALIZE_VERSION,
-            }
-        ],
+        metadatas=[metadata],
     )
 
 
@@ -145,6 +162,21 @@ def _chunk_room_counts(chunks: list, extract_mode: str) -> Counter:
     if extract_mode == "general":
         return Counter(c.get("memory_type", "general") for c in chunks)
     return Counter(c.get("room", "general") for c in chunks)
+
+
+def _logical_source_already_mined(collection, source_file: str, source_hash: str) -> bool:
+    """Return True when a logical source is already stored at the current hash."""
+    try:
+        results = collection.get(where={"source_file": source_file}, limit=1)
+        if not results.get("ids"):
+            return False
+        stored_meta = results.get("metadatas", [{}])[0] or {}
+        stored_version = stored_meta.get("normalize_version", 1)
+        if stored_version < NORMALIZE_VERSION:
+            return False
+        return stored_meta.get("source_hash") == source_hash
+    except Exception:
+        return False
 
 
 def _chunk_by_exchange(lines: list) -> list:
@@ -344,7 +376,18 @@ def scan_convos(convo_dir: str) -> list:
 # =============================================================================
 
 
-def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extract_mode):
+def _file_chunks_locked(
+    collection,
+    source_file,
+    chunks,
+    wing,
+    room,
+    agent,
+    extract_mode,
+    extra_metadata: dict = None,
+    source_hash: str = None,
+    register_empty: bool = False,
+):
     """Lock the source file, purge stale drawers, and upsert fresh chunks.
 
     Combines the per-file serialization that prevents concurrent agents from
@@ -359,7 +402,10 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
         # Re-check after lock — another agent may have just finished this file
         # at the current schema. A stale-version hit here returns False, so we
         # still fall through to the purge+rebuild path below.
-        if file_already_mined(collection, source_file):
+        if source_hash is not None:
+            if _logical_source_already_mined(collection, source_file, source_hash):
+                return 0, room_counts_delta, True
+        elif file_already_mined(collection, source_file):
             return 0, room_counts_delta, True
 
         # Purge stale drawers first. When the normalize schema bumps,
@@ -375,6 +421,20 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
         # one filed_at per source file so all transcript drawers share an
         # ingest timestamp.
         filed_at = datetime.now().isoformat()
+        if not chunks and register_empty:
+            sentinel_metadata = dict(extra_metadata or {})
+            if source_hash is not None:
+                sentinel_metadata["source_hash"] = source_hash
+            sentinel_metadata["extract_mode"] = extract_mode
+            _register_file(
+                collection,
+                source_file,
+                wing,
+                agent,
+                extra_metadata=sentinel_metadata,
+            )
+            return 0, room_counts_delta, False
+
         for batch_start in range(0, len(chunks), DRAWER_UPSERT_BATCH_SIZE):
             batch_docs: list = []
             batch_ids: list = []
@@ -388,20 +448,23 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
                 drawer_id = f"drawer_{wing}_{chunk_room}_{hashlib.sha256((source_file + str(chunk['chunk_index'])).encode()).hexdigest()[:24]}"
                 batch_docs.append(chunk["content"])
                 batch_ids.append(drawer_id)
-                batch_metas.append(
-                    {
-                        "wing": wing,
-                        "room": chunk_room,
-                        "hall": _detect_hall_cached(chunk["content"]),
-                        "source_file": source_file,
-                        "chunk_index": chunk["chunk_index"],
-                        "added_by": agent,
-                        "filed_at": filed_at,
-                        "ingest_mode": "convos",
-                        "extract_mode": extract_mode,
-                        "normalize_version": NORMALIZE_VERSION,
-                    }
-                )
+                metadata = {
+                    "wing": wing,
+                    "room": chunk_room,
+                    "hall": _detect_hall_cached(chunk["content"]),
+                    "source_file": source_file,
+                    "chunk_index": chunk["chunk_index"],
+                    "added_by": agent,
+                    "filed_at": filed_at,
+                    "ingest_mode": "convos",
+                    "extract_mode": extract_mode,
+                    "normalize_version": NORMALIZE_VERSION,
+                }
+                if source_hash is not None:
+                    metadata["source_hash"] = source_hash
+                if extra_metadata:
+                    metadata.update(extra_metadata)
+                batch_metas.append(metadata)
             try:
                 collection.upsert(
                     documents=batch_docs,
@@ -456,10 +519,70 @@ def mine_convos(
 
     total_drawers = 0
     files_skipped = 0
+    conversations_skipped = 0
     room_counts = defaultdict(int)
 
     for i, filepath in enumerate(files, 1):
         source_file = str(filepath)
+        chatgpt_records = []
+
+        if filepath.name == "conversations.json":
+            try:
+                chatgpt_records = list(iter_chatgpt_identity_records_from_json_file(filepath))
+            except (OSError, ValueError, TypeError):
+                chatgpt_records = []
+
+        if chatgpt_records:
+            file_had_output = False
+            for record in chatgpt_records:
+                logical_source = record.logical_source_id
+                extra_metadata = _build_chatgpt_record_metadata(record, source_file)
+                chunks = _chunks_from_transcripts([record.transcript], extract_mode)
+
+                if dry_run:
+                    counts = _chunk_room_counts(chunks, extract_mode)
+                    counts_str = ", ".join(f"{r}:{n}" for r, n in counts.most_common())
+                    if extract_mode == "general":
+                        print(
+                            f"    [DRY RUN] {filepath.name}::{logical_source} "
+                            f"-> {len(chunks)} memories ({counts_str})"
+                        )
+                    else:
+                        print(
+                            f"    [DRY RUN] {filepath.name}::{logical_source} "
+                            f"-> {len(chunks)} drawers ({counts_str})"
+                        )
+                    total_drawers += len(chunks)
+                    for chunk_room, count in counts.items():
+                        room_counts[chunk_room] += count
+                    file_had_output = file_had_output or bool(chunks)
+                    continue
+
+                drawers_added, room_delta, skipped = _file_chunks_locked(
+                    collection,
+                    logical_source,
+                    chunks,
+                    wing,
+                    None,
+                    agent,
+                    extract_mode,
+                    extra_metadata=extra_metadata,
+                    source_hash=record.source_hash,
+                    register_empty=True,
+                )
+                if skipped:
+                    conversations_skipped += 1
+                    continue
+
+                for chunk_room, count in room_delta.items():
+                    room_counts[chunk_room] += count
+                total_drawers += drawers_added
+                file_had_output = True
+                print(f"  + [{i:4}/{len(files)}] {filepath.name[:22]:22} {logical_source[:26]:26} +{drawers_added}")
+
+            if not dry_run and not file_had_output:
+                files_skipped += 1
+            continue
 
         # Skip if already filed
         if not dry_run and file_already_mined(collection, source_file):
@@ -523,6 +646,8 @@ def mine_convos(
     print("  Done.")
     print(f"  Files processed: {len(files) - files_skipped}")
     print(f"  Files skipped (already filed): {files_skipped}")
+    if conversations_skipped:
+        print(f"  ChatGPT conversations skipped: {conversations_skipped}")
     print(f"  Drawers filed: {total_drawers}")
     if room_counts:
         print("\n  By room:")
