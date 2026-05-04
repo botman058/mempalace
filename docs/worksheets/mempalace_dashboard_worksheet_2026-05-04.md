@@ -307,3 +307,14 @@ Insufficient evidence:
 - `python3 -m pytest tests/test_dashboard_server.py -q` could not run locally because `tests/conftest.py` imports `chromadb`, which is not installed in this environment.
 - Static read-only search found no direct `mempalace.mcp_server`, Chroma/PersistentClient, mutating MCP tool, dashboard auth-bypass, or dashboard service restart/stop/reload path in scoped dashboard files.
 - No remote service restart, reload, stop, deployment, commit, push, palace data deletion, or live checkpoint mutation occurred during implementation.
+
+### 2026-05-04 - Dashboard Deploy Helper and Live Deploy
+
+- Added `scripts/systemd/deploy_dashboard_snow_white_iii.sh` as the user-facing deploy helper.
+- The deploy helper stages only dashboard runtime files and dashboard systemd artifacts into `/media/u0/OneDrive_Backup/mempalace/app`; it does not rsync the whole repo and does not use `--delete`.
+- The helper creates `secrets/dashboard_token` only if missing, uses the existing `secrets/http_token` for upstream HTTP MCP, installs only `mempalace-dashboard.service`, and refuses `/media/u0/Extreme SSD`.
+- Ran the deploy helper against `root@snow-white-iii`; it installed and started only `mempalace-dashboard.service`.
+- Remote verification showed `mempalace-dashboard.service`, `mempalace-http.service`, and `mempalace-localai-chatgpt-signals.service` all active.
+- Unauthenticated `GET http://100.112.179.49:8766/api/overview` returned `401`.
+- Authenticated `GET http://100.112.179.49:8766/api/overview` returned `mining_active=true`, LocalAI telemetry `status=ok`, checkpoint telemetry `status=ok`, `drawer_count=136924`, and `embedding_device=cuda`.
+- Authenticated `GET http://100.112.179.49:8766/api/search?q=test` returned `423 Locked` while `mempalace-localai-chatgpt-signals.service` was active.

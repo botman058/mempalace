@@ -111,8 +111,20 @@ Default layout:
 
 Files:
 
+- `scripts/systemd/deploy_dashboard_snow_white_iii.sh`
 - `scripts/systemd/mempalace-dashboard-run`
 - `scripts/systemd/mempalace-dashboard.service`
+
+Deploy from a workstation with root SSH access to `snow-white-iii`:
+
+```bash
+scripts/systemd/deploy_dashboard_snow_white_iii.sh
+```
+
+The deploy script stages only dashboard runtime files into the canonical app
+directory. It does not rsync the whole repo, does not use `--delete`, and does
+not restart or reload `mempalace-http.service`, mining services, or LocalAI.
+Use `--no-start` to install the unit without starting it.
 
 Suggested environment file contents:
 
