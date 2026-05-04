@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${MEMPALACE_ROOT:-/media/u0/OneDrive_Backup/mempalace}"
+
+case "$ROOT" in
+  /media/u0/Extreme\ SSD|/media/u0/Extreme\ SSD/*)
+    echo "refusing to use /media/u0/Extreme SSD" >&2
+    exit 2
+    ;;
+esac
+
+ENV_FILE="${MEMPALACE_DASHBOARD_ENV_FILE:-$ROOT/mempalace-dashboard.env}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+APP_DIR="${MEMPALACE_DASHBOARD_APP_DIR:-${MEMPALACE_APP:-$ROOT/app}}"
+VENV="${MEMPALACE_VENV:-$ROOT/venv}"
+HOST="${MEMPALACE_DASHBOARD_HOST:-${MEMPALACE_HTTP_HOST:-}}"
+PORT="${MEMPALACE_DASHBOARD_PORT:-8766}"
+DASHBOARD_TOKEN_FILE="${MEMPALACE_DASHBOARD_TOKEN_FILE:-$ROOT/secrets/dashboard_token}"
+UPSTREAM_TOKEN_FILE="${MEMPALACE_DASHBOARD_MCP_TOKEN_FILE:-${MEMPALACE_HTTP_TOKEN_FILE:-$ROOT/secrets/http_token}}"
+UVICORN_APP="${MEMPALACE_DASHBOARD_APP:-mempalace.dashboard_server:app}"
+
+if [[ -z "$HOST" ]]; then
+  if command -v tailscale >/dev/null 2>&1; then
+    HOST="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+  fi
+fi
+
+if [[ -z "$HOST" ]]; then
+  echo "MEMPALACE_DASHBOARD_HOST must be set to the Tailscale IPv4 address" >&2
+  exit 1
+fi
+
+python3 - "$HOST" <<'PY'
+import ipaddress
+import sys
+
+host = ipaddress.ip_address(sys.argv[1])
+tailnet = ipaddress.ip_network("100.64.0.0/10")
+if host.version != 4 or host not in tailnet:
+    raise SystemExit(1)
+PY
+
+if [[ ! -x "$VENV/bin/python" ]]; then
+  echo "missing MemPalace venv python: $VENV/bin/python" >&2
+  exit 1
+fi
+
+if [[ ! -d "$APP_DIR" ]]; then
+  echo "missing MemPalace app directory: $APP_DIR" >&2
+  exit 1
+fi
+
+dashboard_token="${MEMPALACE_DASHBOARD_TOKEN:-}"
+if [[ -z "$dashboard_token" ]]; then
+  if [[ ! -r "$DASHBOARD_TOKEN_FILE" ]]; then
+    echo "missing dashboard token file: $DASHBOARD_TOKEN_FILE" >&2
+    exit 1
+  fi
+  dashboard_token="$(<"$DASHBOARD_TOKEN_FILE")"
+fi
+if [[ -z "$dashboard_token" ]]; then
+  echo "dashboard token is empty" >&2
+  exit 1
+fi
+
+upstream_token="${MEMPALACE_DASHBOARD_MCP_TOKEN:-${MEMPALACE_HTTP_TOKEN:-${MEMPALACE_MCP_TOKEN:-}}}"
+if [[ -z "$upstream_token" ]]; then
+  if [[ ! -r "$UPSTREAM_TOKEN_FILE" ]]; then
+    echo "missing upstream MCP token file: $UPSTREAM_TOKEN_FILE" >&2
+    exit 1
+  fi
+  upstream_token="$(<"$UPSTREAM_TOKEN_FILE")"
+fi
+if [[ -z "$upstream_token" ]]; then
+  echo "upstream MCP token is empty" >&2
+  exit 1
+fi
+
+if [[ "$UPSTREAM_TOKEN_FILE" == "$DASHBOARD_TOKEN_FILE" ]]; then
+  echo "dashboard token file and upstream MCP token file must be distinct" >&2
+  exit 1
+fi
+if [[ "$upstream_token" == "$dashboard_token" ]]; then
+  echo "dashboard bearer token and upstream MCP bearer token must be distinct" >&2
+  exit 1
+fi
+
+export MEMPALACE_ROOT="$ROOT"
+export MEMPALACE_APP="$APP_DIR"
+export MEMPALACE_VENV="$VENV"
+export MEMPALACE_DASHBOARD_ENV_FILE="$ENV_FILE"
+export MEMPALACE_DASHBOARD_APP_DIR="$APP_DIR"
+export MEMPALACE_DASHBOARD_HOST="$HOST"
+export MEMPALACE_DASHBOARD_PORT="$PORT"
+export MEMPALACE_DASHBOARD_TOKEN_FILE="$DASHBOARD_TOKEN_FILE"
+export MEMPALACE_DASHBOARD_MCP_TOKEN_FILE="$UPSTREAM_TOKEN_FILE"
+export MEMPALACE_DASHBOARD_APP="$UVICORN_APP"
+export MEMPALACE_CACHE_DIR="${MEMPALACE_CACHE_DIR:-$ROOT/cache}"
+export HF_HOME="${HF_HOME:-$ROOT/cache/huggingface}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$ROOT/cache/xdg}"
+export TMPDIR="${TMPDIR:-$ROOT/tmp}"
+export ANONYMIZED_TELEMETRY="${ANONYMIZED_TELEMETRY:-False}"
+export CHROMA_TELEMETRY="${CHROMA_TELEMETRY:-False}"
+
+cd "$APP_DIR"
+exec "$VENV/bin/python" -m uvicorn "$UVICORN_APP" --host "$HOST" --port "$PORT"

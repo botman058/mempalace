@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MemPalace Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-kicker">MemPalace</div>
+          <h1>Operations Dashboard</h1>
+        </div>
+        <div class="connection-bar">
+          <label>
+            <span>API base</span>
+            <input id="apiBase" type="text" spellcheck="false" placeholder="/api" />
+          </label>
+          <label class="token-field">
+            <span>Bearer token</span>
+            <input id="tokenInput" type="password" spellcheck="false" autocomplete="off" placeholder="required for all calls" />
+          </label>
+          <button id="savePrefs" class="icon-button" type="button" title="Save connection settings">Save</button>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="overview" aria-label="Service overview">
+          <article class="metric-card">
+            <div class="metric-label">Service health</div>
+            <div id="serviceHealth" class="metric-value">Disconnected</div>
+            <div id="serviceHealthHint" class="metric-subtle">Enter a bearer token to load backend telemetry.</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Drawer count</div>
+            <div id="drawerCount" class="metric-value">-</div>
+            <div id="drawerCountHint" class="metric-subtle">Waiting for authenticated telemetry</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Embedding device</div>
+            <div id="embeddingDevice" class="metric-value">Unavailable</div>
+            <div id="embeddingDeviceHint" class="metric-subtle">No backend data loaded yet</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label">Mining state</div>
+            <div id="miningState" class="metric-value">Token required</div>
+            <div id="miningStateHint" class="metric-subtle">Save a bearer token to enable telemetry refresh.</div>
+          </article>
+        </section>
+
+        <section class="telemetry-strip" aria-label="Telemetry">
+          <div class="telemetry-card">
+            <div class="metric-label">LocalAI</div>
+            <div id="localaiStatus" class="telemetry-value">Not configured</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="metric-label">Checkpoint</div>
+            <div id="checkpointStatus" class="telemetry-value">Not configured</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="metric-label">Last refresh</div>
+            <div id="lastRefresh" class="telemetry-value">-</div>
+          </div>
+          <div class="telemetry-card">
+            <div class="metric-label">Connection</div>
+            <div id="connectionState" class="telemetry-value">Token required</div>
+          </div>
+        </section>
+
+        <section class="workbench">
+          <div class="pane search-pane">
+            <div class="pane-head">
+              <div>
+                <h2>Hybrid search</h2>
+                <p>Idle mode only. Wing and room filters scope the drawer query.</p>
+              </div>
+              <div id="searchLock" class="state-pill">Token required</div>
+            </div>
+            <form id="searchForm" class="search-controls">
+              <label class="wide">
+                <span>Query</span>
+                <input id="searchQuery" type="search" placeholder="Search drawers" />
+              </label>
+              <label>
+                <span>Wing</span>
+                <select id="wingFilter">
+                  <option value="">All wings</option>
+                </select>
+              </label>
+              <label>
+                <span>Room</span>
+                <select id="roomFilter">
+                  <option value="">All rooms</option>
+                </select>
+              </label>
+              <button id="searchButton" class="primary-button" type="submit">Search</button>
+            </form>
+            <div class="results-header">
+              <h3>Search results</h3>
+              <span id="searchSummary">No query yet</span>
+            </div>
+            <div id="searchResults" class="result-list" role="list"></div>
+          </div>
+
+          <div class="pane taxonomy-pane">
+            <div class="pane-head">
+              <div>
+                <h2>Taxonomy browser</h2>
+                <p>Enter a bearer token to load taxonomy.</p>
+              </div>
+            </div>
+            <div id="taxonomyStatus" class="empty-state">Token required to load taxonomy.</div>
+            <div id="taxonomyGrid" class="taxonomy-grid" aria-live="polite"></div>
+          </div>
+
+          <div class="pane drawer-pane">
+            <div class="pane-head">
+              <div>
+                <h2>Drawer browser</h2>
+                <p>Enter a bearer token to browse drawers.</p>
+              </div>
+            </div>
+            <div class="drawer-layout">
+              <div class="drawer-list-wrap">
+                <div class="results-header">
+                  <h3>Drawers</h3>
+                  <span id="drawerScope">Token required</span>
+                </div>
+                <div id="drawerList" class="drawer-list" role="list"></div>
+              </div>
+              <div class="drawer-detail">
+                <div class="results-header">
+                  <h3>Drawer detail</h3>
+                  <span id="detailTitle">Nothing selected</span>
+                </div>
+                <article id="drawerDetail" class="detail-card">
+                  <p>Enter a bearer token to inspect drawer metadata and text.</p>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

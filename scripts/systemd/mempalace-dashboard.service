@@ -1,0 +1,28 @@
+[Unit]
+Description=MemPalace read-only dashboard service
+After=network-online.target tailscaled.service
+Wants=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+User=mempalace
+Group=mempalace
+WorkingDirectory=/media/u0/OneDrive_Backup/mempalace/app
+EnvironmentFile=/media/u0/OneDrive_Backup/mempalace/mempalace-dashboard.env
+ExecStart=/usr/local/bin/mempalace-dashboard-run
+Restart=on-failure
+RestartSec=5
+
+MemoryMax=8G
+CPUQuota=100%
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/media/u0/OneDrive_Backup/mempalace/cache /media/u0/OneDrive_Backup/mempalace/logs /media/u0/OneDrive_Backup/mempalace/tmp
+
+[Install]
+WantedBy=multi-user.target

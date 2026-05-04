@@ -86,3 +86,63 @@ The script reads `secrets/http_token` for MemPalace HTTP MCP and
 model does not return valid JSON, or the configured LocalAI base URL points at a
 cloud endpoint. The intended LLM is LocalAI hosted on `snow-white-iii`; this
 deployment should not send ChatGPT exports to cloud APIs.
+
+## MemPalace dashboard service
+
+The dashboard is a separate service and should be deployed only when it will not
+compete with active mining or LocalAI classification. If those workflows are
+running, delay the deployment or keep the dashboard in telemetry-only mode; do
+not expect search, taxonomy, or drawer browsing until the system is idle.
+
+Default layout:
+
+```text
+/media/u0/OneDrive_Backup/mempalace/
+  app/
+  venv/
+  cache/
+  logs/
+  tmp/
+  mempalace-dashboard.env
+  secrets/http_token
+  secrets/dashboard_token
+  secrets/localai_token
+```
+
+Files:
+
+- `scripts/systemd/mempalace-dashboard-run`
+- `scripts/systemd/mempalace-dashboard.service`
+
+Suggested environment file contents:
+
+```bash
+MEMPALACE_DASHBOARD_HOST=100.x.y.z
+MEMPALACE_DASHBOARD_PORT=8766
+MEMPALACE_DASHBOARD_APP=mempalace.dashboard_server:app
+MEMPALACE_DASHBOARD_TOKEN_FILE=/media/u0/OneDrive_Backup/mempalace/secrets/dashboard_token
+MEMPALACE_DASHBOARD_MCP_TOKEN_FILE=/media/u0/OneDrive_Backup/mempalace/secrets/http_token
+LOCALAI_BASE_URL=http://snow-white-iii:8080/v1
+LOCALAI_TOKEN_FILE=/media/u0/OneDrive_Backup/mempalace/secrets/localai_token
+LOCALAI_SIGNAL_CHECKPOINT=/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_signals.checkpoint.jsonl
+```
+
+The service runs as `mempalace:mempalace`, binds only to the Tailscale IPv4
+address set in `MEMPALACE_DASHBOARD_HOST`, and keeps token material in
+root-owned files readable by `mempalace`. `dashboard_token` protects the browser
+dashboard itself; `http_token` is a separate bearer token used only for the
+dashboard's upstream HTTP MCP calls. The wrapper defaults those paths to
+`secrets/dashboard_token` and `secrets/http_token` and refuses to start if they
+resolve to the same secret. The optional LocalAI envs above only affect
+read-only `/api/overview` telemetry and should stay on localhost/LAN/tailnet.
+The wrapper refuses `/media/u0/Extreme SSD` and does not touch
+`mempalace-http.service`, mining services, or LocalAI.
+
+Resource controls for the dashboard are intentionally smaller than the HTTP MCP
+service:
+
+```text
+MemoryMax=8G
+CPUQuota=100%
+Nice=15
+```
