@@ -166,6 +166,7 @@ No API key is required for the core benchmark path.
 ## Docs
 
 - Getting started → [mempalaceofficial.com/guide/getting-started](https://mempalaceofficial.com/guide/getting-started.html)
+- Dashboard → [mempalaceofficial.com/guide/dashboard](https://mempalaceofficial.com/guide/dashboard.html)
 - CLI reference → [mempalaceofficial.com/reference/cli](https://mempalaceofficial.com/reference/cli.html)
 - Python API → [mempalaceofficial.com/reference/python-api](https://mempalaceofficial.com/reference/python-api.html)
 - Full benchmark methodology → [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md)

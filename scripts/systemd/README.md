@@ -126,6 +126,9 @@ directory. It does not rsync the whole repo, does not use `--delete`, and does
 not restart or reload `mempalace-http.service`, mining services, or LocalAI.
 Use `--no-start` to install the unit without starting it.
 
+For the end-user manual, see
+`docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`.
+
 Suggested environment file contents:
 
 ```bash

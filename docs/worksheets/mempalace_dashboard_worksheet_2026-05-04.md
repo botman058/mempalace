@@ -318,3 +318,9 @@ Insufficient evidence:
 - Unauthenticated `GET http://100.112.179.49:8766/api/overview` returned `401`.
 - Authenticated `GET http://100.112.179.49:8766/api/overview` returned `mining_active=true`, LocalAI telemetry `status=ok`, checkpoint telemetry `status=ok`, `drawer_count=136924`, and `embedding_device=cuda`.
 - Authenticated `GET http://100.112.179.49:8766/api/search?q=test` returned `423 Locked` while `mempalace-localai-chatgpt-signals.service` was active.
+
+### 2026-05-04 - End-User Manual
+
+- Added public docs page `website/guide/dashboard.md` and wired it into the VitePress Guide sidebar.
+- Added local deployment manual `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md` with the live dashboard URL, token retrieval command, telemetry-only behavior, search/browse workflow, troubleshooting table, and safety model.
+- Updated `README.md`, `scripts/systemd/README.md`, and `CHANGELOG.md` to point users at the dashboard documentation.

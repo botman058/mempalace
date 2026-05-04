@@ -54,6 +54,7 @@ export default withMermaid(
               { text: 'Mining Your Data', link: '/guide/mining' },
               { text: 'Searching Memories', link: '/guide/searching' },
               { text: 'MCP Integration', link: '/guide/mcp-integration' },
+              { text: 'Dashboard', link: '/guide/dashboard' },
               { text: 'Claude Code Plugin', link: '/guide/claude-code' },
               { text: 'Gemini CLI', link: '/guide/gemini-cli' },
               { text: 'OpenClaw Skill', link: '/guide/openclaw' },
