@@ -35,7 +35,9 @@ from pathlib import Path
 
 from .config import MempalaceConfig
 from .corpus_origin import detect_origin_heuristic, detect_origin_llm
+from .http_client import RemoteMCPError
 from .llm_client import LLMError, get_provider
+from .ontology_runner import build_runner_config, run_chatgpt_signal_ontology
 from .ontology_run import initialize_run_shell, materialize_run_shell
 from .version import __version__
 
@@ -1007,6 +1009,16 @@ def cmd_ontology_chatgpt_signals(args):
         print("  Resumed ontology run directory (appended resume marker).")
     else:
         print("  Initialized ontology run directory and initial artifacts.")
+    if not getattr(args, "run", False):
+        return
+
+    try:
+        runner_config = build_runner_config(args)
+        run_chatgpt_signal_ontology(run, runner_config)
+    except (ValueError, LLMError, RemoteMCPError) as exc:
+        print(f"Error: ontology runner failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+    print("  Ontology run phases executed.")
 
 
 def main():
@@ -1342,7 +1354,7 @@ def main():
     )
     p_ontology_chatgpt.add_argument(
         "--run-dir",
-        default=None,
+        default=os.environ.get("MEMPALACE_ONTOLOGY_RUN_ROOT"),
         help=(
             "Run root directory (default: "
             "/media/u0/OneDrive_Backup/mempalace/data/ontology)"
@@ -1355,7 +1367,7 @@ def main():
     )
     p_ontology_chatgpt.add_argument(
         "--source-wing",
-        default="chatgpt_signals",
+        default=os.environ.get("MEMPALACE_ONTOLOGY_SOURCE_WING") or "chatgpt_signals",
         help="Source wing to read from (default: chatgpt_signals)",
     )
     p_ontology_chatgpt.add_argument(
@@ -1363,6 +1375,24 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Validate and preview only (default: true). Use --no-dry-run to initialize.",
+    )
+    p_ontology_chatgpt.add_argument(
+        "--run",
+        action="store_true",
+        help="Execute ontology phases after run shell initialization/resume",
+    )
+    p_ontology_chatgpt.add_argument("--localai-base-url", default=None)
+    p_ontology_chatgpt.add_argument("--localai-token", default=None)
+    p_ontology_chatgpt.add_argument("--localai-token-file", default=None)
+    p_ontology_chatgpt.add_argument("--localai-model", default=None)
+    p_ontology_chatgpt.add_argument("--mcp-url", default=None)
+    p_ontology_chatgpt.add_argument("--mcp-token", default=None)
+    p_ontology_chatgpt.add_argument("--mcp-token-file", default=None)
+    p_ontology_chatgpt.add_argument("--page-limit", type=int, default=100)
+    p_ontology_chatgpt.add_argument(
+        "--apply-copies",
+        action="store_true",
+        help="Apply semantic copies from apply_ready_manifest via mempalace_copy_drawer",
     )
 
     args = parser.parse_args()

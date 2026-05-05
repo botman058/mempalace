@@ -232,6 +232,94 @@ def test_cmd_ontology_chatgpt_signals_rerun_with_different_source_wing_fails(tmp
     assert len(marker_lines) == 1
 
 
+def test_cmd_ontology_chatgpt_signals_no_run_flag_only_initializes(tmp_path):
+    run_root = tmp_path / "ontology_runs"
+    args = argparse.Namespace(
+        run_dir=str(run_root),
+        run_id="run_without_execute",
+        source_wing="chatgpt_signals",
+        dry_run=False,
+        run=False,
+    )
+    with patch("mempalace.cli.run_chatgpt_signal_ontology") as mock_run:
+        cmd_ontology_chatgpt_signals(args)
+    mock_run.assert_not_called()
+    assert (run_root / "run_without_execute" / "progress.json").exists()
+
+
+def test_cmd_ontology_chatgpt_signals_run_executes_runner(tmp_path):
+    run_root = tmp_path / "ontology_runs"
+    args = argparse.Namespace(
+        run_dir=str(run_root),
+        run_id="run_execute",
+        source_wing="chatgpt_signals",
+        dry_run=False,
+        run=True,
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        localai_model="qwen3-vl-8b-instruct",
+        mcp_url="http://100.112.179.49:8765",
+        mcp_token=None,
+        mcp_token_file=None,
+        page_limit=10,
+        apply_copies=False,
+    )
+    with patch("mempalace.cli.run_chatgpt_signal_ontology") as mock_run:
+        cmd_ontology_chatgpt_signals(args)
+    mock_run.assert_called_once()
+
+
+def test_cmd_ontology_chatgpt_signals_run_refuses_openai_base_url(tmp_path, capsys):
+    run_root = tmp_path / "ontology_runs"
+    args = argparse.Namespace(
+        run_dir=str(run_root),
+        run_id="run_bad_localai",
+        source_wing="chatgpt_signals",
+        dry_run=False,
+        run=True,
+        localai_base_url="https://api.openai.com/v1",
+        localai_token=None,
+        localai_token_file=None,
+        localai_model="qwen3-vl-8b-instruct",
+        mcp_url="http://100.112.179.49:8765",
+        mcp_token=None,
+        mcp_token_file=None,
+        page_limit=10,
+        apply_copies=False,
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        cmd_ontology_chatgpt_signals(args)
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    assert "api.openai.com" in err
+
+
+def test_cmd_ontology_chatgpt_signals_run_refuses_non_local_mcp_url(tmp_path, capsys):
+    run_root = tmp_path / "ontology_runs"
+    args = argparse.Namespace(
+        run_dir=str(run_root),
+        run_id="run_bad_mcp",
+        source_wing="chatgpt_signals",
+        dry_run=False,
+        run=True,
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        localai_model="qwen3-vl-8b-instruct",
+        mcp_url="https://mempalace.example.com/mcp",
+        mcp_token=None,
+        mcp_token_file=None,
+        page_limit=10,
+        apply_copies=False,
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        cmd_ontology_chatgpt_signals(args)
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    assert "non-local MCP host" in err
+
+
 def test_main_ontology_dispatches():
     with (
         patch("sys.argv", ["mempalace", "ontology", "chatgpt-signals"]),
@@ -239,6 +327,19 @@ def test_main_ontology_dispatches():
     ):
         main()
         mock_cmd.assert_called_once()
+
+
+def test_main_ontology_chatgpt_signals_uses_ontology_env_defaults(monkeypatch):
+    monkeypatch.setenv("MEMPALACE_ONTOLOGY_RUN_ROOT", "/tmp/ontology-runs")
+    monkeypatch.setenv("MEMPALACE_ONTOLOGY_SOURCE_WING", "chatgpt_signals_env")
+    with (
+        patch("sys.argv", ["mempalace", "ontology", "chatgpt-signals"]),
+        patch("mempalace.cli.cmd_ontology_chatgpt_signals") as mock_cmd,
+    ):
+        main()
+    args = mock_cmd.call_args.args[0]
+    assert args.run_dir == "/tmp/ontology-runs"
+    assert args.source_wing == "chatgpt_signals_env"
 
 
 def test_main_ontology_without_subcommand_prints_help(capsys):

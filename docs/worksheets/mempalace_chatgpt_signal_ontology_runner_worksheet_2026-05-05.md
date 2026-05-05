@@ -309,10 +309,10 @@ Insufficient evidence:
 | Checkpoint | Status | Evidence | Next gate |
 |---|---|---|---|
 | A - Worksheet Continuation Green | green | Worksheet saved on disk; branch/head/status recorded; O-0 model/depth recorded; out-of-scope dirty files noted. | WP-01/WP-02/WP-03 |
-| B - Runner Core Green | pending | none yet | WP-04 |
-| C - Apply Safety Green | pending | none yet | WP-04 |
+| B - Runner Core Green | green | WP-04 remediation resolved partial aggregate resume/backfill, progressive decision artifacts, and local-only MCP guard; focused/broader tests pass. | WP-05 |
+| C - Apply Safety Green | green | Apply remains opt-in/source-preserving; manifest inputs are backfilled before report/manifest generation; fake apply/default-no-apply tests pass. | WP-05 |
 | D - snow-white-iii Operation Green | green | WP-03 docs accepted: systemd README/env template/manual/changelog document snow-white-iii, LocalAI-only endpoint, canonical OneDrive paths, 200% CPU/16G memory caps, read-only dashboard progress, and no apply without explicit flag. | WP-04 after runner core |
-| E - Release Green | pending | none yet | tranche closed |
+| E - Release Green | green | Final verification and second-pass safety review passed; milestone commit pending. | tranche closed |
 
 ---
 
@@ -321,11 +321,11 @@ Insufficient evidence:
 | Package | Status | Owner | Notes |
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and Checkpoint A is green. |
-| WP-01 | active | B-1/Planck | Runner core and CLI assigned. |
+| WP-01 | complete | B-1/Planck | Runner core accepted after WP-04 remediation. |
 | WP-02 | pending | B-3 | blocked by Checkpoint A |
 | WP-03 | complete | B-2/Galileo | Ops/docs accepted; no deployment performed. |
-| WP-04 | pending | A-2/R-1 | blocked by WP-01-WP-03 |
-| WP-05 | pending | O-0 | blocked by WP-04 |
+| WP-04 | complete | R-1/Carver/Boole | Review findings remediated; second-pass review found no blockers. |
+| WP-05 | active | O-0 | Final staging/commit/push in progress. |
 
 ---
 
@@ -387,3 +387,72 @@ Any deviation from this worksheet must be recorded here before the next package 
 - The docs preserve the safe default: producing `apply_ready_manifest.json` does not copy drawers unless an explicit apply flag is used.
 - `git diff --check -- CHANGELOG.md scripts/systemd/README.md scripts/systemd/mempalace.env.template docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md` passed.
 - Known gap: no new systemd wrapper/unit was added and no deployment or runtime verification was performed.
+
+### 2026-05-05 - WP-03 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md scripts/systemd/README.md scripts/systemd/mempalace.env.template` staged only accepted WP-03 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Document ontology runner operations"` created `4311f24`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `4311f24` to the fork branch.
+
+### 2026-05-05 - WP-01 Acceptance Evidence
+
+- B-1/Planck added `mempalace/ontology_runner.py`, updated `mempalace/cli.py`, and added/updated focused tests in `tests/test_ontology_runner.py` and `tests/test_ontology_cli.py`.
+- Existing `mempalace ontology chatgpt-signals --no-dry-run` behavior remains a run-shell initializer unless `--run` is passed.
+- `--no-dry-run --run` initializes/resumes the run and executes ontology phases using existing pure helpers.
+- Runner LocalAI defaults are `http://snow-white-iii:8080/v1`, `/media/u0/OneDrive_Backup/mempalace/secrets/localai_token`, and `qwen3-vl-8b-instruct`.
+- Runner config honors `MEMPALACE_ONTOLOGY_*` envs documented in the ops template, plus existing LocalAI/MCP env conventions.
+- LocalAI base URL validation refuses `api.openai.com` and public/cloud hostnames such as `openrouter.ai`, while allowing localhost, RFC1918, Tailscale/CGNAT, `.local`, and single-label LAN hosts such as `snow-white-iii`.
+- Source drawers are read only through paginated `mempalace_export_drawers`; export tool errors now fail closed and mark `progress.json` failed before re-raising.
+- The runner appends phase JSONL records, atomically updates `progress.json`, refreshes `artifacts_index.json`, writes convergence/apply manifest summaries, and updates `last_record`.
+- Resume avoids duplicate per-drawer phase records by subject ID and treats existing aggregate phase JSONL files as already materialized.
+- Apply is opt-in only via `--apply-copies`; default writes `apply_ready_manifest.json` without calling `mempalace_copy_drawer`.
+- Fake apply test verifies manifest-driven `mempalace_copy_drawer` calls, `apply_copies.jsonl`, and `totals.copies_materialized`.
+- `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_ontology_runner.py` passed: `20 passed`.
+- `.venv/bin/python -m ruff check mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+- `.venv/bin/python -m py_compile mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+- Broader targeted suite passed: `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_ontology_runner.py tests/test_ontology_contract.py tests/test_ontology_iteration.py tests/test_ontology_tiny_palace_integration.py tests/test_dashboard_server.py tests/test_dashboard_static_contract.py` reported `55 passed, 23 subtests passed`.
+- Known gap: global source drawer total is discovered monotonically during page traversal because `mempalace_export_drawers` does not return a corpus-wide total.
+
+### 2026-05-05 - WP-04 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-04 independent safety review was assigned to R-1/Carver with model `gpt-5.4` and reasoning depth `high`.
+- R-1 is read-only and must inspect no-delete/no-cloud/no-source-mutate/apply-idempotency/progress visibility risks before release.
+
+### 2026-05-05 - WP-04 Review Findings
+
+- R-1/Carver returned three findings.
+- **High:** partial-run resume is not safe for aggregate phases because `candidate_clusters.jsonl`, `canonical_candidates.jsonl`, and accepted/unresolved decision materialization can be treated as complete when the file is merely non-empty. A crash after partial writes could silently truncate downstream artifacts and final manifests.
+- **Medium:** accepted/unresolved decision artifacts are batch-materialized only after `route_verify` completes, so dashboard unresolved preview is delayed during long verification runs.
+- **Medium:** the runner enforces local-only LocalAI but not local-only MCP URL, so a public MCP endpoint could receive exported source drawer bodies if misconfigured.
+- No direct delete path or source-drawer mutation path was found in the runner.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'export_drawers or copy_drawer' tests/test_ontology_tiny_palace_integration.py`: `12 passed, 76 deselected`.
+- Verdict: amber/red until remediation resolves all high/medium findings.
+
+### 2026-05-05 - WP-04 Remediation Evidence
+
+- B-1/Kuhn remediated the runner in `mempalace/ontology_runner.py`, `tests/test_ontology_runner.py`, and `tests/test_ontology_cli.py`.
+- Aggregate phases no longer skip on non-empty files; `candidate_clusters` and `canonical_candidates` rebuild from upstream records and append only missing `subject_id` records.
+- Decision records are backfilled by `verification_record_ref` and route verification now appends accepted/unresolved decision records progressively inside the verification loop.
+- Final convergence report and apply-ready manifest are generated after a decision backfill pass over all route verification records.
+- MCP URL configuration now uses the same local/tailnet host policy as LocalAI and rejects public/cloud MCP hosts.
+- Added tests for non-local MCP refusal, aggregate partial backfill, and progressive unresolved persistence before final materialization.
+- `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_ontology_runner.py` passed: `24 passed`.
+- `.venv/bin/python -m ruff check mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+- `.venv/bin/python -m py_compile mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+
+### 2026-05-05 - WP-04 Second-Pass Review Evidence
+
+- R-1/Boole performed a read-only second-pass review with model `gpt-5.4` and reasoning depth `high`.
+- Verdict: no blocking issues.
+- Review confirmed aggregate partial-resume/backfill, progressive accepted/unresolved materialization, local-only MCP URL guard, no-delete/no-source-mutate, and default-no-apply behavior.
+- Residual risks: accepted progressive branch lacks a dedicated crash-interruption test, route candidate/pass2/verify partial-file regression coverage is lighter than candidate/canonical aggregate coverage, and the reviewer could not run pytest in their isolated environment. `O-0` ran the tests locally in the repo venv.
+
+### 2026-05-05 - WP-05 Release Verification
+
+- `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_ontology_runner.py tests/test_ontology_contract.py tests/test_ontology_iteration.py tests/test_ontology_tiny_palace_integration.py tests/test_dashboard_server.py tests/test_dashboard_static_contract.py` passed: `59 passed, 23 subtests passed`.
+- `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'export_drawers or copy_drawer'` passed: `11 passed, 74 deselected`.
+- `.venv/bin/python -m ruff check mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+- `.venv/bin/python -m py_compile mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
+- `git diff --check -- mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md` passed.
