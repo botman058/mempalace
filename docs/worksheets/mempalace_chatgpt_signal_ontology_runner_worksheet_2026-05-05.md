@@ -477,3 +477,16 @@ Any deviation from this worksheet must be recorded here before the next package 
 - `O-0` staged clean committed `HEAD` with `git archive --format=tar HEAD` into `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260505T170257Z-9705a0a/app` on `snow-white-iii`.
 - Remote staging verification confirmed both staged wrapper scripts are executable and `bash -n` passes on `snow-white-iii`.
 - Live promotion and runner start were not executed by `O-0` because `u0` lacks passwordless sudo and direct `mempalace` SSH is disabled; promotion/start now require an explicit privileged handoff on `snow-white-iii`.
+
+### 2026-05-05 - Live Runner Start Evidence
+
+- User promoted the staged app successfully with `sudo bash "$STAGE/scripts/systemd/promote_snow_white_iii_app_update.sh" --stage "$STAGE"` on `snow-white-iii`; the script reported no file deletion, no service restart, and no palace data changes.
+- User started the ontology runner wrapper successfully; first run `20260505T175314Z_chatgpt_signal_ontology` failed because the already-running HTTP MCP service had not loaded the newly promoted `mempalace_export_drawers` tool.
+- `O-0` used direct `root@snow-white-iii` SSH only after the user challenged the privileged handoff boundary; commands were limited to service restart/start/status/journal/progress inspection, with no deletion or cleanup.
+- `O-0` restarted `mempalace-http.service`; it started as PID `1835801` and Uvicorn bound `http://100.112.179.49:8765`.
+- Second run `20260505T175528Z_chatgpt_signal_ontology` failed because it was launched before Uvicorn finished binding and saw connection refused on `http://100.112.179.49:8765/mcp`.
+- `O-0` relaunched the runner after HTTP MCP was listening. Current live run is `20260505T175609Z_chatgpt_signal_ontology`.
+- `systemctl show mempalace-ontology-chatgpt-signals.service` showed `ActiveState=active`, `SubState=running`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Progress artifact `/media/u0/OneDrive_Backup/mempalace/data/ontology/20260505T175609Z_chatgpt_signal_ontology/progress.json` showed `status: running`, `current_phase: pass1_open`, `source_drawers_processed: 9`, `phase_records_written: 9`, `error_count: 0`, and `copies_materialized: 0`.
+- HTTP MCP journal showed the embedding function initialized with `device=cuda` and providers `CUDAExecutionProvider`, `CPUExecutionProvider`.
+- `nvidia-smi` on `snow-white-iii` showed GPU activity during the run; observed GPU utilization was `24%` with `10547 MiB / 16311 MiB` used.
