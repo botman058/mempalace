@@ -456,3 +456,15 @@ Any deviation from this worksheet must be recorded here before the next package 
 - `.venv/bin/python -m ruff check mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
 - `.venv/bin/python -m py_compile mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py` passed.
 - `git diff --check -- mempalace/ontology_runner.py mempalace/cli.py tests/test_ontology_cli.py tests/test_ontology_runner.py docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md` passed.
+
+### 2026-05-05 - Deployment Pivot Evidence
+
+- `O-0` checked `snow-white-iii` over SSH and confirmed the default local user `u4` is not present there.
+- `O-0` checked `u0@snow-white-iii` and found that `/media/u0/OneDrive_Backup/mempalace` is owned by `mempalace:mempalace` with mode `0750`, so `u0` cannot inspect or update the live app tree directly.
+- Direct SSH as `mempalace@snow-white-iii` is unavailable because the service account has a nologin shell.
+- `sudo -n -u mempalace` from `u0` requires a password, so `O-0` cannot run live-tree commands as `mempalace` without an explicit privileged handoff on `snow-white-iii`.
+- `/media/u0/OneDrive_Backup/tmp-mempalace` is writable by `u0`; this is the safe remote staging area.
+- The deployment assumption was corrected: the live app tree is treated as a staged copy, not as a git checkout suitable for `git pull --ff-only`.
+- Added `scripts/systemd/promote_snow_white_iii_app_update.sh` to promote a staged committed tree into `/media/u0/OneDrive_Backup/mempalace/app` without `rsync --delete`, without touching palace data/secrets, and without restarting services.
+- Added `scripts/systemd/start_ontology_runner_snow_white_iii.sh` to start the ontology runner as the `mempalace` service user through a transient systemd unit with `CPUQuota=200%`, `MemoryMax=16G`, LocalAI-on-LAN defaults, and default no-apply behavior.
+- Updated `scripts/systemd/README.md` and `CHANGELOG.md` to document the non-git staged deployment path and bounded runner start path.

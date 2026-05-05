@@ -111,13 +111,38 @@ The safe default is to generate the ontology run artifacts, including
 `apply_ready_manifest.json`, without copying drawers. Materializing copies
 requires the explicit apply flag.
 
-If you wrap the runner in a systemd unit, keep the same service limits used by
-the HTTP MCP service:
+The deployed app tree on `snow-white-iii` is a staged copy, not a git checkout.
+Do not expect `git pull --ff-only` to work under
+`/media/u0/OneDrive_Backup/mempalace/app`. To update the app from a workstation,
+stage a clean committed tree under `/media/u0/OneDrive_Backup/tmp-mempalace`,
+then promote it locally on `snow-white-iii`:
+
+```bash
+scripts/systemd/promote_snow_white_iii_app_update.sh \
+  --stage /media/u0/OneDrive_Backup/tmp-mempalace/<staged-app>/app
+```
+
+The promotion script copies only into the canonical app directory, never uses
+`rsync --delete`, does not touch palace data or secrets, and does not restart
+services.
+
+Start the runner with the bounded transient unit wrapper:
+
+```bash
+scripts/systemd/start_ontology_runner_snow_white_iii.sh
+```
+
+The wrapper starts `mempalace ontology chatgpt-signals --no-dry-run --run` as the
+`mempalace` service user and keeps the same service limits used by the HTTP MCP
+service:
 
 ```text
 MemoryMax=16G
 CPUQuota=200%
 ```
+
+The wrapper also defaults to no drawer-copy materialization. Use
+`--apply-copies` only after inspecting `apply_ready_manifest.json`.
 
 ## MemPalace dashboard service
 
