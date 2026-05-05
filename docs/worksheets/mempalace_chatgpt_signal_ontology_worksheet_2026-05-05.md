@@ -533,7 +533,7 @@ Insufficient evidence:
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
 | G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
 | H - Routing Green | green | WP-09 route candidate retrieval plus WP-10 route pass prompt/parser accepted; candidate/null route records are durable. | WP-11 |
-| I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
+| I - Verification And Iteration Green | in progress | WP-11 local verification pass is active; WP-12 iteration controller remains blocked. | WP-11/WP-12 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
 
@@ -554,7 +554,7 @@ Insufficient evidence:
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
-| WP-11 | pending | A-1 | Local verification pass; unblocked by WP-10. |
+| WP-11 | in progress | A-1/Dewey | Local verification pass activated after WP-10. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
@@ -1021,6 +1021,14 @@ Each drift entry must include:
 - `git commit -m "Add ontology route pass parser"` created `3ee7204`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `3ee7204` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-11 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-11 was assigned to A-1/Dewey with model `gpt-5.4` and reasoning depth `high`.
+- A-1 write scope is limited to `mempalace/ontology_route_verify.py` and `tests/test_ontology_route_verify.py`.
+- A-1 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-11 must build LocalAI/OpenAI-compatible verification prompts and parse approve/reject/null-route verification decisions without network calls or mutation behavior.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
