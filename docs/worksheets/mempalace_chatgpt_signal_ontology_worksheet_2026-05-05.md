@@ -554,7 +554,7 @@ Insufficient evidence:
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
-| WP-11 | complete | A-1R/Tesla | Local verification pass accepted; milestone pending commit. |
+| WP-11 | complete | A-1R/Tesla | Local verification pass accepted; milestone commit `1b4894a` pushed. |
 | WP-12 | pending | A-3 | Iteration controller and convergence reports; unblocked by WP-11. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
@@ -1054,6 +1054,14 @@ Each drift entry must include:
 - `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_verify.py tests/test_ontology_route_verify.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: no CLI/run-loop integration or artifact publishing yet; WP-11 intentionally provides pure prompt/parser and record assembly only.
 - Checkpoint I remains in progress until WP-12 iteration controller and convergence reports are accepted.
+
+### 2026-05-05 - WP-11 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_verify.py tests/test_ontology_route_verify.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-11 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology route verification parser"` created `1b4894a`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `1b4894a` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
