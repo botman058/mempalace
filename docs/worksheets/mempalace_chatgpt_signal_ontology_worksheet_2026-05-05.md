@@ -559,7 +559,7 @@ Insufficient evidence:
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
-| WP-16 | pending | B-1 | Tiny-palace integration tests unblocked by WP-15. |
+| WP-16 | in progress | B-1/Curie | Tiny-palace integration tests activated after WP-15. |
 | WP-17 | blocked | R-1 | Independent review. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
 
@@ -1132,6 +1132,14 @@ Each drift entry must include:
 - `git commit -m "Add ontology contract tests"` created `0bda43f`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `0bda43f` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-16 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-16 was assigned to B-1/Curie with model `gpt-5.4-mini` and reasoning depth `medium`.
+- B-1 write scope is limited to focused tiny-palace integration tests under `tests/`.
+- B-1 is forbidden from editing implementation modules, CLI, dashboard, MCP, docs, this worksheet, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- WP-16 must prove dry-run no-write behavior, apply copy behavior, rerun idempotency, and original `chatgpt_signals` source preservation against isolated test fixtures.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
