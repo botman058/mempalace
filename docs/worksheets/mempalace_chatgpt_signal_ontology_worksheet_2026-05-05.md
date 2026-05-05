@@ -555,7 +555,7 @@ Insufficient evidence:
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
 | WP-11 | complete | A-1R/Tesla | Local verification pass accepted; milestone commit `1b4894a` pushed. |
-| WP-12 | pending | A-3 | Iteration controller and convergence reports; unblocked by WP-11. |
+| WP-12 | in progress | A-3/Averroes | Iteration controller and convergence reports activated after WP-11. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
@@ -1062,6 +1062,14 @@ Each drift entry must include:
 - `git commit -m "Add ontology route verification parser"` created `1b4894a`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `1b4894a` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-12 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-12 was assigned to A-3/Averroes with model `gpt-5.4` and reasoning depth `high`.
+- A-3 write scope is limited to `mempalace/ontology_iteration.py`, `tests/test_ontology_iteration.py`, and an optional narrow artifact-contract clarification.
+- A-3 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-12 must consume route verification records and produce accepted-route records, unresolved-route records, an apply-ready manifest, and convergence reports without mutation, Chroma, LocalAI calls, or MCP copy calls.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
