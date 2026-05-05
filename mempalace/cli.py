@@ -36,6 +36,7 @@ from pathlib import Path
 from .config import MempalaceConfig
 from .corpus_origin import detect_origin_heuristic, detect_origin_llm
 from .llm_client import LLMError, get_provider
+from .ontology_run import initialize_run_shell, materialize_run_shell
 from .version import __version__
 
 
@@ -969,6 +970,45 @@ def cmd_compress(args):
         print("  (dry run -- nothing stored)")
 
 
+def cmd_ontology_chatgpt_signals(args):
+    source_wing = (args.source_wing or "chatgpt_signals").strip()
+    if not source_wing:
+        print("Error: --source-wing must not be empty.", file=sys.stderr)
+        raise SystemExit(2)
+
+    try:
+        run = initialize_run_shell(
+            run_dir=args.run_dir,
+            run_id=args.run_id,
+            source_wing=source_wing,
+            dry_run=args.dry_run,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+    print("Ontology run shell:")
+    print(f"  run_id: {run.run_id}")
+    print(f"  source_wing: {run.source_wing}")
+    print(f"  run_dir: {run.run_dir}")
+    print(f"  dry_run: {run.dry_run}")
+
+    if run.dry_run:
+        print("  Dry run only; no directories or metadata were created.")
+        return
+
+    try:
+        materialize_run_shell(run)
+    except FileExistsError:
+        print(f"Error: run directory already exists: {run.run_dir}", file=sys.stderr)
+        raise SystemExit(1)
+    except OSError as exc:
+        print(f"Error: failed to initialize run directory: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    print("  Initialized ontology run directory.")
+
+
 def main():
     version_label = f"MemPalace {__version__}"
     parser = argparse.ArgumentParser(
@@ -1290,6 +1330,41 @@ def main():
 
     sub.add_parser("status", help="Show what's been filed")
 
+    # ontology
+    p_ontology = sub.add_parser(
+        "ontology",
+        help="Ontology pipeline commands",
+    )
+    ontology_sub = p_ontology.add_subparsers(dest="ontology_action")
+    p_ontology_chatgpt = ontology_sub.add_parser(
+        "chatgpt-signals",
+        help="Initialize a ChatGPT signals ontology run shell",
+    )
+    p_ontology_chatgpt.add_argument(
+        "--run-dir",
+        default=None,
+        help=(
+            "Run root directory (default: "
+            "/media/u0/OneDrive_Backup/mempalace/data/ontology)"
+        ),
+    )
+    p_ontology_chatgpt.add_argument(
+        "--run-id",
+        default=None,
+        help="Optional run identifier (auto-generated when omitted)",
+    )
+    p_ontology_chatgpt.add_argument(
+        "--source-wing",
+        default="chatgpt_signals",
+        help="Source wing to read from (default: chatgpt_signals)",
+    )
+    p_ontology_chatgpt.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Validate and preview only (default: true). Use --no-dry-run to initialize.",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1312,6 +1387,15 @@ def main():
         args.name = name
         cmd_instructions(args)
         return
+
+    if args.command == "ontology":
+        action = getattr(args, "ontology_action", None)
+        if not action:
+            p_ontology.print_help()
+            return
+        if action == "chatgpt-signals":
+            cmd_ontology_chatgpt_signals(args)
+            return
 
     dispatch = {
         "init": cmd_init,

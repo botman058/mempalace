@@ -527,9 +527,9 @@ Insufficient evidence:
 |---|---|---|---|
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
 | B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
-| C - Source Export Green | pending | Unblocked by WP-01. | WP-02 |
+| C - Source Export Green | in progress | WP-02 activated with A-2 as lead. | WP-02 |
 | D - Semantic Copy Green | blocked | Requires WP-02 then WP-03. | WP-03 |
-| E - Progressive Run Green | pending | WP-04 and WP-05 unblocked by WP-01. | WP-04/WP-05 |
+| E - Progressive Run Green | in progress | WP-04 accepted for CLI shell/run lifecycle; WP-05 still required for progress artifacts. | WP-05 |
 | F - Pass1 Candidate Green | blocked | Requires WP-06. | WP-06 |
 | G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
@@ -545,10 +545,10 @@ Insufficient evidence:
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
 | WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
-| WP-02 | pending | A-2 | Safe source drawer export. |
+| WP-02 | in progress | A-2 | Activated after WP-01; owns safe source drawer export. |
 | WP-03 | blocked | A-2 | Idempotent semantic copy support. |
-| WP-04 | blocked | B-2 | CLI shell and run lifecycle. |
-| WP-05 | blocked | B-2 | Progressive materialization and resume markers. |
+| WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit pending. |
+| WP-05 | pending | B-2 | Progressive materialization and resume markers. |
 | WP-06 | blocked | A-1 | Pass1 LocalAI prompt/parser. |
 | WP-07 | blocked | A-3 | Candidate clustering. |
 | WP-08 | blocked | A-1 | Candidate naming/pruning. |
@@ -681,3 +681,31 @@ Each drift entry must include:
 - `git commit -m "Define ChatGPT signal ontology artifacts"` created `1d02f97`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `1d02f97` to the fork branch.
 - The unaccepted `docs/reference/` output and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-01 Milestone Evidence Commit
+
+- `git commit -m "Record ChatGPT ontology WP-01 milestone"` created `7c43e26`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `7c43e26` to the fork branch.
+- Post-push `git status --short --branch` showed only out-of-scope dirty `.agents/plugins/marketplace.json` and unaccepted untracked `docs/reference/`.
+
+### 2026-05-05 - WP-02 and WP-04 Activation
+
+- `O-0` reread this worksheet before activation.
+- Current branch head before activation was `7c43e26`.
+- WP-02 was assigned to A-2 with model `gpt-5.4` and reasoning depth `high`.
+- A-2 write scope is limited to `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and `website/reference/mcp-tools.md` if needed.
+- WP-04 was assigned to B-2 with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-2 write scope is limited to `mempalace/cli.py`, a small new ontology run module under `mempalace/` if needed, and focused CLI tests.
+- Both workers were instructed not to touch `.agents/plugins/marketplace.json`, `docs/reference/`, or unrelated package surfaces.
+
+### 2026-05-05 - WP-04 Acceptance Evidence
+
+- B-2 changed `mempalace/cli.py`, added `mempalace/ontology_run.py`, and added `tests/test_ontology_cli.py`.
+- `mempalace ontology chatgpt-signals` is dry-run by default and accepts `--source-wing`, `--run-dir`, and `--run-id`.
+- The shell validates run IDs, refuses `/media/u0/Extreme SSD`, and creates only a minimal run directory plus `run_metadata.json` when `--no-dry-run` is used.
+- `O-0` reviewed the diff and found no LocalAI, Chroma, MCP, copy/apply, or ontology processing behavior in WP-04.
+- `python3 -m compileall mempalace/cli.py mempalace/ontology_run.py tests/test_ontology_cli.py` passed.
+- Manual dry-run CLI smoke printed the resolved default run directory and did not create the default ontology run.
+- Manual non-dry-run shell smoke against a temporary directory created a run directory and `run_metadata.json` with schema `ontology.run_shell`.
+- `python3 -m pytest tests/test_ontology_cli.py -q` could not run locally because `tests/conftest.py` imports missing `chromadb`.
+- `git diff --check -- mempalace/cli.py mempalace/ontology_run.py tests/test_ontology_cli.py` passed.
