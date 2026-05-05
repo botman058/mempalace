@@ -526,7 +526,7 @@ Insufficient evidence:
 | Checkpoint | Status | Evidence | Next gate |
 |---|---|---|---|
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
-| B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract. | WP-02/WP-04/WP-13 |
+| B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
 | C - Source Export Green | pending | Unblocked by WP-01. | WP-02 |
 | D - Semantic Copy Green | blocked | Requires WP-02 then WP-03. | WP-03 |
 | E - Progressive Run Green | pending | WP-04 and WP-05 unblocked by WP-01. | WP-04/WP-05 |
@@ -672,3 +672,12 @@ Each drift entry must include:
 - The contract defines status enums, append-only JSONL semantics, atomic rewrite semantics for JSON summaries, dashboard read rules, privacy constraints, and idempotent routed-copy metadata expectations.
 - `O-0` verified `rg` hits for required schema surfaces and `git diff --check` passed for the accepted contract and worksheet.
 - `docs/reference/` remains unaccepted and unstaged per the WP-01 drift entry.
+
+### 2026-05-05 - WP-01 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-01 files.
+- Initial staged whitespace check found an extra blank line at EOF in `docs/chatgpt_signal_ontology_artifacts.md`; `O-0` fixed only that accepted document.
+- `git diff --cached --check` then passed.
+- `git commit -m "Define ChatGPT signal ontology artifacts"` created `1d02f97`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `1d02f97` to the fork branch.
+- The unaccepted `docs/reference/` output and out-of-scope `.agents/plugins/marketplace.json` were not staged.
