@@ -559,7 +559,7 @@ Insufficient evidence:
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
-| WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone pending. |
+| WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
 | WP-17 | pending | R-1 | Independent review unblocked by WP-16. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
 
@@ -1156,6 +1156,14 @@ Each drift entry must include:
 - `O-0` ran `.venv/bin/python -m py_compile tests/test_ontology_tiny_palace_integration.py`: passed.
 - `O-0` ran `git diff --check -- tests/test_ontology_tiny_palace_integration.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: WP-16 remains bounded integration proof; it does not implement a full CLI apply workflow and makes no LocalAI/cloud calls.
+
+### 2026-05-05 - WP-16 Milestone Commit Evidence
+
+- `git add tests/test_ontology_tiny_palace_integration.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-16 test and worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology tiny-palace integration tests"` created `662edac`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `662edac` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
