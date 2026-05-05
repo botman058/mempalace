@@ -397,6 +397,19 @@ def _sanitize_optional_name(value: str = None, field_name: str = "name") -> str:
     return sanitize_name(value, field_name)
 
 
+def _sanitize_drawer_metadata(meta: dict) -> dict:
+    """Return drawer metadata safe for MCP clients.
+
+    Preserve stored metadata fields so downstream source collection can use
+    provenance like chunk_index/source_drawer_id, while reducing source_file
+    to a basename to avoid leaking host filesystem layout.
+    """
+    safe_meta = dict(meta) if meta else {}
+    if safe_meta.get("source_file"):
+        safe_meta["source_file"] = Path(str(safe_meta["source_file"])).name
+    return safe_meta
+
+
 # ==================== READ TOOLS ====================
 
 
@@ -921,21 +934,69 @@ def tool_get_drawer(drawer_id: str):
             return {"error": f"Drawer not found: {drawer_id}"}
         meta = result["metadatas"][0]
         doc = result["documents"][0]
-        # source_file is the absolute filesystem path written by the
-        # miners. Reduce to its basename before handing it to the MCP
-        # client — same threat model as the palace_path leak fix:
-        # nested-agent / multi-server topologies treat the client as a
-        # separate trust domain. Basename preserves citation utility.
-        # Mirrors the searcher.search_memories() return shape.
-        safe_meta = dict(meta) if meta else {}
-        if safe_meta.get("source_file"):
-            safe_meta["source_file"] = Path(safe_meta["source_file"]).name
+        safe_meta = _sanitize_drawer_metadata(meta)
         return {
             "drawer_id": drawer_id,
             "content": doc,
             "wing": safe_meta.get("wing", ""),
             "room": safe_meta.get("room", ""),
             "metadata": safe_meta,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def tool_export_drawers(wing: str = None, room: str = None, limit: int = 20, offset: int = 0):
+    """Export full drawer content with safe metadata and pagination.
+
+    Read-only path intended for bulk source inspection, including ontology
+    workflows that need verbatim `chatgpt_signals` drawer bodies plus their
+    original metadata.
+    """
+    limit = max(1, min(limit, _MAX_RESULTS))
+    offset = max(0, offset)
+    try:
+        wing = _sanitize_optional_name(wing, "wing")
+        room = _sanitize_optional_name(room, "room")
+    except ValueError as e:
+        return {"error": str(e)}
+    col = _get_collection()
+    if not col:
+        return _no_palace()
+    try:
+        where = None
+        conditions = []
+        if wing:
+            conditions.append({"wing": wing})
+        if room:
+            conditions.append({"room": room})
+        if len(conditions) == 1:
+            where = conditions[0]
+        elif len(conditions) > 1:
+            where = {"$and": conditions}
+
+        kwargs = {"include": ["documents", "metadatas"], "limit": limit, "offset": offset}
+        if where:
+            kwargs["where"] = where
+        result = col.get(**kwargs)
+
+        drawers = []
+        for i, drawer_id in enumerate(result["ids"]):
+            safe_meta = _sanitize_drawer_metadata(result["metadatas"][i])
+            drawers.append(
+                {
+                    "drawer_id": drawer_id,
+                    "content": result["documents"][i],
+                    "wing": safe_meta.get("wing", ""),
+                    "room": safe_meta.get("room", ""),
+                    "metadata": safe_meta,
+                }
+            )
+        return {
+            "drawers": drawers,
+            "count": len(drawers),
+            "offset": offset,
+            "limit": limit,
         }
     except Exception as e:
         return {"error": str(e)}
@@ -1762,6 +1823,28 @@ TOOLS = {
             "required": ["drawer_id"],
         },
         "handler": tool_get_drawer,
+    },
+    "mempalace_export_drawers": {
+        "description": "Read-only full-content drawer export with safe metadata and pagination.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "wing": {"type": "string", "description": "Filter by wing (optional)"},
+                "room": {"type": "string", "description": "Filter by room (optional)"},
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results per page (default 20, max 100)",
+                    "minimum": 1,
+                    "maximum": 100,
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Offset for pagination (default 0)",
+                    "minimum": 0,
+                },
+            },
+        },
+        "handler": tool_export_drawers,
     },
     "mempalace_list_drawers": {
         "description": "List drawers with pagination. Optional wing/room filter. Returns IDs, wings, rooms, and content previews.",

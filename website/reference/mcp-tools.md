@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-Detailed parameter schemas for all 29 MCP tools.
+Detailed parameter schemas for all 30 MCP tools.
 
 ## Palace — Read Tools
 
@@ -123,6 +123,21 @@ Fetch a single drawer by ID — returns full content and metadata.
 | `drawer_id` | string | **Yes** | ID of the drawer to fetch |
 
 **Returns:** `{ drawer_id, content, wing, room, metadata }` where `metadata.source_file`, when present, is the basename only — the absolute path written by the miners is reduced before the dict is returned to MCP clients.
+
+---
+
+### `mempalace_export_drawers`
+
+Read-only full-content drawer export with pagination. Intended for workflows that need verbatim source drawers plus safe metadata, such as ontology collection over `chatgpt_signals`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `wing` | string | No | Filter by wing |
+| `room` | string | No | Filter by room |
+| `limit` | integer | No | Max results per page (default 20, max 100) |
+| `offset` | integer | No | Offset for pagination (default 0) |
+
+**Returns:** `{ drawers: [{ drawer_id, content, wing, room, metadata }], count, limit, offset }` where `metadata.source_file`, when present, is reduced to its basename before the export is returned to MCP clients.
 
 ---
 

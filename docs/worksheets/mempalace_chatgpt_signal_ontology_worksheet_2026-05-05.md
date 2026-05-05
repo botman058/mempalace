@@ -527,9 +527,9 @@ Insufficient evidence:
 |---|---|---|---|
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
 | B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
-| C - Source Export Green | in progress | WP-02 activated with A-2 as lead. | WP-02 |
-| D - Semantic Copy Green | blocked | Requires WP-02 then WP-03. | WP-03 |
-| E - Progressive Run Green | in progress | WP-04 accepted for CLI shell/run lifecycle; WP-05 still required for progress artifacts. | WP-05 |
+| C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests. | WP-03 |
+| D - Semantic Copy Green | pending | Unblocked by WP-02; requires WP-03. | WP-03 |
+| E - Progressive Run Green | in progress | WP-04 accepted and milestone commit `0b76d77` pushed; WP-05 still required for progress artifacts. | WP-05 |
 | F - Pass1 Candidate Green | blocked | Requires WP-06. | WP-06 |
 | G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
@@ -545,9 +545,9 @@ Insufficient evidence:
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
 | WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
-| WP-02 | in progress | A-2 | Activated after WP-01; owns safe source drawer export. |
-| WP-03 | blocked | A-2 | Idempotent semantic copy support. |
-| WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit pending. |
+| WP-02 | complete | A-2R | Safe source drawer export accepted at Checkpoint C. |
+| WP-03 | pending | A-2 | Idempotent semantic copy support. |
+| WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit `0b76d77` pushed. |
 | WP-05 | pending | B-2 | Progressive materialization and resume markers. |
 | WP-06 | blocked | A-1 | Pass1 LocalAI prompt/parser. |
 | WP-07 | blocked | A-3 | Candidate clustering. |
@@ -698,6 +698,23 @@ Each drift entry must include:
 - B-2 write scope is limited to `mempalace/cli.py`, a small new ontology run module under `mempalace/` if needed, and focused CLI tests.
 - Both workers were instructed not to touch `.agents/plugins/marketplace.json`, `docs/reference/`, or unrelated package surfaces.
 
+### 2026-05-05 - WP-02 Reassignment
+
+- Original A-2 left scoped edits in `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and `website/reference/mcp-tools.md` but did not return final package evidence after a bounded status request.
+- `O-0` closed original A-2 without accepting WP-02.
+- Replacement A-2R was assigned to inspect, finish, and report on the existing scoped WP-02 patch.
+
+### 2026-05-05 - WP-02 Acceptance Evidence
+
+- A-2R finalized scoped edits in `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and `website/reference/mcp-tools.md`.
+- `mempalace_export_drawers` is registered as a read-only MCP tool with optional wing/room filters, full drawer content, safe metadata, and clamped pagination.
+- Export metadata reduces `source_file` to basename while preserving downstream provenance fields such as `chunk_index`, `added_by`, `conversation_id`, and `source_drawer_id`.
+- `mempalace_get_drawer` now uses the shared metadata sanitizer.
+- Export tests cover absent-palace no-create behavior, full content preservation, metadata preservation/sanitization, pagination clamping, and no `add`/`update`/`delete` calls.
+- `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k "export_drawers or get_drawer_does_not_leak_absolute_source_file_path or tools_list"` passed: `5 passed, 72 deselected`.
+- `.venv/bin/python -m py_compile mempalace/mcp_server.py tests/test_mcp_server.py` passed.
+- `git diff --check -- mempalace/mcp_server.py tests/test_mcp_server.py website/reference/mcp-tools.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` passed.
+
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
 - B-2 changed `mempalace/cli.py`, added `mempalace/ontology_run.py`, and added `tests/test_ontology_cli.py`.
@@ -709,3 +726,11 @@ Each drift entry must include:
 - Manual non-dry-run shell smoke against a temporary directory created a run directory and `run_metadata.json` with schema `ontology.run_shell`.
 - `python3 -m pytest tests/test_ontology_cli.py -q` could not run locally because `tests/conftest.py` imports missing `chromadb`.
 - `git diff --check -- mempalace/cli.py mempalace/ontology_run.py tests/test_ontology_cli.py` passed.
+
+### 2026-05-05 - WP-04 Milestone Commit Evidence
+
+- `git add mempalace/cli.py mempalace/ontology_run.py tests/test_ontology_cli.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-04 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ChatGPT ontology run shell"` created `0b76d77`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `0b76d77` to the fork branch.
+- Active WP-02 files, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.

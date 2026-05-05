@@ -116,6 +116,7 @@ class TestHandleRequest:
         assert "mempalace_search" in names
         assert "mempalace_add_drawer" in names
         assert "mempalace_kg_add" in names
+        assert "mempalace_export_drawers" in names
 
     def test_null_arguments_does_not_hang(self, monkeypatch, config, palace_path, seeded_kg):
         """Sending arguments: null should return a result, not hang (#394)."""
@@ -591,6 +592,25 @@ class TestWriteTools:
         result = tool_get_drawer("nonexistent_drawer")
         assert "error" in result
 
+    def test_export_drawers_absent_palace_does_not_create_path(self, monkeypatch, tmp_dir, kg):
+        from mempalace.config import MempalaceConfig
+
+        missing_palace = f"{tmp_dir}/missing-palace"
+        cfg_dir = f"{tmp_dir}/config-missing-export"
+        import json
+        import os
+
+        os.makedirs(cfg_dir)
+        with open(os.path.join(cfg_dir, "config.json"), "w") as f:
+            json.dump({"palace_path": missing_palace}, f)
+        _patch_mcp_server(monkeypatch, MempalaceConfig(config_dir=cfg_dir), kg)
+
+        from mempalace.mcp_server import tool_export_drawers
+
+        result = tool_export_drawers(wing="chatgpt_signals")
+        assert result["error"] == "No palace found"
+        assert not os.path.exists(missing_palace)
+
     def test_get_drawer_does_not_leak_absolute_source_file_path(
         self, monkeypatch, config, palace_path, collection, kg
     ):
@@ -629,6 +649,111 @@ class TestWriteTools:
         serialized = json.dumps(result)
         assert absolute_source not in serialized
         assert secret_dir not in serialized
+
+    def test_export_drawers_preserves_full_content_and_safe_metadata(
+        self, monkeypatch, config, palace_path, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+
+        full_content = (
+            "user: classify this conversation into an ontology source room\n"
+            "assistant: preserve the exact body for downstream route selection\n"
+            "system: do not summarize this record"
+        )
+        absolute_source = "/private/home/alice/chatgpt_exports/export-2026-05-01/conversations.json"
+        collection.add(
+            ids=["drawer_chatgpt_signals_support_001"],
+            documents=[full_content],
+            metadatas=[
+                {
+                    "wing": "chatgpt_signals",
+                    "room": "support",
+                    "source_file": absolute_source,
+                    "chunk_index": 7,
+                    "added_by": "localai_chatgpt_signals",
+                    "conversation_id": "chatgpt:conv-001",
+                    "source_drawer_id": "drawer_raw_001",
+                }
+            ],
+        )
+
+        from mempalace.mcp_server import tool_export_drawers
+
+        result = tool_export_drawers(wing="chatgpt_signals", room="support", limit=10, offset=0)
+        assert result["count"] == 1
+        exported = result["drawers"][0]
+        assert exported["drawer_id"] == "drawer_chatgpt_signals_support_001"
+        assert exported["content"] == full_content
+        assert exported["wing"] == "chatgpt_signals"
+        assert exported["room"] == "support"
+        assert exported["metadata"]["source_file"] == "conversations.json"
+        assert exported["metadata"]["chunk_index"] == 7
+        assert exported["metadata"]["added_by"] == "localai_chatgpt_signals"
+        assert exported["metadata"]["conversation_id"] == "chatgpt:conv-001"
+        assert exported["metadata"]["source_drawer_id"] == "drawer_raw_001"
+        serialized = json.dumps(result)
+        assert absolute_source not in serialized
+        assert "/private/home/alice" not in serialized
+
+    def test_export_drawers_pagination_is_clamped_and_read_only(
+        self, monkeypatch, config, palace_path, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace import mcp_server
+
+        class SpyCollection:
+            def __init__(self):
+                self.get_calls = []
+                self.add_calls = 0
+                self.update_calls = 0
+                self.delete_calls = 0
+
+            def get(self, **kwargs):
+                self.get_calls.append(kwargs)
+                return {
+                    "ids": ["drawer_chatgpt_signals_general_001"],
+                    "documents": ["full exported body"],
+                    "metadatas": [
+                        {
+                            "wing": "chatgpt_signals",
+                            "room": "general",
+                            "source_file": "/safe/to/redact/source.json",
+                            "chunk_index": 0,
+                        }
+                    ],
+                }
+
+            def add(self, *args, **kwargs):
+                self.add_calls += 1
+                raise AssertionError("export must not call add()")
+
+            def update(self, *args, **kwargs):
+                self.update_calls += 1
+                raise AssertionError("export must not call update()")
+
+            def delete(self, *args, **kwargs):
+                self.delete_calls += 1
+                raise AssertionError("export must not call delete()")
+
+        spy = SpyCollection()
+        monkeypatch.setattr(mcp_server, "_get_collection", lambda: spy)
+
+        result = mcp_server.tool_export_drawers(
+            wing="chatgpt_signals", room="general", limit=500, offset=-9
+        )
+
+        assert result["limit"] == 100
+        assert result["offset"] == 0
+        assert result["count"] == 1
+        assert len(spy.get_calls) == 1
+        assert spy.get_calls[0]["limit"] == 100
+        assert spy.get_calls[0]["offset"] == 0
+        assert spy.get_calls[0]["where"] == {
+            "$and": [{"wing": "chatgpt_signals"}, {"room": "general"}]
+        }
+        assert spy.add_calls == 0
+        assert spy.update_calls == 0
+        assert spy.delete_calls == 0
 
     def test_list_drawers(self, monkeypatch, config, palace_path, seeded_collection, kg):
         _patch_mcp_server(monkeypatch, config, kg)
