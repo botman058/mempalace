@@ -533,7 +533,7 @@ Insufficient evidence:
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
 | G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
 | H - Routing Green | green | WP-09 route candidate retrieval plus WP-10 route pass prompt/parser accepted; candidate/null route records are durable. | WP-11 |
-| I - Verification And Iteration Green | green | WP-11 local verification pass plus WP-12 iteration/convergence builders accepted; repeated-iteration stale-accepted suppression tested. | WP-15/WP-16 |
+| I - Verification And Iteration Green | green | WP-11 local verification pass plus WP-12 iteration/convergence builders accepted; repeated-iteration stale-accepted suppression tested; milestone commit `e89bb64` pushed. | WP-15/WP-16 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
 
@@ -555,7 +555,7 @@ Insufficient evidence:
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
 | WP-11 | complete | A-1R/Tesla | Local verification pass accepted; milestone commit `1b4894a` pushed. |
-| WP-12 | complete | A-3R/Euler | Iteration decision records, convergence reports, and apply-ready manifests accepted; milestone pending. |
+| WP-12 | complete | A-3R/Euler | Iteration decision records, convergence reports, and apply-ready manifests accepted; milestone commit `e89bb64` pushed. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | pending | B-1 | Contract and unit tests unblocked by WP-12/WP-14. |
@@ -1095,6 +1095,14 @@ Each drift entry must include:
 - `O-0` ran `git diff --check -- mempalace/ontology_iteration.py tests/test_ontology_iteration.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md`: passed.
 - Known gap: WP-12 remains pure artifact/report logic; CLI/run-loop integration, real artifact publication, and apply execution remain outside this package.
 - Checkpoint I is green.
+
+### 2026-05-05 - WP-12 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md mempalace/ontology_iteration.py tests/test_ontology_iteration.py` staged only accepted WP-12 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology iteration convergence records"` created `e89bb64`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `e89bb64` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
