@@ -561,7 +561,7 @@ Insufficient evidence:
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
 | WP-17 | complete | R-1/Herschel | Independent review complete; two medium findings remediated; milestone commit `f4d74e2` pushed. |
-| WP-18 | complete | O-0 | Final integration verification accepted; closure commit pending. |
+| WP-18 | complete | O-0 | Final integration verification accepted; closure commit `84ea315` pushed. |
 
 ---
 
@@ -1213,6 +1213,14 @@ Each drift entry must include:
 - `git status --short --branch` still shows only out-of-scope `.agents/plugins/marketplace.json` and unaccepted `docs/reference/` outside this tranche.
 - No files were deleted; `.agents/plugins/marketplace.json` and `docs/reference/` were not staged; `/media/u0/Extreme SSD` remains forbidden.
 - Checkpoint K is green.
+
+### 2026-05-05 - WP-18 Milestone Commit Evidence
+
+- `git add docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only final worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Record ontology release verification"` created `84ea315`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `84ea315` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
