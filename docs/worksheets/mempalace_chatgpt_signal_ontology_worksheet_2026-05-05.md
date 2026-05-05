@@ -553,7 +553,7 @@ Insufficient evidence:
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
-| WP-10 | pending | A-1 | Pass2 route prompt/parser; unblocked by WP-09. |
+| WP-10 | in progress | A-1/Anscombe | Pass2 route prompt/parser activated after WP-09. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
@@ -987,6 +987,14 @@ Each drift entry must include:
 - `git commit -m "Add ontology route candidate retrieval"` created `701ba4a`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `701ba4a` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-10 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-10 was assigned to A-1/Anscombe with model `gpt-5.4` and reasoning depth `high`.
+- A-1 write scope is limited to `mempalace/ontology_route_pass2.py` and `tests/test_ontology_route_pass2.py`.
+- A-1 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-10 must build LocalAI/OpenAI-compatible route prompts and parse candidate-or-null route decisions without network calls or mutation behavior.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
