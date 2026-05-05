@@ -221,6 +221,9 @@ Important phase payloads:
   Payloads choose one shortlist candidate or a null route, preserve shortlist
   provenance, include route confidence and concise rationale when present, and
   record invalid model output durably instead of crashing.
+- `route_verify` records store local verification of route decisions. Payloads
+  approve copy-ready candidate routes, preserve approved null routes, or reject
+  either path with unresolved reason codes and next-action hints.
 
 Example:
 

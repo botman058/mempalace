@@ -533,7 +533,7 @@ Insufficient evidence:
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
 | G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
 | H - Routing Green | green | WP-09 route candidate retrieval plus WP-10 route pass prompt/parser accepted; candidate/null route records are durable. | WP-11 |
-| I - Verification And Iteration Green | in progress | WP-11 local verification pass is active; WP-12 iteration controller remains blocked. | WP-11/WP-12 |
+| I - Verification And Iteration Green | in progress | WP-11 local verification pass accepted; WP-12 iteration controller remains. | WP-12 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
 
@@ -554,8 +554,8 @@ Insufficient evidence:
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
-| WP-11 | in progress | A-1/Dewey | Local verification pass activated after WP-10. |
-| WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
+| WP-11 | complete | A-1R/Tesla | Local verification pass accepted; milestone pending commit. |
+| WP-12 | pending | A-3 | Iteration controller and convergence reports; unblocked by WP-11. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
@@ -1029,6 +1029,31 @@ Each drift entry must include:
 - A-1 write scope is limited to `mempalace/ontology_route_verify.py` and `tests/test_ontology_route_verify.py`.
 - A-1 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
 - WP-11 must build LocalAI/OpenAI-compatible verification prompts and parse approve/reject/null-route verification decisions without network calls or mutation behavior.
+
+### 2026-05-05 - WP-11 Reassignment
+
+- A-1/Dewey exceeded the small-package window, did not respond to a bounded status request, and landed no scoped files in the shared worktree.
+- `O-0` closed A-1/Dewey without accepting output.
+- Replacement A-1R/Tesla was assigned WP-11 with model `gpt-5.4` and reasoning depth `high`.
+- A-1R write scope remains limited to `mempalace/ontology_route_verify.py` and `tests/test_ontology_route_verify.py`.
+- A-1R was instructed to deliver the smallest useful verifier prompt/parser slice for one drawer, one route-candidate record, and one route-pass record.
+
+### 2026-05-05 - WP-11 Acceptance Evidence
+
+- A-1R/Tesla added `mempalace/ontology_route_verify.py` and `tests/test_ontology_route_verify.py`.
+- `build_route_verify_prompt()` creates a strict LocalAI/OpenAI-compatible verifier prompt from one drawer, one WP-09 `route_candidates` record, and one WP-10 `route_pass2` record.
+- `parse_route_verify_response()` emits JSONL-ready `ontology.phase_record` records for `phase: route_verify`, `subject_type: drawer`.
+- The verifier supports approved selected-candidate routes, rejected selected-candidate routes, approved null routes, and rejected null routes while preserving route and shortlist provenance.
+- Accepted candidate routes carry `route_status: accepted` and `copy_ready: true`; rejected/null decisions carry reason codes/details and next-action hints where applicable.
+- Invalid JSON, malformed response shapes, missing verdicts, invalid verification confidence, candidate/provenance mismatches, and non-text responses become durable `invalid_model_output` records with bounded raw excerpts and `retryable: true`.
+- `docs/chatgpt_signal_ontology_artifacts.md` now documents `route_verify` payload behavior.
+- `CHANGELOG.md` records the route verifier helper.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_route_verify.py tests/test_ontology_route_pass2.py tests/test_ontology_route_candidates.py`: 32 passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_route_verify.py tests/test_ontology_route_verify.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_route_verify.py tests/test_ontology_route_verify.py`: passed.
+- `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_verify.py tests/test_ontology_route_verify.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: no CLI/run-loop integration or artifact publishing yet; WP-11 intentionally provides pure prompt/parser and record assembly only.
+- Checkpoint I remains in progress until WP-12 iteration controller and convergence reports are accepted.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 

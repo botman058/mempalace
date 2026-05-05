@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **ChatGPT signal ontology candidate naming.** Added a pure `canonical_candidates` phase helper that builds LocalAI-compatible candidate naming prompts, parses `keep` / `merge` / `prune` decisions, preserves `wing:room` ambiguity, and emits JSONL-ready phase records with durable invalid-output handling. (#TBD)
 - **ChatGPT signal ontology route-candidate retrieval.** Added a deterministic `route_candidates` phase helper that indexes canonical candidates, resolves merge decisions, excludes pruned candidates, ranks up to five plausible candidates per drawer with local lexical scoring, and emits JSONL-ready shortlist records for the route pass. (#TBD)
 - **ChatGPT signal ontology route pass parser.** Added a pure `route_pass2` helper that builds strict LocalAI-compatible route prompts from drawer excerpts and candidate shortlists, parses selected-candidate or null-route decisions, validates shortlist membership and canonical `wing:room` keys, and emits durable invalid-output records for malformed model responses. (#TBD)
+- **ChatGPT signal ontology route verifier.** Added a pure `route_verify` helper that builds LocalAI-compatible verification prompts, parses approve/reject decisions for selected-candidate and null routes, preserves route provenance, and emits copy-ready or unresolved verification records without mutating drawers. (#TBD)
 
 ### Bug Fixes
 
