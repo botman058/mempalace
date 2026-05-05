@@ -558,8 +558,8 @@ Insufficient evidence:
 | WP-12 | complete | A-3R/Euler | Iteration decision records, convergence reports, and apply-ready manifests accepted; milestone commit `e89bb64` pushed. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
-| WP-15 | in progress | B-1/Meitner | Contract and unit tests activated after WP-12/WP-14. |
-| WP-16 | blocked | B-1 | Tiny-palace integration tests; activate after WP-15. |
+| WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone pending. |
+| WP-16 | pending | B-1 | Tiny-palace integration tests unblocked by WP-15. |
 | WP-17 | blocked | R-1 | Independent review. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
 
@@ -1111,6 +1111,19 @@ Each drift entry must include:
 - B-1 write scope is limited to focused tests and tiny test fixtures under `tests/`.
 - B-1 is forbidden from editing implementation modules, CLI, dashboard, MCP, docs, this worksheet, `.agents/plugins/marketplace.json`, or `docs/reference/`.
 - WP-15 must strengthen contract/unit tests across Checkpoints B-J without LocalAI/cloud calls, Chroma dependency expansion, source drawer mutation, or dashboard writes.
+
+### 2026-05-05 - WP-15 Acceptance Evidence
+
+- B-1/Meitner added `tests/test_ontology_contract.py`.
+- The cross-contract chain exercises pass1 parsing, candidate clustering, canonical candidate naming, route candidate retrieval, route pass parsing, route verification parsing, iteration decision records, convergence reports, apply-ready manifests, and deterministic semantic-copy ID behavior.
+- The dashboard read-only fixture test serves temporary `progress.json`, `artifacts_index.json`, `accepted_routes.jsonl`, and `unresolved.jsonl` files, then verifies ontology run/detail/artifact/unresolved-preview endpoints read them without upstream MCP calls or file mutation.
+- `O-0` required one focused repair before acceptance: artifact index fixture `bytes` values must be integers, not `null`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_contract.py tests/test_dashboard_static_contract.py`: 7 passed, 23 subtests passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_contract.py tests/test_ontology_iteration.py tests/test_ontology_route_verify.py tests/test_ontology_route_pass2.py tests/test_ontology_route_candidates.py tests/test_ontology_candidate_names.py tests/test_ontology_candidates.py tests/test_ontology_pass1.py tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_dashboard_static_contract.py`: 99 passed, 23 subtests passed.
+- `O-0` ran `.venv/bin/python -m ruff check tests/test_ontology_contract.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile tests/test_ontology_contract.py`: passed.
+- `O-0` ran `git diff --check -- tests/test_ontology_contract.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: WP-15 intentionally adds focused contract tests only; tiny-palace Chroma-backed integration proof remains WP-16.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
