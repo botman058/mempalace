@@ -163,8 +163,8 @@ Example:
   "status": "running",
   "current_phase": "pass1_open",
   "current_phase_status": "running",
-  "phase_order": ["pass1_open", "candidate_clusters", "canonical_candidates", "route_pass2", "route_verify", "apply_copies"],
-  "phase_attempts": {"pass1_open": 1, "candidate_clusters": 0, "canonical_candidates": 0, "route_pass2": 0, "route_verify": 0, "apply_copies": 0},
+  "phase_order": ["pass1_open", "candidate_clusters", "canonical_candidates", "route_candidates", "route_pass2", "route_verify", "apply_copies"],
+  "phase_attempts": {"pass1_open": 1, "candidate_clusters": 0, "canonical_candidates": 0, "route_candidates": 0, "route_pass2": 0, "route_verify": 0, "apply_copies": 0},
   "started_at": "2026-05-05T14:30:15Z",
   "updated_at": "2026-05-05T14:41:02Z",
   "ended_at": null,
@@ -213,6 +213,10 @@ Important phase payloads:
   groups. Payload `action` is `keep`, `merge`, or `prune`; merge payloads must
   identify the target candidate by candidate ID/key while preserving wing
   context.
+- `route_candidates` records attach up to five plausible canonical candidates
+  to one source drawer before route-pass prompting. Payloads include ranked
+  candidate IDs/keys, canonical wing/room, label/definition, score features,
+  source candidate refs, and bounded source excerpts.
 
 Example:
 

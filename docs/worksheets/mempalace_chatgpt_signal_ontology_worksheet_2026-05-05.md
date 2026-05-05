@@ -532,7 +532,7 @@ Insufficient evidence:
 | E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
 | G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
-| H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
+| H - Routing Green | in progress | WP-09 route candidate retrieval accepted; WP-10 route prompt/parser remains. | WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
@@ -552,8 +552,8 @@ Insufficient evidence:
 | WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F; milestone commit `76d6014` pushed. |
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
-| WP-09 | in progress | A-3/Laplace | Route candidate retrieval activated after WP-08. |
-| WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
+| WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone pending commit. |
+| WP-10 | pending | A-1 | Pass2 route prompt/parser; unblocked by WP-09. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
@@ -955,6 +955,30 @@ Each drift entry must include:
 - A-3 write scope is limited to one pure route-candidate retrieval module under `mempalace/` and focused tests under `tests/`.
 - A-3 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
 - WP-09 is unblocked by Checkpoint G and will feed WP-10 route prompt/parser.
+
+### 2026-05-05 - WP-09 Reassignment
+
+- A-3/Laplace exceeded the small-package window, did not respond to a bounded status request, and landed no scoped files in the shared worktree.
+- `O-0` closed A-3/Laplace without accepting output.
+- Replacement A-3R/Kepler was assigned WP-09 with model `gpt-5.4` and reasoning depth `high`.
+- A-3R write scope remains limited to `mempalace/ontology_route_candidates.py` and `tests/test_ontology_route_candidates.py`.
+- A-3R was instructed to deliver the smallest useful deterministic candidate index, top-k selector, and JSONL-ready `route_candidates` records.
+
+### 2026-05-05 - WP-09 Acceptance Evidence
+
+- A-3R/Kepler added `mempalace/ontology_route_candidates.py` and `tests/test_ontology_route_candidates.py`.
+- `build_candidate_index()` normalizes WP-08 `canonical_candidates` records, excludes pruned candidates, resolves merge records onto the terminal kept candidate, and preserves distinct `wing:room` identities for same-named rooms.
+- `select_route_candidates_for_drawer()` ranks candidates with deterministic local lexical scoring from drawer text/title/metadata plus candidate label, definition, source rooms, and examples; it returns up to five candidates.
+- `build_route_candidate_records()` emits JSONL-ready `ontology.phase_record` records for `phase: route_candidates`, `subject_type: drawer`, with ranked candidate shortlist provenance and bounded drawer excerpts.
+- Empty candidate indexes, no plausible matches, invalid drawers, invalid canonical records, non-ok canonical records, and wrong-phase inputs produce durable skipped/ok/error records or skipped summaries without crashing.
+- `docs/chatgpt_signal_ontology_artifacts.md` now includes `route_candidates` in the phase order and documents the shortlist payload.
+- `CHANGELOG.md` records the route-candidate retrieval helper.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_route_candidates.py tests/test_ontology_candidate_names.py tests/test_ontology_candidates.py`: 22 passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_route_candidates.py tests/test_ontology_route_candidates.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_route_candidates.py tests/test_ontology_route_candidates.py`: passed.
+- `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_candidates.py tests/test_ontology_route_candidates.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: no CLI/run-loop integration or artifact publishing yet; WP-09 intentionally provides pure deterministic retrieval and record assembly only.
+- Checkpoint H remains in progress until WP-10 route prompt/parser is accepted.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
