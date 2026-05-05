@@ -84,6 +84,21 @@ When the palace is idle:
 
 If no rooms or drawers appear, clear the wing/room filters and try again.
 
+## Ontology Progress
+
+The dashboard backend also exposes read-only ontology run endpoints for the
+progress panel:
+
+- `GET /api/ontology/runs`
+- `GET /api/ontology/runs/{run_id}`
+- `GET /api/ontology/runs/{run_id}/artifacts`
+- `GET /api/ontology/runs/{run_id}/unresolved-preview`
+
+These endpoints read the run directory directly from the ontology run root and
+do not call Chroma, LocalAI, or the MCP mutation tools. They remain available
+while mining or classification is active so operators can inspect live progress
+without waiting for the run to finish.
+
 ## Common States
 
 | State | Meaning | What to do |

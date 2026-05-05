@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import dataclass
 from ipaddress import ip_address, ip_network
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -27,6 +28,7 @@ except ImportError:  # pragma: no cover - exercised only without the server extr
     run_in_threadpool = None
 
 from .version import __version__
+from .ontology_run import resolve_run_root, validate_run_id
 
 _DASHBOARD_TOKEN_ENV_VARS = (
     "MEMPALACE_DASHBOARD_TOKEN",
@@ -73,6 +75,10 @@ _LOCALAI_CHECKPOINT_ENV_VARS = (
     "MEMPALACE_DASHBOARD_LOCALAI_CHECKPOINT",
     "LOCALAI_SIGNAL_CHECKPOINT",
 )
+_ONTOLOGY_RUN_ROOT_ENV_VARS = (
+    "MEMPALACE_DASHBOARD_ONTOLOGY_RUN_ROOT",
+    "MEMPALACE_ONTOLOGY_RUN_ROOT",
+)
 _DEFAULT_MINING_SERVICES = (
     "mempalace-mine-chatgpt.service",
     "mempalace-localai-chatgpt-signals.service",
@@ -85,6 +91,10 @@ _DEFAULT_ALLOWED_HOSTS = {"localhost", "snow-white-iii"}
 _DEFAULT_ALLOWED_HOST_SUFFIXES = (".ts.net", ".local", ".lan", ".internal", ".home.arpa")
 _TAILNET_CGNAT = ip_network("100.64.0.0/10")
 _CHECKPOINT_TAIL_BYTES = 65536
+_JSONL_TAIL_BYTES = 65536
+_UNRESOLVED_PREVIEW_DEFAULT_LIMIT = 10
+_UNRESOLVED_PREVIEW_MAX_LIMIT = 50
+_UNRESOLVED_PREVIEW_DEFAULT_EXCERPT_CHARS = 240
 _READ_ONLY_TOOLS = frozenset(
     {
         "mempalace_get_taxonomy",
@@ -156,6 +166,13 @@ def load_localai_checkpoint_path() -> Optional[Path]:
     if not raw:
         return None
     return Path(raw).expanduser()
+
+
+def load_ontology_run_root() -> Path:
+    raw = _load_first_env(_ONTOLOGY_RUN_ROOT_ENV_VARS)
+    if raw:
+        return resolve_run_root(raw)
+    return resolve_run_root(None)
 
 
 def _split_env_list(name: str, default: Sequence[str]) -> List[str]:
@@ -232,6 +249,271 @@ def _static_dir_from_env() -> Path:
     if value and value.strip():
         return Path(value.strip()).expanduser()
     return Path(__file__).resolve().parent / "dashboard_static"
+
+
+def _is_valid_relative_path(relative_path: str) -> bool:
+    candidate = PurePosixPath(relative_path)
+    if candidate.is_absolute():
+        return False
+    if not candidate.parts:
+        return False
+    return all(part not in {"", ".", ".."} for part in candidate.parts)
+
+
+def _read_json_file(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _truncate_text(value: Any, limit: int) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1] + "…"
+
+
+def _tail_jsonl_records(path: Path, *, limit: int, max_bytes: int = _JSONL_TAIL_BYTES) -> List[Dict[str, Any]]:
+    if limit <= 0 or not path.exists():
+        return []
+
+    try:
+        stat_result = path.stat()
+    except OSError:
+        return []
+
+    if stat_result.st_size <= 0:
+        return []
+
+    read_size = min(stat_result.st_size, max_bytes)
+    start = stat_result.st_size - read_size
+    try:
+        with path.open("rb") as handle:
+            handle.seek(start)
+            chunk = handle.read(read_size)
+    except OSError:
+        return []
+
+    lines = chunk.decode("utf-8", errors="replace").splitlines()
+    if start > 0 and lines:
+        lines = lines[1:]
+
+    records: List[Dict[str, Any]] = []
+    for line in reversed(lines):
+        if len(records) >= limit:
+            break
+        text = line.strip()
+        if not text:
+            continue
+        try:
+            row = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict):
+            records.append(row)
+    records.reverse()
+    return records
+
+
+def _safe_run_dir(run_root: Path, run_id: str) -> Path:
+    validated_run_id = validate_run_id(run_id)
+    run_dir = (run_root / validated_run_id).resolve(strict=False)
+    resolved_root = run_root.resolve(strict=False)
+    try:
+        run_dir.relative_to(resolved_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid run_id") from exc
+    return run_dir
+
+
+def _list_run_dirs(run_root: Path) -> List[Path]:
+    if not run_root.exists():
+        return []
+    try:
+        children = list(run_root.iterdir())
+    except OSError:
+        return []
+    run_dirs: List[Path] = []
+    for child in children:
+        if not child.is_dir():
+            continue
+        try:
+            validate_run_id(child.name)
+        except ValueError:
+            continue
+        run_dirs.append(child)
+    return run_dirs
+
+
+def _artifact_entries(artifact_index: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not artifact_index:
+        return []
+    artifacts = artifact_index.get("artifacts")
+    if not isinstance(artifacts, list):
+        return []
+    result: List[Dict[str, Any]] = []
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        relative_path = artifact.get("relative_path")
+        if not isinstance(relative_path, str) or not _is_valid_relative_path(relative_path):
+            continue
+        result.append(dict(artifact))
+    return result
+
+
+def _run_summary_payload(
+    *,
+    run_id: str,
+    run_dir: Path,
+    progress: Optional[Dict[str, Any]],
+    artifact_index: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    summary: Dict[str, Any] = {
+        "run_id": run_id,
+        "run_dir": str(run_dir),
+        "progress_available": progress is not None,
+        "artifact_index_available": artifact_index is not None,
+        "artifacts_available": bool(_artifact_entries(artifact_index)),
+    }
+    if progress:
+        for key in (
+            "schema_name",
+            "schema_version",
+            "run_kind",
+            "source_wing",
+            "status",
+            "current_phase",
+            "current_phase_status",
+            "phase_order",
+            "phase_attempts",
+            "started_at",
+            "updated_at",
+            "ended_at",
+            "elapsed_seconds",
+            "current_phase_progress",
+            "totals",
+            "last_record",
+            "warning_count",
+            "error_count",
+        ):
+            summary[key] = progress.get(key)
+    else:
+        summary["status"] = "missing"
+    if artifact_index:
+        summary["artifact_index_updated_at"] = artifact_index.get("updated_at")
+        summary["artifact_count"] = len(_artifact_entries(artifact_index))
+    else:
+        summary["artifact_index_updated_at"] = None
+        summary["artifact_count"] = 0
+    return summary
+
+
+def _run_detail_payload(
+    *,
+    run_id: str,
+    run_dir: Path,
+    progress: Optional[Dict[str, Any]],
+    artifact_index: Optional[Dict[str, Any]],
+    unresolved_preview: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    artifacts = _artifact_entries(artifact_index)
+    return {
+        "status": "ok" if progress is not None else "missing",
+        "run_id": run_id,
+        "run_dir": str(run_dir),
+        "progress": progress,
+        "artifact_index": artifact_index,
+        "artifacts": artifacts,
+        "artifact_count": len(artifacts),
+        "unresolved_preview": unresolved_preview or [],
+    }
+
+
+def _preview_unresolved_artifact(
+    run_dir: Path,
+    artifact_index: Optional[Dict[str, Any]],
+    *,
+    limit: int = _UNRESOLVED_PREVIEW_DEFAULT_LIMIT,
+    excerpt_chars: int = _UNRESOLVED_PREVIEW_DEFAULT_EXCERPT_CHARS,
+) -> Dict[str, Any]:
+    artifacts = _artifact_entries(artifact_index)
+    unresolved_entry = next(
+        (artifact for artifact in artifacts if artifact.get("relative_path") == "unresolved.jsonl"),
+        None,
+    )
+    if unresolved_entry is None:
+        return {
+            "status": "missing",
+            "run_dir": str(run_dir),
+            "artifact": None,
+            "preview": [],
+            "count": 0,
+            "limit": limit,
+        }
+    if not unresolved_entry.get("dashboard_safe", False):
+        return {
+            "status": "restricted",
+            "run_dir": str(run_dir),
+            "artifact": unresolved_entry,
+            "preview": [],
+            "count": 0,
+            "limit": limit,
+        }
+    if unresolved_entry.get("privacy_level") not in {"summary", "bounded_excerpt"}:
+        return {
+            "status": "restricted",
+            "run_dir": str(run_dir),
+            "artifact": unresolved_entry,
+            "preview": [],
+            "count": 0,
+            "limit": limit,
+        }
+
+    preview_limit = max(1, min(int(limit), _UNRESOLVED_PREVIEW_MAX_LIMIT))
+    records = _tail_jsonl_records(run_dir / "unresolved.jsonl", limit=preview_limit)
+    preview: List[Dict[str, Any]] = []
+    for record in records:
+        candidate_ids = record.get("candidate_ids")
+        preview_record = {
+            "sequence": record.get("sequence"),
+            "recorded_at": record.get("recorded_at"),
+            "route_iteration": record.get("route_iteration"),
+            "source_drawer_id": record.get("source_drawer_id"),
+            "source_wing": record.get("source_wing"),
+            "source_room": record.get("source_room"),
+            "unresolved_status": record.get("unresolved_status"),
+            "reason_code": record.get("reason_code"),
+            "reason_detail": _truncate_text(record.get("reason_detail"), excerpt_chars),
+            "route_confidence": record.get("route_confidence"),
+            "next_action": record.get("next_action"),
+            "retryable": record.get("retryable"),
+            "source_excerpt": _truncate_text(record.get("source_excerpt"), excerpt_chars),
+        }
+        if isinstance(candidate_ids, list):
+            preview_record["candidate_ids"] = [
+                str(candidate_id)
+                for candidate_id in candidate_ids[:8]
+            ]
+            preview_record["candidate_ids_truncated"] = len(candidate_ids) > 8
+        preview.append(preview_record)
+    return {
+        "status": "ok",
+        "run_dir": str(run_dir),
+        "artifact": unresolved_entry,
+        "preview": preview,
+        "count": len(preview),
+        "limit": preview_limit,
+        "truncated": len(records) >= preview_limit,
+    }
 
 
 @dataclass
@@ -684,6 +966,7 @@ def create_app(
     upstream_client: Optional[DashboardMCPClient] = None,
     mining_detector: Optional[MiningDetector] = None,
     static_dir: Optional[Path] = None,
+    ontology_run_root: Optional[Path] = None,
 ):
     """Create the FastAPI dashboard app."""
     if FastAPI is None or run_in_threadpool is None:
@@ -711,6 +994,10 @@ def create_app(
     if static_dir is None:
         static_dir = _static_dir_from_env()
     static_dir = static_dir.expanduser()
+    if ontology_run_root is None:
+        ontology_run_root = load_ontology_run_root()
+    else:
+        ontology_run_root = Path(ontology_run_root).expanduser().resolve(strict=False)
 
     async def require_bearer(authorization: Optional[str] = Header(default=None)):
         if auth_required_but_missing:
@@ -810,6 +1097,53 @@ def create_app(
             return JSONResponse(_make_upstream_error_payload(str(exc), mining), status_code=503)
         return _attach_dashboard_context(payload, mining)
 
+    async def _ontology_run_snapshot(run_id: str) -> Dict[str, Any]:
+        try:
+            run_dir = _safe_run_dir(ontology_run_root, run_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        progress = _read_json_file(run_dir / "progress.json")
+        if progress is not None and progress.get("run_id") not in {None, run_id}:
+            raise HTTPException(status_code=409, detail="Run progress payload does not match run_id")
+        artifact_index = _read_json_file(run_dir / "artifacts_index.json")
+        if artifact_index is not None and artifact_index.get("run_id") not in {None, run_id}:
+            raise HTTPException(status_code=409, detail="Artifact index payload does not match run_id")
+        return {
+            "run_id": run_id,
+            "run_dir": run_dir,
+            "progress": progress,
+            "artifact_index": artifact_index,
+        }
+
+    async def _ontology_run_list() -> Dict[str, Any]:
+        runs: List[Dict[str, Any]] = []
+        for run_dir in _list_run_dirs(ontology_run_root):
+            run_id = run_dir.name
+            progress = _read_json_file(run_dir / "progress.json")
+            artifact_index = _read_json_file(run_dir / "artifacts_index.json")
+            runs.append(
+                _run_summary_payload(
+                    run_id=run_id,
+                    run_dir=run_dir,
+                    progress=progress,
+                    artifact_index=artifact_index,
+                )
+            )
+        runs.sort(
+            key=lambda item: (
+                item.get("updated_at") or "",
+                item.get("started_at") or "",
+                item.get("run_id") or "",
+            ),
+            reverse=True,
+        )
+        return {
+            "status": "ok",
+            "run_root": str(ontology_run_root),
+            "count": len(runs),
+            "runs": runs,
+        }
+
     app = FastAPI(
         title="MemPalace Dashboard",
         version=__version__,
@@ -877,6 +1211,54 @@ def create_app(
             {"drawer_id": drawer_id},
             mining,
         )
+
+    @app.get("/api/ontology/runs", dependencies=[Depends(require_bearer)])
+    async def ontology_runs():
+        return await _ontology_run_list()
+
+    @app.get("/api/ontology/runs/{run_id}", dependencies=[Depends(require_bearer)])
+    async def ontology_run_detail(run_id: str):
+        snapshot = await _ontology_run_snapshot(run_id)
+        unresolved_preview = _preview_unresolved_artifact(
+            snapshot["run_dir"],
+            snapshot["artifact_index"],
+        )
+        return _run_detail_payload(
+            run_id=run_id,
+            run_dir=snapshot["run_dir"],
+            progress=snapshot["progress"],
+            artifact_index=snapshot["artifact_index"],
+            unresolved_preview=unresolved_preview.get("preview", []),
+        )
+
+    @app.get("/api/ontology/runs/{run_id}/artifacts", dependencies=[Depends(require_bearer)])
+    async def ontology_run_artifacts(run_id: str):
+        snapshot = await _ontology_run_snapshot(run_id)
+        artifacts = _artifact_entries(snapshot["artifact_index"])
+        return {
+            "status": "ok" if snapshot["artifact_index"] is not None else "missing",
+            "run_id": run_id,
+            "run_dir": str(snapshot["run_dir"]),
+            "artifact_index": snapshot["artifact_index"],
+            "artifact_count": len(artifacts),
+            "artifacts": artifacts,
+        }
+
+    @app.get("/api/ontology/runs/{run_id}/unresolved-preview", dependencies=[Depends(require_bearer)])
+    async def ontology_run_unresolved_preview(
+        run_id: str,
+        limit: int = Query(_UNRESOLVED_PREVIEW_DEFAULT_LIMIT, ge=1, le=_UNRESOLVED_PREVIEW_MAX_LIMIT),
+        excerpt_chars: int = Query(_UNRESOLVED_PREVIEW_DEFAULT_EXCERPT_CHARS, ge=16, le=2000),
+    ):
+        snapshot = await _ontology_run_snapshot(run_id)
+        preview = _preview_unresolved_artifact(
+            snapshot["run_dir"],
+            snapshot["artifact_index"],
+            limit=limit,
+            excerpt_chars=excerpt_chars,
+        )
+        preview["run_id"] = run_id
+        return preview
 
     if static_dir.is_dir() and (static_dir / "index.html").is_file():
         static_files = StaticFiles(directory=str(static_dir), html=False)

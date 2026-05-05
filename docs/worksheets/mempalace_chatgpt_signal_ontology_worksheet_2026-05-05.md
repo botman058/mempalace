@@ -530,11 +530,11 @@ Insufficient evidence:
 | C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests; milestone commit `8be20f1` pushed. | WP-03 |
 | D - Semantic Copy Green | green | `mempalace_copy_drawer` adds deterministic routed copies, origin metadata, no-op reruns, slug validation, and existing palace-lock refusal tests; milestone commit `5c611f3` pushed. | apply-capable later packages |
 | E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
-| F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests. | WP-07 |
-| G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08; WP-07 is now unblocked. | WP-07/WP-08 |
+| F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
+| G - Canonical Candidate Green | in progress | WP-07 activated with A-3 as lead; WP-08 remains blocked on WP-07. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
-| J - Dashboard Progress Green | blocked | Requires WP-13 and WP-14. | WP-13/WP-14 |
+| J - Dashboard Progress Green | in progress | WP-13 backend progress endpoints accepted; WP-14 dashboard UI remains. | WP-14 |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
 
 ---
@@ -549,15 +549,15 @@ Insufficient evidence:
 | WP-03 | complete | A-2/Poincare | Idempotent semantic copy support accepted at Checkpoint D; milestone commit `5c611f3` pushed. |
 | WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit `0b76d77` pushed. |
 | WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E; milestone commit `6a56036` pushed. |
-| WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F. |
-| WP-07 | pending | A-3 | Candidate clustering; unblocked by WP-06. |
+| WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F; milestone commit `76d6014` pushed. |
+| WP-07 | in progress | A-3 | Candidate clustering activated after WP-06. |
 | WP-08 | blocked | A-1 | Candidate naming/pruning. |
 | WP-09 | blocked | A-3 | Route candidate retrieval. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
-| WP-13 | in progress | A-4/Rawls | Dashboard progress endpoints activated in parallel with WP-06; backend-only scope, no dashboard UI mutation. |
-| WP-14 | blocked | A-5 | Dashboard progress meter and artifact browser. |
+| WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone pending commit. |
+| WP-14 | pending | A-5 | Dashboard progress meter and artifact browser; unblocked by WP-13. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
 | WP-16 | blocked | B-1 | Tiny-palace integration tests. |
 | WP-17 | blocked | R-1 | Independent review. |
@@ -816,6 +816,21 @@ Each drift entry must include:
 - Known gap: no CLI/run-loop integration yet; this package intentionally exposes pure prompt/parser and record assembly only.
 - Checkpoint F is green.
 
+### 2026-05-05 - WP-06 Milestone Commit Evidence
+
+- `git add mempalace/ontology_pass1.py tests/test_ontology_pass1.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-06 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ChatGPT ontology pass1 parser"` created `76d6014`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `76d6014` to the fork branch.
+- Active WP-13 files, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-07 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-07 was assigned to A-3 with model `gpt-5.4` and reasoning depth `high`.
+- A-3 write scope is limited to a pure candidate clustering module and focused tests, preferably `mempalace/ontology_candidates.py` and `tests/test_ontology_candidates.py`.
+- A-3 is forbidden from editing active WP-13 files, MCP files, dashboard UI files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+
 ### 2026-05-05 - WP-13 Review Repair Request
 
 - A-4/Rawls returned a scoped WP-13 patch adding dashboard ontology run endpoints in `mempalace/dashboard_server.py`, tests in `tests/test_dashboard_server.py`, and a dashboard guide note.
@@ -823,6 +838,21 @@ Each drift entry must include:
 - `O-0` ran `.venv/bin/python -m py_compile mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
 - `O-0` observed `.venv/bin/python -m ruff check mempalace/dashboard_server.py tests/test_dashboard_server.py website/guide/dashboard.md` reports `C901 create_app is too complex`; broad complexity refactor is deferred because WP-13 is a read-only endpoint package.
 - `O-0` sent WP-13 back for narrow repair: restore equivalent existing overview telemetry test coverage removed by the patch, and make ontology run-root configuration honor the forbidden `/media/u0/Extreme SSD` constraint.
+
+### 2026-05-05 - WP-13 Acceptance Evidence
+
+- A-4/Rawls restored overview telemetry test coverage and changed ontology run-root loading to reuse the existing ontology run-root resolver, which refuses `/media/u0/Extreme SSD`.
+- `mempalace/dashboard_server.py` now exposes read-only authenticated endpoints: `GET /api/ontology/runs`, `GET /api/ontology/runs/{run_id}`, `GET /api/ontology/runs/{run_id}/artifacts`, and `GET /api/ontology/runs/{run_id}/unresolved-preview`.
+- The endpoints read `progress.json`, `artifacts_index.json`, and bounded unresolved JSONL tails directly from the configured ontology run root; they do not call Chroma, MCP tools, LocalAI, mining, classification, or ontology mutation code.
+- Run IDs and artifact relative paths are validated to block traversal, and unresolved previews respect `dashboard_safe` and `privacy_level` metadata.
+- Tests cover active, completed, failed, and interrupted run shapes; artifact listing; bounded unresolved previews; authentication; invalid run IDs; mining-active access; no upstream MCP calls; run-root env overrides; forbidden run-root refusal; and existing overview telemetry behavior.
+- `website/guide/dashboard.md` documents the new read-only ontology progress API surface.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_dashboard_server.py`: `12 passed`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/dashboard_server.py tests/test_dashboard_server.py website/guide/dashboard.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check --select F401 mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
+- Residual lint note: full-file ruff still reports `C901 create_app is too complex`; broad dashboard refactor is deferred because it is outside WP-13.
+- WP-13 is complete; Checkpoint J remains in progress until WP-14 adds dashboard UI progress/meter coverage.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
