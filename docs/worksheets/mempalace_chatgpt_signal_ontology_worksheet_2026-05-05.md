@@ -560,7 +560,7 @@ Insufficient evidence:
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
-| WP-17 | complete | R-1/Herschel | Independent review complete; two medium findings remediated; milestone pending. |
+| WP-17 | complete | R-1/Herschel | Independent review complete; two medium findings remediated; milestone commit `f4d74e2` pushed. |
 | WP-18 | pending | O-0 | Final integration, docs, verification, commit, push unblocked. |
 
 ---
@@ -1195,6 +1195,14 @@ Each drift entry must include:
 - `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_run.py tests/test_ontology_cli.py tests/test_dashboard_server.py`: passed.
 - `O-0` ran `git diff --check -- mempalace/ontology_run.py tests/test_ontology_cli.py mempalace/dashboard_server.py tests/test_dashboard_server.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Medium findings from R-1 are resolved; remaining residual gaps are low severity and deferred to future full run-loop/apply work.
+
+### 2026-05-05 - WP-17 Milestone Commit Evidence
+
+- `git add docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md mempalace/ontology_run.py tests/test_ontology_cli.py mempalace/dashboard_server.py tests/test_dashboard_server.py` staged only accepted WP-17 remediation and worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Resolve ontology safety review findings"` created `f4d74e2`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `f4d74e2` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
