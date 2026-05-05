@@ -87,6 +87,38 @@ model does not return valid JSON, or the configured LocalAI base URL points at a
 cloud endpoint. The intended LLM is LocalAI hosted on `snow-white-iii`; this
 deployment should not send ChatGPT exports to cloud APIs.
 
+## ChatGPT signal ontology runner
+
+The ontology runner is intended to run on `snow-white-iii` as the `mempalace`
+service user. Keep every path anchored under the canonical palace root:
+
+```text
+/media/u0/OneDrive_Backup/mempalace/
+  app/
+  venv/
+  data/ontology/
+  secrets/localai_token
+```
+
+Do not point the runner at `/media/u0/Extreme SSD`.
+
+LocalAI for this runner is the host-local service at
+`http://snow-white-iii:8080/v1`, with token material read from
+`/media/u0/OneDrive_Backup/mempalace/secrets/localai_token`. It is not a cloud
+endpoint.
+
+The safe default is to generate the ontology run artifacts, including
+`apply_ready_manifest.json`, without copying drawers. Materializing copies
+requires the explicit apply flag.
+
+If you wrap the runner in a systemd unit, keep the same service limits used by
+the HTTP MCP service:
+
+```text
+MemoryMax=16G
+CPUQuota=200%
+```
+
 ## MemPalace dashboard service
 
 The dashboard is a separate service and should be deployed only when it will not
@@ -128,6 +160,11 @@ Use `--no-start` to install the unit without starting it.
 
 For the end-user manual, see
 `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`.
+
+The dashboard's ontology progress panel is read-only. It reads
+`progress.json`, `artifacts_index.json`, and bounded artifact previews from
+`/media/u0/OneDrive_Backup/mempalace/data/ontology/<run_id>/`, and it should
+not be used as a write path.
 
 Suggested environment file contents:
 

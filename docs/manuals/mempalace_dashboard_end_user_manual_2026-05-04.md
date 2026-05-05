@@ -14,6 +14,11 @@ The dashboard is for viewing MemPalace state and searching memories. It is not
 an admin console. It cannot delete drawers, edit memories, start mining, restart
 services, or rebuild indexes.
 
+The ontology progress panel is also read-only. It shows run state from
+`progress.json`, `artifacts_index.json`, and bounded previews under
+`/media/u0/OneDrive_Backup/mempalace/data/ontology/<run_id>/`. It does not
+trigger ontology writes or semantic copies.
+
 ## Quick Start
 
 1. Open the dashboard URL:

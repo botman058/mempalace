@@ -311,7 +311,7 @@ Insufficient evidence:
 | A - Worksheet Continuation Green | green | Worksheet saved on disk; branch/head/status recorded; O-0 model/depth recorded; out-of-scope dirty files noted. | WP-01/WP-02/WP-03 |
 | B - Runner Core Green | pending | none yet | WP-04 |
 | C - Apply Safety Green | pending | none yet | WP-04 |
-| D - snow-white-iii Operation Green | pending | none yet | WP-04 |
+| D - snow-white-iii Operation Green | green | WP-03 docs accepted: systemd README/env template/manual/changelog document snow-white-iii, LocalAI-only endpoint, canonical OneDrive paths, 200% CPU/16G memory caps, read-only dashboard progress, and no apply without explicit flag. | WP-04 after runner core |
 | E - Release Green | pending | none yet | tranche closed |
 
 ---
@@ -321,9 +321,9 @@ Insufficient evidence:
 | Package | Status | Owner | Notes |
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and Checkpoint A is green. |
-| WP-01 | pending | B-1 | blocked by Checkpoint A |
+| WP-01 | active | B-1/Planck | Runner core and CLI assigned. |
 | WP-02 | pending | B-3 | blocked by Checkpoint A |
-| WP-03 | pending | B-2 | blocked by Checkpoint A |
+| WP-03 | complete | B-2/Galileo | Ops/docs accepted; no deployment performed. |
 | WP-04 | pending | A-2/R-1 | blocked by WP-01-WP-03 |
 | WP-05 | pending | O-0 | blocked by WP-04 |
 
@@ -359,3 +359,31 @@ Any deviation from this worksheet must be recorded here before the next package 
 - `git status --short --branch` showed branch `codex/mempalace-http-mcp-closure` with out-of-scope dirty `.agents/plugins/marketplace.json` and unaccepted untracked `docs/reference/`.
 - `git remote -v` showed local `origin` as upstream `git@github.com:MemPalace/mempalace.git`; fork push target remains explicit.
 - `tako_orchestrated_worksheet_template_mutation_lock_2026-05-03.md` was found at `/home/u4/tako_orchestrated_worksheet_template_mutation_lock_2026-05-03.md` and used for this worksheet structure.
+
+### 2026-05-05 - WP-00 Milestone Commit Evidence
+
+- `git add docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md` staged only the continuation worksheet.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ChatGPT ontology runner worksheet"` created `d68feee`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `d68feee` to the fork branch.
+
+### 2026-05-05 - WP-01 and WP-03 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-01 was assigned to B-1/Planck with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-1 write scope is limited to `mempalace/ontology_runner.py`, `mempalace/cli.py`, and focused runner/CLI tests.
+- WP-03 was assigned to B-2/Galileo with model `gpt-5.4-mini` and reasoning depth `medium`.
+- B-2 write scope is limited to `scripts/systemd/README.md`, `scripts/systemd/mempalace.env.template`, optional ontology runner systemd wrapper/unit files, `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`, and `CHANGELOG.md`.
+- Both workers were instructed not to touch `.agents/plugins/marketplace.json`, unaccepted `docs/reference/`, source palace data, or each other's files.
+
+### 2026-05-05 - WP-03 Acceptance Evidence
+
+- B-2/Galileo changed only `scripts/systemd/README.md`, `scripts/systemd/mempalace.env.template`, `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`, and `CHANGELOG.md`.
+- The docs now state that the ontology runner is intended for `snow-white-iii` under the `mempalace` service user and canonical `/media/u0/OneDrive_Backup/mempalace` paths.
+- The docs explicitly refuse `/media/u0/Extreme SSD` for this workflow.
+- LocalAI is documented as `http://snow-white-iii:8080/v1` with token file `/media/u0/OneDrive_Backup/mempalace/secrets/localai_token`, not a cloud endpoint.
+- Resource guidance records `CPUQuota=200%` and `MemoryMax=16G` for any wrapper.
+- The dashboard manual and systemd README describe ontology progress as read-only artifacts under `/media/u0/OneDrive_Backup/mempalace/data/ontology/<run_id>/`.
+- The docs preserve the safe default: producing `apply_ready_manifest.json` does not copy drawers unless an explicit apply flag is used.
+- `git diff --check -- CHANGELOG.md scripts/systemd/README.md scripts/systemd/mempalace.env.template docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md docs/worksheets/mempalace_chatgpt_signal_ontology_runner_worksheet_2026-05-05.md` passed.
+- Known gap: no new systemd wrapper/unit was added and no deployment or runtime verification was performed.
