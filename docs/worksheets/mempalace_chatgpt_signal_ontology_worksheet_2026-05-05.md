@@ -557,7 +557,7 @@ Insufficient evidence:
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
-| WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone pending commit. |
+| WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
 | WP-16 | blocked | B-1 | Tiny-palace integration tests. |
 | WP-17 | blocked | R-1 | Independent review. |
@@ -915,6 +915,14 @@ Each drift entry must include:
 - `O-0` ran `.venv/bin/python -m py_compile tests/test_dashboard_static_contract.py`: passed.
 - `O-0` ran `git diff --check -- CHANGELOG.md website/guide/dashboard.md mempalace/dashboard_static/app.js mempalace/dashboard_static/index.html mempalace/dashboard_static/styles.css tests/test_dashboard_static_contract.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Checkpoint J is green.
+
+### 2026-05-05 - WP-14 Milestone Commit Evidence
+
+- `git add CHANGELOG.md website/guide/dashboard.md mempalace/dashboard_static/app.js mempalace/dashboard_static/index.html mempalace/dashboard_static/styles.css tests/test_dashboard_static_contract.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-14 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology progress dashboard UI"` created `d002072`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `d002072` to the fork branch.
+- Active WP-08 work, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
