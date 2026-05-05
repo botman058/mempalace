@@ -525,11 +525,11 @@ Insufficient evidence:
 
 | Checkpoint | Status | Evidence | Next gate |
 |---|---|---|---|
-| A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded. | WP-01 |
-| B - Artifact Contract Green | blocked | Requires WP-01. | WP-01 |
-| C - Source Export Green | blocked | Requires WP-02. | WP-02 |
-| D - Semantic Copy Green | blocked | Requires WP-03. | WP-03 |
-| E - Progressive Run Green | blocked | Requires WP-04 and WP-05. | WP-04/WP-05 |
+| A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
+| B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract. | WP-02/WP-04/WP-13 |
+| C - Source Export Green | pending | Unblocked by WP-01. | WP-02 |
+| D - Semantic Copy Green | blocked | Requires WP-02 then WP-03. | WP-03 |
+| E - Progressive Run Green | pending | WP-04 and WP-05 unblocked by WP-01. | WP-04/WP-05 |
 | F - Pass1 Candidate Green | blocked | Requires WP-06. | WP-06 |
 | G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
@@ -544,8 +544,8 @@ Insufficient evidence:
 | Package | Status | Owner | Notes |
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
-| WP-01 | pending | A-1 | Artifact/progress schema contract is next. |
-| WP-02 | blocked | A-2 | Safe source drawer export. |
+| WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
+| WP-02 | pending | A-2 | Safe source drawer export. |
 | WP-03 | blocked | A-2 | Idempotent semantic copy support. |
 | WP-04 | blocked | B-2 | CLI shell and run lifecycle. |
 | WP-05 | blocked | B-2 | Progressive materialization and resume markers. |
@@ -569,7 +569,7 @@ Insufficient evidence:
 
 ### Open drift items
 
-- None.
+- Unaccepted untracked `docs/reference/` output exists. It is outside the accepted WP-01 package and must not be staged. Deletion requires explicit user confirmation.
 
 ### Drift recording rule
 
@@ -593,6 +593,15 @@ Each drift entry must include:
 - Any cloud LLM upload happens without separate explicit approval.
 - Dashboard progress reads trigger Chroma writes, LocalAI calls, mining, classification, or ontology mutation.
 - Progress exists only in terminal output and is not materialized to run artifacts.
+
+### 2026-05-05 - WP-01 Scope Drift
+
+- **package:** WP-01
+- **changed paths:** `docs/reference/mempalace_chatgpt_signal_ontology_artifact_contract_2026-05-05.md`
+- **violated or bypassed gate:** replacement A-1R write scope allowed exactly one new contract document, but an additional untracked `docs/reference/` file is present.
+- **reason:** likely leftover worker output; not needed for Checkpoint B.
+- **recovery action:** do not stage or accept `docs/reference/`; leave it on disk pending explicit user confirmation before any cleanup.
+- **current verdict:** amber; does not block WP-01 acceptance because accepted package excludes the extra file.
 
 ---
 
@@ -634,4 +643,32 @@ Each drift entry must include:
 - `git remote -v` showed local `origin` as upstream `git@github.com:MemPalace/mempalace.git`; fork push target remains explicitly `git@github.com:botman058/mempalace.git`.
 - Existing worksheets were checked and confirmed to maintain post-assumptions evidence logs.
 - Worksheet saved at `docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`.
-- No ontology code, dashboard code, MCP mutation path, service change, remote apply, staging, commit, push, deletion, or palace mutation was performed.
+- No ontology code, dashboard code, MCP mutation path, service change, remote apply, deletion, or palace mutation was performed.
+
+### 2026-05-05 - WP-00 Milestone Commit Evidence
+
+- `git add docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only the worksheet.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ChatGPT signal ontology worksheet"` created `e7e1d39`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `e7e1d39` to the fork branch.
+- Post-push `git status --short --branch` showed only out-of-scope dirty `.agents/plugins/marketplace.json`.
+
+### 2026-05-05 - WP-01 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-01 was assigned to A-1 with model `gpt-5.4` and reasoning depth `high`.
+- A-1 write scope is limited to artifact/progress contract documentation and optional schema fixtures; A-1 is forbidden from editing this worksheet, runtime code, dashboard code, MCP code, CLI code, `CHANGELOG.md`, `pyproject.toml`, or `.agents/plugins/marketplace.json`.
+
+### 2026-05-05 - WP-01 Reassignment
+
+- Original A-1 exceeded the small-package window and did not return after a bounded status request.
+- `O-0` closed original A-1 without accepting any package output.
+- Replacement A-1R was assigned WP-01 with model `gpt-5.4`, reasoning depth `high`, and write scope limited to one new contract document under `docs/`.
+
+### 2026-05-05 - WP-01 Acceptance Evidence
+
+- A-1R delivered `docs/chatgpt_signal_ontology_artifacts.md`.
+- The contract defines six required surfaces for Checkpoint B: `progress.json`, phase `<phase>.jsonl`, `artifacts_index.json`, `accepted_routes.jsonl`, `unresolved.jsonl`, and routed copy metadata.
+- The contract defines status enums, append-only JSONL semantics, atomic rewrite semantics for JSON summaries, dashboard read rules, privacy constraints, and idempotent routed-copy metadata expectations.
+- `O-0` verified `rg` hits for required schema surfaces and `git diff --check` passed for the accepted contract and worksheet.
+- `docs/reference/` remains unaccepted and unstaged per the WP-01 drift entry.
