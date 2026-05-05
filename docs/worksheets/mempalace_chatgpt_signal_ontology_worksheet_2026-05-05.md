@@ -558,7 +558,7 @@ Insufficient evidence:
 | WP-12 | complete | A-3R/Euler | Iteration decision records, convergence reports, and apply-ready manifests accepted; milestone commit `e89bb64` pushed. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
-| WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone pending. |
+| WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | pending | B-1 | Tiny-palace integration tests unblocked by WP-15. |
 | WP-17 | blocked | R-1 | Independent review. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
@@ -1124,6 +1124,14 @@ Each drift entry must include:
 - `O-0` ran `.venv/bin/python -m py_compile tests/test_ontology_contract.py`: passed.
 - `O-0` ran `git diff --check -- tests/test_ontology_contract.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: WP-15 intentionally adds focused contract tests only; tiny-palace Chroma-backed integration proof remains WP-16.
+
+### 2026-05-05 - WP-15 Milestone Commit Evidence
+
+- `git add tests/test_ontology_contract.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-15 test and worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology contract tests"` created `0bda43f`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `0bda43f` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
