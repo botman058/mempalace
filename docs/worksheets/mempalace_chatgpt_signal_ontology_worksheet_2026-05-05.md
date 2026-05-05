@@ -552,7 +552,7 @@ Insufficient evidence:
 | WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F; milestone commit `76d6014` pushed. |
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
-| WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone pending commit. |
+| WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
 | WP-10 | pending | A-1 | Pass2 route prompt/parser; unblocked by WP-09. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
@@ -979,6 +979,14 @@ Each drift entry must include:
 - `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_candidates.py tests/test_ontology_route_candidates.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: no CLI/run-loop integration or artifact publishing yet; WP-09 intentionally provides pure deterministic retrieval and record assembly only.
 - Checkpoint H remains in progress until WP-10 route prompt/parser is accepted.
+
+### 2026-05-05 - WP-09 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_candidates.py tests/test_ontology_route_candidates.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-09 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology route candidate retrieval"` created `701ba4a`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `701ba4a` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
