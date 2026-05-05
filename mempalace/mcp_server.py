@@ -14,6 +14,7 @@ Tools (read):
 
 Tools (write):
   mempalace_add_drawer      — file verbatim content into a wing/room
+  mempalace_copy_drawer     — idempotent semantic copy into a canonical wing/room
   mempalace_delete_drawer   — remove a drawer by ID
 
 Tools (maintenance):
@@ -46,8 +47,9 @@ import argparse  # noqa: E402  (deferred until after stdio protection above)
 import json  # noqa: E402
 import logging  # noqa: E402
 import hashlib  # noqa: E402
+import re  # noqa: E402
 import time  # noqa: E402
-from datetime import date, datetime  # noqa: E402
+from datetime import date, datetime, timezone  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from .config import (  # noqa: E402
@@ -77,8 +79,10 @@ from .palace_graph import (  # noqa: E402
     delete_tunnel,
     follow_tunnels,
 )
+from .palace import MineAlreadyRunning, mine_palace_lock  # noqa: E402
 
 from .knowledge_graph import KnowledgeGraph  # noqa: E402
+from .ontology_run import validate_run_id  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
 logger = logging.getLogger("mempalace_mcp")
@@ -408,6 +412,78 @@ def _sanitize_drawer_metadata(meta: dict) -> dict:
     if safe_meta.get("source_file"):
         safe_meta["source_file"] = Path(str(safe_meta["source_file"])).name
     return safe_meta
+
+
+_ONTOLOGY_COPY_SCHEMA_VERSION = 1
+_ONTOLOGY_COPY_PREFIX = "ontology-copy:v1\0"
+_ONTOLOGY_SLUG_RE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _utc_now_rfc3339() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _content_sha256(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _ontology_copy_drawer_id(source_drawer_id: str, canonical_wing: str, canonical_room: str) -> str:
+    digest = hashlib.sha256(
+        (
+            _ONTOLOGY_COPY_PREFIX
+            + source_drawer_id
+            + "\0"
+            + canonical_wing
+            + "\0"
+            + canonical_room
+        ).encode("utf-8")
+    ).hexdigest()[:24]
+    return f"drawer_{canonical_wing}_{canonical_room}_{digest}"
+
+
+def _validate_flat_scalar_metadata(meta: dict) -> dict:
+    """Return a copy of metadata safe to persist back into Chroma.
+
+    Chroma metadata must stay flat scalars. ``None`` values are dropped;
+    nested values are rejected so semantic-copy writes do not smuggle
+    unsupported metadata into storage.
+    """
+    if meta is None:
+        return {}
+    if not isinstance(meta, dict):
+        raise ValueError("source drawer metadata must be an object")
+
+    safe_meta = {}
+    for key, value in meta.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError("source drawer metadata contains an invalid key")
+        if "\x00" in key:
+            raise ValueError(f"source drawer metadata field '{key}' contains null bytes")
+        if value is None:
+            continue
+        if isinstance(value, str):
+            if "\x00" in value:
+                raise ValueError(f"source drawer metadata field '{key}' contains null bytes")
+            safe_meta[key] = value
+            continue
+        if isinstance(value, bool):
+            safe_meta[key] = value
+            continue
+        if isinstance(value, (int, float)):
+            safe_meta[key] = value
+            continue
+        raise ValueError(
+            f"source drawer metadata field '{key}' must be a flat scalar, not {type(value).__name__}"
+        )
+    return safe_meta
+
+
+def _sanitize_ontology_slug(value: str, field_name: str) -> str:
+    """Validate ontology wing/room keys against the artifact contract."""
+    value = sanitize_name(value, field_name)
+    if not _ONTOLOGY_SLUG_RE.fullmatch(value):
+        raise ValueError(f"{field_name} must match ^[a-z0-9_]+$")
+    return value
 
 
 # ==================== READ TOOLS ====================
@@ -888,6 +964,150 @@ def tool_add_drawer(
         _metadata_cache = None
         logger.info(f"Filed drawer: {drawer_id} → {wing}/{room}")
         return {"success": True, "drawer_id": drawer_id, "wing": wing, "room": room}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def tool_copy_drawer(
+    source_drawer_id: str,
+    canonical_wing: str,
+    canonical_room: str,
+    ontology_run_id: str,
+    ontology_route_iteration: int,
+    ontology_candidate_id: str,
+    ontology_route_record_ref: str,
+):
+    """Create an idempotent semantic copy of a source drawer."""
+    global _metadata_cache
+
+    try:
+        source_drawer_id = sanitize_kg_value(source_drawer_id, "source_drawer_id")
+        canonical_wing = _sanitize_ontology_slug(canonical_wing, "canonical_wing")
+        canonical_room = _sanitize_ontology_slug(canonical_room, "canonical_room")
+        if not isinstance(ontology_run_id, str):
+            raise ValueError("ontology_run_id must be a string")
+        ontology_run_id = validate_run_id(ontology_run_id)
+        ontology_candidate_id = sanitize_kg_value(ontology_candidate_id, "ontology_candidate_id")
+        ontology_route_record_ref = sanitize_kg_value(
+            ontology_route_record_ref, "ontology_route_record_ref"
+        )
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    if (
+        not isinstance(ontology_route_iteration, int)
+        or isinstance(ontology_route_iteration, bool)
+        or ontology_route_iteration < 1
+    ):
+        return {"success": False, "error": "ontology_route_iteration must be a positive integer"}
+    try:
+        with mine_palace_lock(_config.palace_path):
+            col = _get_collection()
+            if not col:
+                return _no_palace()
+
+            copy_id = _ontology_copy_drawer_id(source_drawer_id, canonical_wing, canonical_room)
+            source_doc = None
+            content_hash = None
+            try:
+                source = col.get(ids=[source_drawer_id], include=["documents", "metadatas"])
+                if not source["ids"]:
+                    return {"success": False, "error": f"Drawer not found: {source_drawer_id}"}
+
+                source_doc = source["documents"][0]
+                source_meta = _validate_flat_scalar_metadata(source["metadatas"][0] or {})
+                content_hash = _content_sha256(source_doc)
+
+                _wal_log(
+                    "copy_drawer",
+                    {
+                        "source_drawer_id": source_drawer_id,
+                        "canonical_wing": canonical_wing,
+                        "canonical_room": canonical_room,
+                        "ontology_run_id": ontology_run_id,
+                        "ontology_route_iteration": ontology_route_iteration,
+                        "ontology_candidate_id": ontology_candidate_id,
+                        "ontology_route_record_ref": ontology_route_record_ref,
+                        "drawer_id": copy_id,
+                        "content_length": len(source_doc),
+                    },
+                )
+
+                existing = col.get(ids=[copy_id], include=["documents", "metadatas"])
+                if existing["ids"]:
+                    existing_hash = _content_sha256(existing["documents"][0])
+                    if existing_hash == content_hash:
+                        return {
+                            "success": True,
+                            "drawer_id": copy_id,
+                            "wing": canonical_wing,
+                            "room": canonical_room,
+                            "reason": "already_exists",
+                            "noop": True,
+                        }
+                    return {
+                        "success": False,
+                        "error": (
+                            f"Drawer ID collision for {copy_id}: existing content hash {existing_hash} "
+                            f"does not match source content hash {content_hash}"
+                        ),
+                    }
+
+                materialized_at = _utc_now_rfc3339()
+                copy_meta = dict(source_meta)
+                copy_meta["wing"] = canonical_wing
+                copy_meta["room"] = canonical_room
+                copy_meta["ontology_copy_id"] = copy_id
+                copy_meta["ontology_run_id"] = ontology_run_id
+                copy_meta["ontology_schema_version"] = _ONTOLOGY_COPY_SCHEMA_VERSION
+                copy_meta["ontology_route_status"] = "accepted"
+                copy_meta["ontology_route_iteration"] = ontology_route_iteration
+                copy_meta["ontology_source_drawer_id"] = source_drawer_id
+                copy_meta["ontology_source_wing"] = source_meta.get("wing", "")
+                copy_meta["ontology_source_room"] = source_meta.get("room", "")
+                copy_meta["ontology_candidate_id"] = ontology_candidate_id
+                copy_meta["ontology_canonical_wing"] = canonical_wing
+                copy_meta["ontology_canonical_room"] = canonical_room
+                copy_meta["ontology_route_record_ref"] = ontology_route_record_ref
+                copy_meta["ontology_materialized_at"] = materialized_at
+                copy_meta["ontology_content_sha256"] = content_hash
+
+                col.add(ids=[copy_id], documents=[source_doc], metadatas=[copy_meta])
+                _metadata_cache = None
+                logger.info(
+                    f"Copied drawer: {source_drawer_id} → {copy_id} ({canonical_wing}/{canonical_room})"
+                )
+                return {
+                    "success": True,
+                    "drawer_id": copy_id,
+                    "wing": canonical_wing,
+                    "room": canonical_room,
+                    "source_drawer_id": source_drawer_id,
+                }
+            except Exception as e:
+                try:
+                    existing = col.get(ids=[copy_id], include=["documents"])
+                    if (
+                        source_doc is not None
+                        and existing["ids"]
+                        and _content_sha256(existing["documents"][0]) == content_hash
+                    ):
+                        return {
+                            "success": True,
+                            "drawer_id": copy_id,
+                            "wing": canonical_wing,
+                            "room": canonical_room,
+                            "reason": "already_exists",
+                            "noop": True,
+                        }
+                except Exception:
+                    pass
+                return {"success": False, "error": str(e)}
+    except MineAlreadyRunning as e:
+        return {
+            "success": False,
+            "error": f"Palace write already active; no copy written: {e}",
+        }
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -1801,6 +2021,53 @@ TOOLS = {
             "required": ["wing", "room", "content"],
         },
         "handler": tool_add_drawer,
+    },
+    "mempalace_copy_drawer": {
+        "description": "Create an idempotent semantic copy of a source drawer into a canonical wing/room. Preserves source content, keeps the original drawer untouched, and writes flat ontology_* provenance metadata onto the copy.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source_drawer_id": {
+                    "type": "string",
+                    "description": "Immutable source drawer ID to copy from",
+                },
+                "canonical_wing": {
+                    "type": "string",
+                    "description": "Canonical ontology wing for the semantic copy",
+                },
+                "canonical_room": {
+                    "type": "string",
+                    "description": "Canonical ontology room for the semantic copy",
+                },
+                "ontology_run_id": {
+                    "type": "string",
+                    "description": "Ontology run ID that accepted this route",
+                },
+                "ontology_route_iteration": {
+                    "type": "integer",
+                    "description": "1-based routing iteration that produced the accepted route",
+                    "minimum": 1,
+                },
+                "ontology_candidate_id": {
+                    "type": "string",
+                    "description": "Accepted canonical candidate ID",
+                },
+                "ontology_route_record_ref": {
+                    "type": "string",
+                    "description": "Accepted route artifact reference, e.g. accepted_routes.jsonl#1",
+                },
+            },
+            "required": [
+                "source_drawer_id",
+                "canonical_wing",
+                "canonical_room",
+                "ontology_run_id",
+                "ontology_route_iteration",
+                "ontology_candidate_id",
+                "ontology_route_record_ref",
+            ],
+        },
+        "handler": tool_copy_drawer,
     },
     "mempalace_delete_drawer": {
         "description": "Delete a drawer by ID. Irreversible.",

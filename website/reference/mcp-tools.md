@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-Detailed parameter schemas for all 30 MCP tools.
+Detailed parameter schemas for all 31 MCP tools.
 
 ## Palace — Read Tools
 
@@ -99,6 +99,24 @@ File verbatim content into the palace. Identical content (same deterministic dra
 | `added_by` | string | No | Who is filing (default: "mcp") |
 
 **Returns:** `{ success, drawer_id, wing, room }`
+
+---
+
+### `mempalace_copy_drawer`
+
+Create an idempotent semantic copy of a source drawer into a canonical ontology wing/room. Preserves the source content, leaves the original drawer untouched, and writes flat `ontology_*` provenance metadata onto the copy. Refuses while the existing per-palace write lock is held by another mine/apply-style writer.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `source_drawer_id` | string | **Yes** | Immutable source drawer ID to copy from |
+| `canonical_wing` | string | **Yes** | Canonical ontology wing for the copy. Must already be a lowercase slug matching `^[a-z0-9_]+$` |
+| `canonical_room` | string | **Yes** | Canonical ontology room for the copy. Must already be a lowercase slug matching `^[a-z0-9_]+$` |
+| `ontology_run_id` | string | **Yes** | Ontology run ID that accepted this route |
+| `ontology_route_iteration` | integer | **Yes** | 1-based routing iteration |
+| `ontology_candidate_id` | string | **Yes** | Accepted canonical candidate ID |
+| `ontology_route_record_ref` | string | **Yes** | Accepted route artifact reference, e.g. `accepted_routes.jsonl#1` |
+
+**Returns:** `{ success, drawer_id, wing, room, source_drawer_id }` on first materialization, or `{ success, drawer_id, wing, room, reason: "already_exists", noop: true }` when the same deterministic copy already exists with the same content hash. Returns `{ success: false, error }` if the palace write lock is already held and no copy is written.
 
 ---
 

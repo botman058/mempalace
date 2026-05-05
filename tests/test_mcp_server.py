@@ -7,6 +7,7 @@ via monkeypatch to avoid touching real data.
 """
 
 from datetime import datetime
+import hashlib
 import json
 import sys
 
@@ -115,6 +116,7 @@ class TestHandleRequest:
         assert "mempalace_status" in names
         assert "mempalace_search" in names
         assert "mempalace_add_drawer" in names
+        assert "mempalace_copy_drawer" in names
         assert "mempalace_kg_add" in names
         assert "mempalace_export_drawers" in names
 
@@ -540,6 +542,337 @@ class TestWriteTools:
         assert (
             result1["drawer_id"] != result2["drawer_id"]
         ), "Documents with shared header but different content must have distinct drawer IDs"
+
+    def test_copy_drawer_creates_deterministic_semantic_copy_and_preserves_source(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+
+        source_drawer_id = "drawer_chatgpt_signals_general_3d7e47b0d88b3a6c22d4d7a9"
+        source_content = (
+            "Please help me reschedule the appointment and update the intake form.\n"
+            "I also need the insurance card on file."
+        )
+        collection.add(
+            ids=[source_drawer_id],
+            documents=[source_content],
+            metadatas=[
+                {
+                    "wing": "chatgpt_signals",
+                    "room": "general",
+                    "source_file": "/private/home/alice/chatgpt_exports/conversations.json",
+                    "chunk_index": 7,
+                    "added_by": "localai_chatgpt_signals",
+                    "conversation_id": "chatgpt:conv-001",
+                    "source_drawer_id": "drawer_raw_001",
+                }
+            ],
+        )
+
+        result = tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="life_admin",
+            canonical_room="appointments_and_forms",
+            ontology_run_id="20260505T143015Z_chatgpt_signal_ontology",
+            ontology_route_iteration=1,
+            ontology_candidate_id="cand_life_admin__appointments_and_forms",
+            ontology_route_record_ref="accepted_routes.jsonl#1",
+        )
+
+        expected_suffix = hashlib.sha256(
+            (
+                "ontology-copy:v1\0"
+                + source_drawer_id
+                + "\0"
+                + "life_admin"
+                + "\0"
+                + "appointments_and_forms"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        expected_drawer_id = (
+            f"drawer_life_admin_appointments_and_forms_{expected_suffix}"
+        )
+        assert result["success"] is True
+        assert result["drawer_id"] == expected_drawer_id
+
+        copied = collection.get(ids=[expected_drawer_id], include=["documents", "metadatas"])
+        assert copied["documents"][0] == source_content
+        assert copied["metadatas"][0]["wing"] == "life_admin"
+        assert copied["metadatas"][0]["room"] == "appointments_and_forms"
+        assert copied["metadatas"][0]["source_drawer_id"] == "drawer_raw_001"
+        assert copied["metadatas"][0]["ontology_copy_id"] == expected_drawer_id
+        assert (
+            copied["metadatas"][0]["ontology_source_drawer_id"] == source_drawer_id
+        )
+        assert copied["metadatas"][0]["ontology_source_wing"] == "chatgpt_signals"
+        assert copied["metadatas"][0]["ontology_source_room"] == "general"
+        assert copied["metadatas"][0]["ontology_candidate_id"] == (
+            "cand_life_admin__appointments_and_forms"
+        )
+        assert copied["metadatas"][0]["ontology_canonical_wing"] == "life_admin"
+        assert copied["metadatas"][0]["ontology_canonical_room"] == "appointments_and_forms"
+        assert copied["metadatas"][0]["ontology_route_status"] == "accepted"
+        assert copied["metadatas"][0]["ontology_route_iteration"] == 1
+        assert copied["metadatas"][0]["ontology_run_id"] == (
+            "20260505T143015Z_chatgpt_signal_ontology"
+        )
+        assert copied["metadatas"][0]["ontology_route_record_ref"] == (
+            "accepted_routes.jsonl#1"
+        )
+        assert copied["metadatas"][0]["ontology_content_sha256"] == hashlib.sha256(
+            source_content.encode("utf-8")
+        ).hexdigest()
+        assert copied["metadatas"][0]["ontology_materialized_at"].endswith("Z")
+
+        source_after = collection.get(ids=[source_drawer_id], include=["documents", "metadatas"])
+        assert source_after["documents"][0] == source_content
+        assert source_after["metadatas"][0]["wing"] == "chatgpt_signals"
+        assert source_after["metadatas"][0]["room"] == "general"
+        assert "ontology_copy_id" not in source_after["metadatas"][0]
+        assert "ontology_source_drawer_id" not in source_after["metadatas"][0]
+
+    def test_copy_drawer_repeated_apply_is_a_noop(self, monkeypatch, config, collection, kg):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+
+        source_drawer_id = "drawer_chatgpt_signals_general_repeat_001"
+        source_content = "Repeatable ontology source drawer body."
+        collection.add(
+            ids=[source_drawer_id],
+            documents=[source_content],
+            metadatas=[{"wing": "chatgpt_signals", "room": "general", "chunk_index": 0}],
+        )
+
+        result1 = tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="support",
+            canonical_room="requests",
+            ontology_run_id="20260505T143015Z_chatgpt_signal_ontology",
+            ontology_route_iteration=1,
+            ontology_candidate_id="cand_support__requests",
+            ontology_route_record_ref="accepted_routes.jsonl#7",
+        )
+        result2 = tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="support",
+            canonical_room="requests",
+            ontology_run_id="20260505T150000Z_chatgpt_signal_ontology",
+            ontology_route_iteration=2,
+            ontology_candidate_id="cand_support__requests",
+            ontology_route_record_ref="accepted_routes.jsonl#8",
+        )
+
+        assert result1["success"] is True
+        assert result2["success"] is True
+        assert result2["drawer_id"] == result1["drawer_id"]
+        assert result2["reason"] == "already_exists"
+        assert result2["noop"] is True
+        assert collection.count() == 2
+
+    @pytest.mark.parametrize(
+        ("field_name", "field_value"),
+        [
+            ("canonical_wing", "Life Admin"),
+            ("canonical_room", "appointments.forms"),
+        ],
+    )
+    def test_copy_drawer_rejects_non_slug_canonical_target(
+        self, monkeypatch, config, collection, kg, field_name, field_value
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+
+        source_drawer_id = "drawer_chatgpt_signals_general_slug_001"
+        collection.add(
+            ids=[source_drawer_id],
+            documents=["Canonical target validation source body."],
+            metadatas=[{"wing": "chatgpt_signals", "room": "general", "chunk_index": 0}],
+        )
+
+        kwargs = {
+            "source_drawer_id": source_drawer_id,
+            "canonical_wing": "life_admin",
+            "canonical_room": "appointments_and_forms",
+            "ontology_run_id": "20260505T143015Z_chatgpt_signal_ontology",
+            "ontology_route_iteration": 1,
+            "ontology_candidate_id": "cand_life_admin__appointments_and_forms",
+            "ontology_route_record_ref": "accepted_routes.jsonl#11",
+        }
+        kwargs[field_name] = field_value
+
+        result = tool_copy_drawer(**kwargs)
+
+        assert result["success"] is False
+        assert result["error"] == f"{field_name} must match ^[a-z0-9_]+$"
+        assert collection.count() == 1
+
+    def test_copy_drawer_rejects_non_string_ontology_run_id(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+
+        source_drawer_id = "drawer_chatgpt_signals_general_runid_001"
+        collection.add(
+            ids=[source_drawer_id],
+            documents=["Ontology run id validation source body."],
+            metadatas=[{"wing": "chatgpt_signals", "room": "general", "chunk_index": 0}],
+        )
+
+        result = tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="support",
+            canonical_room="requests",
+            ontology_run_id=12345,
+            ontology_route_iteration=1,
+            ontology_candidate_id="cand_support__requests",
+            ontology_route_record_ref="accepted_routes.jsonl#12",
+        )
+
+        assert result == {"success": False, "error": "ontology_run_id must be a string"}
+        assert collection.count() == 1
+
+    def test_copy_drawer_refuses_when_palace_write_lock_is_held(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+        from mempalace.palace import mine_palace_lock
+
+        source_drawer_id = "drawer_chatgpt_signals_general_locked_001"
+        source_content = "Source drawer body blocked by active palace writer."
+        collection.add(
+            ids=[source_drawer_id],
+            documents=[source_content],
+            metadatas=[{"wing": "chatgpt_signals", "room": "general", "chunk_index": 0}],
+        )
+
+        with mine_palace_lock(config.palace_path):
+            result = tool_copy_drawer(
+                source_drawer_id=source_drawer_id,
+                canonical_wing="support",
+                canonical_room="requests",
+                ontology_run_id="20260505T143015Z_chatgpt_signal_ontology",
+                ontology_route_iteration=1,
+                ontology_candidate_id="cand_support__requests",
+                ontology_route_record_ref="accepted_routes.jsonl#13",
+            )
+
+        assert result["success"] is False
+        assert "Palace write already active; no copy written:" in result["error"]
+        assert "already running against" in result["error"]
+        assert collection.count() == 1
+
+        copy_drawer_id = "drawer_support_requests_" + hashlib.sha256(
+            (
+                "ontology-copy:v1\0"
+                + source_drawer_id
+                + "\0"
+                + "support"
+                + "\0"
+                + "requests"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        copied = collection.get(ids=[copy_drawer_id], include=["documents", "metadatas"])
+        assert copied["ids"] == []
+
+    def test_copy_drawer_reports_content_hash_collision(self, monkeypatch, config, collection, kg):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_copy_drawer
+
+        source_drawer_id = "drawer_chatgpt_signals_general_collision_001"
+        source_content = "Source content that should not overwrite an existing semantic copy."
+        collection.add(
+            ids=[source_drawer_id],
+            documents=[source_content],
+            metadatas=[{"wing": "chatgpt_signals", "room": "general", "chunk_index": 0}],
+        )
+
+        colliding_drawer_id = "drawer_support_requests_" + hashlib.sha256(
+            (
+                "ontology-copy:v1\0"
+                + source_drawer_id
+                + "\0"
+                + "support"
+                + "\0"
+                + "requests"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        collection.add(
+            ids=[colliding_drawer_id],
+            documents=["Different content already stored under the deterministic copy ID."],
+            metadatas=[{"wing": "support", "room": "requests", "chunk_index": 0}],
+        )
+
+        result = tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="support",
+            canonical_room="requests",
+            ontology_run_id="20260505T143015Z_chatgpt_signal_ontology",
+            ontology_route_iteration=1,
+            ontology_candidate_id="cand_support__requests",
+            ontology_route_record_ref="accepted_routes.jsonl#9",
+        )
+
+        assert result["success"] is False
+        assert "Drawer ID collision" in result["error"]
+        stored = collection.get(ids=[colliding_drawer_id], include=["documents"])
+        assert stored["documents"][0] == "Different content already stored under the deterministic copy ID."
+
+    def test_copy_drawer_rejects_nested_source_metadata(
+        self, monkeypatch, config, palace_path, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace import mcp_server
+
+        source_drawer_id = "drawer_chatgpt_signals_general_nested_001"
+        copy_drawer_id = "drawer_support_requests_" + hashlib.sha256(
+            (
+                "ontology-copy:v1\0"
+                + source_drawer_id
+                + "\0"
+                + "support"
+                + "\0"
+                + "requests"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+
+        class FakeCollection:
+            def get(self, ids, include=None):
+                if ids == [source_drawer_id]:
+                    return {
+                        "ids": [source_drawer_id],
+                        "documents": ["source body"],
+                        "metadatas": [
+                            {
+                                "wing": "chatgpt_signals",
+                                "room": "general",
+                                "bad_nested": {"x": 1},
+                            }
+                        ],
+                    }
+                if ids == [copy_drawer_id]:
+                    return {"ids": [], "documents": [], "metadatas": []}
+                raise AssertionError(f"unexpected get ids={ids!r}")
+
+            def add(self, **kwargs):
+                raise AssertionError("copy_drawer must reject nested metadata before add()")
+
+        monkeypatch.setattr(mcp_server, "_get_collection", lambda: FakeCollection())
+
+        result = mcp_server.tool_copy_drawer(
+            source_drawer_id=source_drawer_id,
+            canonical_wing="support",
+            canonical_room="requests",
+            ontology_run_id="20260505T143015Z_chatgpt_signal_ontology",
+            ontology_route_iteration=1,
+            ontology_candidate_id="cand_support__requests",
+            ontology_route_record_ref="accepted_routes.jsonl#10",
+        )
+
+        assert result["success"] is False
+        assert "flat scalar" in result["error"]
 
     def test_delete_drawer(self, monkeypatch, config, palace_path, seeded_collection, kg):
         _patch_mcp_server(monkeypatch, config, kg)

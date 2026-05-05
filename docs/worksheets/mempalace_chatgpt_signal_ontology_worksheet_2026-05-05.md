@@ -528,9 +528,9 @@ Insufficient evidence:
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
 | B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
 | C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests; milestone commit `8be20f1` pushed. | WP-03 |
-| D - Semantic Copy Green | in progress | WP-03 activated with A-2 as lead. | WP-03 |
-| E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks. | WP-06/WP-13 |
-| F - Pass1 Candidate Green | pending | Unblocked by WP-05; requires WP-06. | WP-06 |
+| D - Semantic Copy Green | green | `mempalace_copy_drawer` adds deterministic routed copies, origin metadata, no-op reruns, slug validation, and existing palace-lock refusal tests. | apply-capable later packages |
+| E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
+| F - Pass1 Candidate Green | in progress | WP-06 activated with A-1/Faraday as lead. | WP-06 |
 | G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
@@ -546,17 +546,17 @@ Insufficient evidence:
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
 | WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
 | WP-02 | complete | A-2R | Safe source drawer export accepted at Checkpoint C; milestone commit `8be20f1` pushed. |
-| WP-03 | in progress | A-2 | Activated after WP-02; owns idempotent semantic copy support. |
+| WP-03 | complete | A-2/Poincare | Idempotent semantic copy support accepted at Checkpoint D. |
 | WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit `0b76d77` pushed. |
-| WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E. |
-| WP-06 | pending | A-1 | Pass1 LocalAI prompt/parser. |
+| WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E; milestone commit `6a56036` pushed. |
+| WP-06 | in progress | A-1/Faraday | Pass1 LocalAI prompt/parser activated in parallel with WP-13; write scope excludes active WP-03 files. |
 | WP-07 | blocked | A-3 | Candidate clustering. |
 | WP-08 | blocked | A-1 | Candidate naming/pruning. |
 | WP-09 | blocked | A-3 | Route candidate retrieval. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
-| WP-13 | pending | A-4 | Dashboard progress endpoints. |
+| WP-13 | in progress | A-4/Rawls | Dashboard progress endpoints activated in parallel with WP-06; backend-only scope, no dashboard UI mutation. |
 | WP-14 | blocked | A-5 | Dashboard progress meter and artifact browser. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
 | WP-16 | blocked | B-1 | Tiny-palace integration tests. |
@@ -745,6 +745,46 @@ Each drift entry must include:
 - `.venv/bin/python -m py_compile mempalace/ontology_run.py mempalace/cli.py tests/test_ontology_cli.py` passed.
 - Manual smoke verified initialized/resumed marker behavior, progress/index creation, and source-wing mismatch refusal without appending a second marker.
 - `git diff --check -- mempalace/ontology_run.py mempalace/cli.py tests/test_ontology_cli.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` passed.
+
+### 2026-05-05 - WP-05 Milestone Commit Evidence
+
+- `git add mempalace/ontology_run.py mempalace/cli.py tests/test_ontology_cli.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-05 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Materialize ontology run progress artifacts"` created `6a56036`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `6a56036` to the fork branch.
+- Active WP-03 files, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-03 Review Repair Request
+
+- A-2/Poincare returned a scoped WP-03 patch adding `mempalace_copy_drawer`.
+- `O-0` reviewed the patch against the WP-01 artifact contract and found one blocking issue before Checkpoint D acceptance: `canonical_wing` and `canonical_room` used the broad `sanitize_name()` validator instead of enforcing lowercase slug-safe ontology keys matching `^[a-z0-9_]+$`.
+- `O-0` sent WP-03 back to A-2/Poincare for repair in the original WP-03 write scope.
+- No direct `O-0` implementation edit was made.
+- `O-0` then found the existing `mine_palace_lock()` guard in `mempalace.palace` and sent a second WP-03 repair request requiring use of that real per-palace lock for active write refusal.
+
+### 2026-05-05 - WP-03 Acceptance Evidence
+
+- A-2/Poincare changed only `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and `website/reference/mcp-tools.md`.
+- `mempalace_copy_drawer` is registered as an MCP write tool that creates deterministic semantic copies without mutating original `chatgpt_signals` source drawers.
+- Deterministic copy IDs are derived from source drawer ID plus canonical `wing:room`, and rerunning the same accepted route returns a no-op success when content hashes match.
+- Copied drawers preserve source content and source scalar metadata while adding flat `ontology_*` provenance metadata required by the artifact contract.
+- Canonical target `wing`/`room` values are rejected unless they already match lowercase slug-safe ontology keys `^[a-z0-9_]+$`.
+- The copy path now takes the existing `mine_palace_lock(_config.palace_path)` before Chroma reads/writes and returns a structured failure without writing if another palace writer holds the lock.
+- Tests cover deterministic ID behavior, source preservation, repeated-copy no-op, source metadata provenance, non-slug rejection, non-string run ID rejection, content-hash collision, nested metadata rejection, and palace-lock refusal.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k "copy_drawer or export_drawers or get_drawer_does_not_leak_absolute_source_file_path or tools_list"`: `13 passed, 72 deselected`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/mcp_server.py tests/test_mcp_server.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/mcp_server.py tests/test_mcp_server.py website/reference/mcp-tools.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Residual limitation: palace-lock refusal covers writers that honor the existing per-palace lock; it does not detect unrelated processes that bypass the lock.
+- Checkpoint D is green.
+
+### 2026-05-05 - WP-06 and WP-13 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-06 was assigned to A-1/Faraday with model `gpt-5.4` and reasoning depth `high`.
+- A-1/Faraday write scope is limited to a pure pass1 prompt/parser module and focused tests; A-1 is forbidden from editing active WP-03 files, dashboard code, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-13 was assigned to A-4/Rawls with model `gpt-5.4-mini` and reasoning depth `medium`.
+- A-4/Rawls write scope is limited to `mempalace/dashboard_server.py`, `tests/test_dashboard_server.py`, and an optional small note in `website/guide/dashboard.md`; A-4 is forbidden from editing dashboard UI static assets, active WP-03 files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-06 and WP-13 are non-conflicting with WP-03 repair and with each other.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
