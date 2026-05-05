@@ -560,7 +560,7 @@ Insufficient evidence:
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
-| WP-17 | pending | R-1 | Independent review unblocked by WP-16. |
+| WP-17 | in progress | R-1 | Independent safety and drift review activated after WP-16. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
 
 ---
@@ -1164,6 +1164,13 @@ Each drift entry must include:
 - `git commit -m "Add ontology tiny-palace integration tests"` created `662edac`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `662edac` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-17 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-17 was assigned to R-1 with model `gpt-5.4` and reasoning depth `high`.
+- R-1 scope is read-only review of accepted diff, worksheet, safety boundaries, progress visibility, cloud gating, and idempotency.
+- R-1 is forbidden from editing files, staging commits, deleting files, touching `.agents/plugins/marketplace.json`, touching `docs/reference/`, or running mutation commands.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
