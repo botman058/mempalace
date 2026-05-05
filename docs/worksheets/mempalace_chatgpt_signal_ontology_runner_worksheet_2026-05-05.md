@@ -468,3 +468,12 @@ Any deviation from this worksheet must be recorded here before the next package 
 - Added `scripts/systemd/promote_snow_white_iii_app_update.sh` to promote a staged committed tree into `/media/u0/OneDrive_Backup/mempalace/app` without `rsync --delete`, without touching palace data/secrets, and without restarting services.
 - Added `scripts/systemd/start_ontology_runner_snow_white_iii.sh` to start the ontology runner as the `mempalace` service user through a transient systemd unit with `CPUQuota=200%`, `MemoryMax=16G`, LocalAI-on-LAN defaults, and default no-apply behavior.
 - Updated `scripts/systemd/README.md` and `CHANGELOG.md` to document the non-git staged deployment path and bounded runner start path.
+- `bash -n scripts/systemd/promote_snow_white_iii_app_update.sh` passed.
+- `bash -n scripts/systemd/start_ontology_runner_snow_white_iii.sh` passed.
+- Both script help paths ran locally without crossing host or privilege guards.
+- `git diff --cached --check` passed for the staged ops/doc files.
+- `git commit -m "Add snow-white app promotion wrapper"` created `9705a0a`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `9705a0a` to the fork branch.
+- `O-0` staged clean committed `HEAD` with `git archive --format=tar HEAD` into `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260505T170257Z-9705a0a/app` on `snow-white-iii`.
+- Remote staging verification confirmed both staged wrapper scripts are executable and `bash -n` passes on `snow-white-iii`.
+- Live promotion and runner start were not executed by `O-0` because `u0` lacks passwordless sudo and direct `mempalace` SSH is disabled; promotion/start now require an explicit privileged handoff on `snow-white-iii`.
