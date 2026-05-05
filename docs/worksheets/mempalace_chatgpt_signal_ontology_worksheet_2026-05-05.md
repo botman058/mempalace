@@ -559,8 +559,8 @@ Insufficient evidence:
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
-| WP-16 | in progress | B-1/Curie | Tiny-palace integration tests activated after WP-15. |
-| WP-17 | blocked | R-1 | Independent review. |
+| WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone pending. |
+| WP-17 | pending | R-1 | Independent review unblocked by WP-16. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
 
 ---
@@ -1136,10 +1136,26 @@ Each drift entry must include:
 ### 2026-05-05 - WP-16 Activation
 
 - `O-0` reread this worksheet before activation.
-- WP-16 was assigned to B-1/Curie with model `gpt-5.4-mini` and reasoning depth `medium`.
+- WP-16 was assigned to B-1/Helmholtz with model `gpt-5.4-mini` and reasoning depth `medium`.
 - B-1 write scope is limited to focused tiny-palace integration tests under `tests/`.
 - B-1 is forbidden from editing implementation modules, CLI, dashboard, MCP, docs, this worksheet, `.agents/plugins/marketplace.json`, or `docs/reference/`.
 - WP-16 must prove dry-run no-write behavior, apply copy behavior, rerun idempotency, and original `chatgpt_signals` source preservation against isolated test fixtures.
+
+### 2026-05-05 - WP-16 Acceptance Evidence
+
+- B-1/Helmholtz added `tests/test_ontology_tiny_palace_integration.py`.
+- The dry-run test calls `mempalace ontology chatgpt-signals` with a temporary run root and verifies no run directory or filesystem artifact is created.
+- The tiny-palace copy test builds an accepted route and apply-ready manifest, then drives `mempalace_copy_drawer` against an isolated Chroma collection.
+- The copy test verifies deterministic copy ID, final semantic wing/room metadata, accepted-route provenance metadata, source content preservation, and original `chatgpt_signals` metadata preservation.
+- The repeated-apply test verifies a second apply returns `already_exists`/`noop` and does not create a duplicate semantic drawer.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_tiny_palace_integration.py`: 3 passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_cli.py -k dry_run`: 2 passed, 8 deselected.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'copy_drawer_creates_deterministic_semantic_copy_and_preserves_source or copy_drawer_repeated_apply_is_a_noop or copy_drawer_refuses_when_palace_write_lock_is_held'`: 3 passed, 82 deselected.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_tiny_palace_integration.py tests/test_ontology_contract.py tests/test_ontology_iteration.py tests/test_ontology_cli.py tests/test_mcp_server.py -k 'ontology or copy_drawer_creates_deterministic_semantic_copy_and_preserves_source or copy_drawer_repeated_apply_is_a_noop or copy_drawer_refuses_when_palace_write_lock_is_held'`: 31 passed, 81 deselected.
+- `O-0` ran `.venv/bin/python -m ruff check tests/test_ontology_tiny_palace_integration.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile tests/test_ontology_tiny_palace_integration.py`: passed.
+- `O-0` ran `git diff --check -- tests/test_ontology_tiny_palace_integration.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: WP-16 remains bounded integration proof; it does not implement a full CLI apply workflow and makes no LocalAI/cloud calls.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
