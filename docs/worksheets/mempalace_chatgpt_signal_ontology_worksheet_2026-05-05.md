@@ -558,7 +558,7 @@ Insufficient evidence:
 | WP-12 | complete | A-3R/Euler | Iteration decision records, convergence reports, and apply-ready manifests accepted; milestone commit `e89bb64` pushed. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
-| WP-15 | pending | B-1 | Contract and unit tests unblocked by WP-12/WP-14. |
+| WP-15 | in progress | B-1/Meitner | Contract and unit tests activated after WP-12/WP-14. |
 | WP-16 | blocked | B-1 | Tiny-palace integration tests; activate after WP-15. |
 | WP-17 | blocked | R-1 | Independent review. |
 | WP-18 | blocked | O-0 | Integration, docs, commit, push. |
@@ -1103,6 +1103,14 @@ Each drift entry must include:
 - `git commit -m "Add ontology iteration convergence records"` created `e89bb64`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `e89bb64` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-15 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-15 was assigned to B-1/Meitner with model `gpt-5.4-mini` and reasoning depth `medium`.
+- B-1 write scope is limited to focused tests and tiny test fixtures under `tests/`.
+- B-1 is forbidden from editing implementation modules, CLI, dashboard, MCP, docs, this worksheet, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- WP-15 must strengthen contract/unit tests across Checkpoints B-J without LocalAI/cloud calls, Chroma dependency expansion, source drawer mutation, or dashboard writes.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
