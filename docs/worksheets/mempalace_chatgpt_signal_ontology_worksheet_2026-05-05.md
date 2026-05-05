@@ -551,8 +551,8 @@ Insufficient evidence:
 | WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E; milestone commit `6a56036` pushed. |
 | WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F; milestone commit `76d6014` pushed. |
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
-| WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone pending commit. |
-| WP-09 | pending | A-3 | Route candidate retrieval; unblocked by WP-08. |
+| WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
+| WP-09 | in progress | A-3/Laplace | Route candidate retrieval activated after WP-08. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
@@ -939,6 +939,22 @@ Each drift entry must include:
 - `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_candidate_names.py tests/test_ontology_candidate_names.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: no CLI/run-loop integration or artifact publishing yet; WP-08 intentionally provides pure prompt/parser and record assembly only.
 - Checkpoint G is green.
+
+### 2026-05-05 - WP-08 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_candidate_names.py tests/test_ontology_candidate_names.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-08 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology candidate naming records"` created `e6c2906`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `e6c2906` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-09 Activation
+
+- `O-0` reread this worksheet before activation.
+- WP-09 was assigned to A-3/Laplace with model `gpt-5.4` and reasoning depth `high`.
+- A-3 write scope is limited to one pure route-candidate retrieval module under `mempalace/` and focused tests under `tests/`.
+- A-3 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
+- WP-09 is unblocked by Checkpoint G and will feed WP-10 route prompt/parser.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
