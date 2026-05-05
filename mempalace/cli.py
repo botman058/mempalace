@@ -998,15 +998,15 @@ def cmd_ontology_chatgpt_signals(args):
         return
 
     try:
-        materialize_run_shell(run)
-    except FileExistsError:
-        print(f"Error: run directory already exists: {run.run_dir}", file=sys.stderr)
-        raise SystemExit(1)
+        result = materialize_run_shell(run)
     except OSError as exc:
         print(f"Error: failed to initialize run directory: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
-    print("  Initialized ontology run directory.")
+    if result.resumed:
+        print("  Resumed ontology run directory (appended resume marker).")
+    else:
+        print("  Initialized ontology run directory and initial artifacts.")
 
 
 def main():

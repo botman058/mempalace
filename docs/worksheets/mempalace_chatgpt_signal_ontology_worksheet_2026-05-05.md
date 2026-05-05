@@ -527,10 +527,10 @@ Insufficient evidence:
 |---|---|---|---|
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
 | B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
-| C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests. | WP-03 |
-| D - Semantic Copy Green | pending | Unblocked by WP-02; requires WP-03. | WP-03 |
-| E - Progressive Run Green | in progress | WP-04 accepted and milestone commit `0b76d77` pushed; WP-05 still required for progress artifacts. | WP-05 |
-| F - Pass1 Candidate Green | blocked | Requires WP-06. | WP-06 |
+| C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests; milestone commit `8be20f1` pushed. | WP-03 |
+| D - Semantic Copy Green | in progress | WP-03 activated with A-2 as lead. | WP-03 |
+| E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks. | WP-06/WP-13 |
+| F - Pass1 Candidate Green | pending | Unblocked by WP-05; requires WP-06. | WP-06 |
 | G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
@@ -545,18 +545,18 @@ Insufficient evidence:
 |---|---|---|---|
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
 | WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
-| WP-02 | complete | A-2R | Safe source drawer export accepted at Checkpoint C. |
-| WP-03 | pending | A-2 | Idempotent semantic copy support. |
+| WP-02 | complete | A-2R | Safe source drawer export accepted at Checkpoint C; milestone commit `8be20f1` pushed. |
+| WP-03 | in progress | A-2 | Activated after WP-02; owns idempotent semantic copy support. |
 | WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit `0b76d77` pushed. |
-| WP-05 | pending | B-2 | Progressive materialization and resume markers. |
-| WP-06 | blocked | A-1 | Pass1 LocalAI prompt/parser. |
+| WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E. |
+| WP-06 | pending | A-1 | Pass1 LocalAI prompt/parser. |
 | WP-07 | blocked | A-3 | Candidate clustering. |
 | WP-08 | blocked | A-1 | Candidate naming/pruning. |
 | WP-09 | blocked | A-3 | Route candidate retrieval. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
-| WP-13 | blocked | A-4 | Dashboard progress endpoints. |
+| WP-13 | pending | A-4 | Dashboard progress endpoints. |
 | WP-14 | blocked | A-5 | Dashboard progress meter and artifact browser. |
 | WP-15 | blocked | B-1 | Contract and unit tests. |
 | WP-16 | blocked | B-1 | Tiny-palace integration tests. |
@@ -714,6 +714,37 @@ Each drift entry must include:
 - `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k "export_drawers or get_drawer_does_not_leak_absolute_source_file_path or tools_list"` passed: `5 passed, 72 deselected`.
 - `.venv/bin/python -m py_compile mempalace/mcp_server.py tests/test_mcp_server.py` passed.
 - `git diff --check -- mempalace/mcp_server.py tests/test_mcp_server.py website/reference/mcp-tools.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` passed.
+
+### 2026-05-05 - WP-02 Milestone Commit Evidence
+
+- `git add mempalace/mcp_server.py tests/test_mcp_server.py website/reference/mcp-tools.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-02 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add read-only drawer export tool"` created `8be20f1`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `8be20f1` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-03 and WP-05 Activation
+
+- `O-0` reread this worksheet before activation.
+- Current branch head before activation was `8be20f1`.
+- WP-03 was assigned to A-2 with model `gpt-5.4` and reasoning depth `high`.
+- A-2 write scope is limited to `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and `website/reference/mcp-tools.md` if needed.
+- WP-05 was assigned to B-2 with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-2 write scope is limited to `mempalace/ontology_run.py`, ontology run tests, and `mempalace/cli.py` only if needed.
+- Both workers were instructed not to touch `.agents/plugins/marketplace.json`, `docs/reference/`, or unrelated package surfaces.
+
+### 2026-05-05 - WP-05 Acceptance Evidence
+
+- B-2 extended `mempalace/ontology_run.py`, `mempalace/cli.py`, and `tests/test_ontology_cli.py`.
+- Non-dry-run initialization now materializes `run_metadata.json`, `progress.json`, `artifacts_index.json`, append-ready phase JSONL files, `accepted_routes.jsonl`, `unresolved.jsonl`, and `resume_markers.jsonl`.
+- JSON summary files use temporary-file replacement writes; JSONL files are append-ready.
+- Re-running an existing run appends a `resumed` marker instead of failing.
+- `O-0` found and sent back a source-wing consistency bug: resuming the same run ID with a different `--source-wing` could append a conflicting resume marker.
+- B-2 repaired the bug by validating existing `run_metadata.json` and `progress.json` source wing before appending a resume marker.
+- `.venv/bin/python -m pytest -q tests/test_ontology_cli.py` passed: `10 passed`.
+- `.venv/bin/python -m py_compile mempalace/ontology_run.py mempalace/cli.py tests/test_ontology_cli.py` passed.
+- Manual smoke verified initialized/resumed marker behavior, progress/index creation, and source-wing mismatch refusal without appending a second marker.
+- `git diff --check -- mempalace/ontology_run.py mempalace/cli.py tests/test_ontology_cli.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` passed.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
