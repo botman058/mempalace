@@ -163,8 +163,8 @@ Example:
   "status": "running",
   "current_phase": "pass1_open",
   "current_phase_status": "running",
-  "phase_order": ["pass1_open", "candidate_clusters", "route_pass2", "route_verify", "apply_copies"],
-  "phase_attempts": {"pass1_open": 1, "candidate_clusters": 0, "route_pass2": 0, "route_verify": 0, "apply_copies": 0},
+  "phase_order": ["pass1_open", "candidate_clusters", "canonical_candidates", "route_pass2", "route_verify", "apply_copies"],
+  "phase_attempts": {"pass1_open": 1, "candidate_clusters": 0, "canonical_candidates": 0, "route_pass2": 0, "route_verify": 0, "apply_copies": 0},
   "started_at": "2026-05-05T14:30:15Z",
   "updated_at": "2026-05-05T14:41:02Z",
   "ended_at": null,
@@ -204,6 +204,15 @@ Append semantics:
 - Never rewrite or delete prior lines.
 - Retries or reruns use a higher `attempt` and a new `sequence`.
 - `sequence` is file-local, monotonic, and never reused.
+
+Important phase payloads:
+
+- `candidate_clusters` records group first-pass `wing:room` hypotheses and
+  carry candidate IDs, centroids, source drawer refs, and bounded examples.
+- `canonical_candidates` records name, describe, merge, or prune those candidate
+  groups. Payload `action` is `keep`, `merge`, or `prune`; merge payloads must
+  identify the target candidate by candidate ID/key while preserving wing
+  context.
 
 Example:
 

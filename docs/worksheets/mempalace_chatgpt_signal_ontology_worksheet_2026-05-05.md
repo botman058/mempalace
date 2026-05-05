@@ -531,7 +531,7 @@ Insufficient evidence:
 | D - Semantic Copy Green | green | `mempalace_copy_drawer` adds deterministic routed copies, origin metadata, no-op reruns, slug validation, and existing palace-lock refusal tests; milestone commit `5c611f3` pushed. | apply-capable later packages |
 | E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
-| G - Canonical Candidate Green | in progress | WP-07 candidate clustering accepted and pushed as `780297a`; WP-08 canonical naming/pruning is active with A-1/Archimedes. | WP-08 |
+| G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
@@ -551,8 +551,8 @@ Insufficient evidence:
 | WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E; milestone commit `6a56036` pushed. |
 | WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F; milestone commit `76d6014` pushed. |
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
-| WP-08 | in progress | A-1/Archimedes | Candidate naming/pruning activated after WP-07. |
-| WP-09 | blocked | A-3 | Route candidate retrieval. |
+| WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone pending commit. |
+| WP-09 | pending | A-3 | Route candidate retrieval; unblocked by WP-08. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
 | WP-11 | blocked | A-1 | Local verification pass. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
@@ -923,6 +923,22 @@ Each drift entry must include:
 - `git commit -m "Add ontology progress dashboard UI"` created `d002072`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `d002072` to the fork branch.
 - Active WP-08 work, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-08 Acceptance Evidence
+
+- A-1/Archimedes added `mempalace/ontology_candidate_names.py` and `tests/test_ontology_candidate_names.py`.
+- `build_candidate_naming_prompt()` creates a LocalAI/OpenAI-compatible prompt from WP-07 cluster records and candidate merge choices without network calls.
+- `parse_candidate_naming_response()` accepts `keep`, `merge`, and `prune` JSON decisions, validates lowercase slug-safe canonical wing/room keys, validates merge targets against supplied candidate IDs/keys, and preserves wing context for same-named rooms.
+- `build_canonical_candidate_records()` emits JSONL-ready `ontology.phase_record` records for `phase: canonical_candidates`, carrying source candidate refs, cluster stats, centroids, source drawer refs, and bounded examples forward.
+- Invalid JSON, malformed response shapes, missing required keys, invalid actions, invalid slug keys, invalid merge targets, missing model outputs, non-ok cluster records, and wrong-phase inputs become durable invalid/skipped/error records or skipped summaries without crashing.
+- `docs/chatgpt_signal_ontology_artifacts.md` now includes `canonical_candidates` in the phase order and documents candidate naming/pruning phase payloads.
+- `CHANGELOG.md` records the candidate naming/pruning helper.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_candidate_names.py tests/test_ontology_candidates.py`: 16 passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_candidate_names.py tests/test_ontology_candidate_names.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_candidate_names.py tests/test_ontology_candidate_names.py`: passed.
+- `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_candidate_names.py tests/test_ontology_candidate_names.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: no CLI/run-loop integration or artifact publishing yet; WP-08 intentionally provides pure prompt/parser and record assembly only.
+- Checkpoint G is green.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
