@@ -553,7 +553,7 @@ Insufficient evidence:
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
-| WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone pending commit. |
+| WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone commit `3ee7204` pushed. |
 | WP-11 | pending | A-1 | Local verification pass; unblocked by WP-10. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
@@ -1013,6 +1013,14 @@ Each drift entry must include:
 - `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_pass2.py tests/test_ontology_route_pass2.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
 - Known gap: no CLI/run-loop integration or artifact publishing yet; WP-10 intentionally provides pure prompt/parser and record assembly only.
 - Checkpoint H is green.
+
+### 2026-05-05 - WP-10 Milestone Commit Evidence
+
+- `git add CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_pass2.py tests/test_ontology_route_pass2.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-10 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ontology route pass parser"` created `3ee7204`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `3ee7204` to the fork branch.
+- Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
