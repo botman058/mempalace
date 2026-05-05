@@ -535,7 +535,7 @@ Insufficient evidence:
 | H - Routing Green | green | WP-09 route candidate retrieval plus WP-10 route pass prompt/parser accepted; candidate/null route records are durable. | WP-11 |
 | I - Verification And Iteration Green | green | WP-11 local verification pass plus WP-12 iteration/convergence builders accepted; repeated-iteration stale-accepted suppression tested; milestone commit `e89bb64` pushed. | WP-15/WP-16 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
-| K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
+| K - Release Green | green | WP-17 independent review completed and medium findings remediated; WP-18 final verification passed. | tranche closed |
 
 ---
 
@@ -561,7 +561,7 @@ Insufficient evidence:
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
 | WP-17 | complete | R-1/Herschel | Independent review complete; two medium findings remediated; milestone commit `f4d74e2` pushed. |
-| WP-18 | pending | O-0 | Final integration, docs, verification, commit, push unblocked. |
+| WP-18 | complete | O-0 | Final integration verification accepted; closure commit pending. |
 
 ---
 
@@ -1203,6 +1203,16 @@ Each drift entry must include:
 - `git commit -m "Resolve ontology safety review findings"` created `f4d74e2`.
 - `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `f4d74e2` to the fork branch.
 - Unaccepted `docs/reference/` and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
+### 2026-05-05 - WP-18 Final Integration Evidence
+
+- `O-0` verified package/status ledgers show WP-00 through WP-17 complete and pushed.
+- Final targeted ontology/dashboard suite: `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_dashboard_static_contract.py tests/test_ontology_contract.py tests/test_ontology_tiny_palace_integration.py tests/test_ontology_iteration.py tests/test_ontology_route_verify.py tests/test_ontology_route_pass2.py tests/test_ontology_route_candidates.py tests/test_ontology_candidate_names.py tests/test_ontology_candidates.py tests/test_ontology_pass1.py` passed: 104 passed, 23 subtests passed.
+- Final MCP export/copy safety suite: `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'export_drawers or copy_drawer'` passed: 11 passed, 74 deselected.
+- Final lint/syntax checks passed: `.venv/bin/python -m ruff check mempalace/ontology_run.py tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_ontology_contract.py tests/test_ontology_tiny_palace_integration.py mempalace/ontology_iteration.py tests/test_ontology_iteration.py`; `.venv/bin/python -m py_compile mempalace/ontology_run.py mempalace/dashboard_server.py mempalace/ontology_iteration.py tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_ontology_contract.py tests/test_ontology_tiny_palace_integration.py tests/test_ontology_iteration.py`.
+- `git status --short --branch` still shows only out-of-scope `.agents/plugins/marketplace.json` and unaccepted `docs/reference/` outside this tranche.
+- No files were deleted; `.agents/plugins/marketplace.json` and `docs/reference/` were not staged; `/media/u0/Extreme SSD` remains forbidden.
+- Checkpoint K is green.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
