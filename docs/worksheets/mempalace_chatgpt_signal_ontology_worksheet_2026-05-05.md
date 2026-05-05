@@ -528,10 +528,10 @@ Insufficient evidence:
 | A - Worksheet Baseline Green | green | Worksheet saved to disk; branch/head/status recorded; O-0 model/depth recorded; milestone commit `e7e1d39` pushed. | WP-01 |
 | B - Artifact Contract Green | green | `docs/chatgpt_signal_ontology_artifacts.md` defines required artifact/progress schemas and dashboard read contract; milestone commit `1d02f97` pushed. | WP-02/WP-04/WP-13 |
 | C - Source Export Green | green | `mempalace_export_drawers` added with full content, safe metadata, pagination, and read-only tests; milestone commit `8be20f1` pushed. | WP-03 |
-| D - Semantic Copy Green | green | `mempalace_copy_drawer` adds deterministic routed copies, origin metadata, no-op reruns, slug validation, and existing palace-lock refusal tests. | apply-capable later packages |
+| D - Semantic Copy Green | green | `mempalace_copy_drawer` adds deterministic routed copies, origin metadata, no-op reruns, slug validation, and existing palace-lock refusal tests; milestone commit `5c611f3` pushed. | apply-capable later packages |
 | E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
-| F - Pass1 Candidate Green | in progress | WP-06 activated with A-1/Faraday as lead. | WP-06 |
-| G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08. | WP-07/WP-08 |
+| F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests. | WP-07 |
+| G - Canonical Candidate Green | blocked | Requires WP-07 and WP-08; WP-07 is now unblocked. | WP-07/WP-08 |
 | H - Routing Green | blocked | Requires WP-09 and WP-10. | WP-09/WP-10 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
 | J - Dashboard Progress Green | blocked | Requires WP-13 and WP-14. | WP-13/WP-14 |
@@ -546,11 +546,11 @@ Insufficient evidence:
 | WP-00 | complete | O-0 | Worksheet saved and baseline frozen. |
 | WP-01 | complete | A-1R | Artifact/progress schema contract accepted at Checkpoint B. |
 | WP-02 | complete | A-2R | Safe source drawer export accepted at Checkpoint C; milestone commit `8be20f1` pushed. |
-| WP-03 | complete | A-2/Poincare | Idempotent semantic copy support accepted at Checkpoint D. |
+| WP-03 | complete | A-2/Poincare | Idempotent semantic copy support accepted at Checkpoint D; milestone commit `5c611f3` pushed. |
 | WP-04 | complete | B-2 | CLI shell and run directory lifecycle accepted; milestone commit `0b76d77` pushed. |
 | WP-05 | complete | B-2 | Progressive materialization and resume markers accepted at Checkpoint E; milestone commit `6a56036` pushed. |
-| WP-06 | in progress | A-1/Faraday | Pass1 LocalAI prompt/parser activated in parallel with WP-13; write scope excludes active WP-03 files. |
-| WP-07 | blocked | A-3 | Candidate clustering. |
+| WP-06 | complete | A-1/Faraday | Pass1 LocalAI prompt/parser accepted at Checkpoint F. |
+| WP-07 | pending | A-3 | Candidate clustering; unblocked by WP-06. |
 | WP-08 | blocked | A-1 | Candidate naming/pruning. |
 | WP-09 | blocked | A-3 | Route candidate retrieval. |
 | WP-10 | blocked | A-1 | Pass2 route prompt/parser. |
@@ -777,6 +777,14 @@ Each drift entry must include:
 - Residual limitation: palace-lock refusal covers writers that honor the existing per-palace lock; it does not detect unrelated processes that bypass the lock.
 - Checkpoint D is green.
 
+### 2026-05-05 - WP-03 Milestone Commit Evidence
+
+- `git add mempalace/mcp_server.py tests/test_mcp_server.py website/reference/mcp-tools.md docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md` staged only accepted WP-03 files plus worksheet status.
+- `git diff --cached --check` passed.
+- `git commit -m "Add idempotent ontology drawer copy"` created `5c611f3`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `5c611f3` to the fork branch.
+- Active WP-06/WP-13 files, unaccepted `docs/reference/`, and out-of-scope `.agents/plugins/marketplace.json` were not staged.
+
 ### 2026-05-05 - WP-06 and WP-13 Activation
 
 - `O-0` reread this worksheet before activation.
@@ -785,6 +793,36 @@ Each drift entry must include:
 - WP-13 was assigned to A-4/Rawls with model `gpt-5.4-mini` and reasoning depth `medium`.
 - A-4/Rawls write scope is limited to `mempalace/dashboard_server.py`, `tests/test_dashboard_server.py`, and an optional small note in `website/guide/dashboard.md`; A-4 is forbidden from editing dashboard UI static assets, active WP-03 files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
 - WP-06 and WP-13 are non-conflicting with WP-03 repair and with each other.
+
+### 2026-05-05 - WP-06 Review Repair Request
+
+- A-1/Faraday returned a scoped WP-06 patch adding `mempalace/ontology_pass1.py` and `tests/test_ontology_pass1.py`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_pass1.py`: `7 passed`.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_pass1.py tests/test_ontology_pass1.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_pass1.py tests/test_ontology_pass1.py`: passed.
+- `O-0` sent WP-06 back for narrow repair: malformed provider response shapes must become `invalid_model_output` phase records instead of crashing, and tests must include concrete sample `pass1_open` JSONL serialization evidence.
+
+### 2026-05-05 - WP-06 Acceptance Evidence
+
+- A-1/Faraday repaired the pass1 parser so non-text provider responses become `record_status: "invalid_model_output"` with `error_code: "invalid_response_text"`, a bounded raw excerpt, and `retryable: true`.
+- `mempalace/ontology_pass1.py` now builds a LocalAI/OpenAI-compatible prompt for one source drawer and returns JSONL-ready `ontology.phase_record` dictionaries for the `pass1_open` phase.
+- Valid model output maps to open-ended `payload.proposed_wing` and `payload.proposed_room`; these are hypotheses for later clustering, not canonical final routes.
+- Invalid JSON, missing keys, invalid slug keys, invalid response shapes, and malformed non-text responses become durable invalid-output phase records instead of crashing.
+- Tests cover valid parse, invalid JSON, missing room key, non-slug wing/room rejection, code-fenced/prose-wrapped JSON extraction, bounded raw excerpts, JSONL round-trip serialization, and fake-provider classification.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_pass1.py`: `10 passed`.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_pass1.py tests/test_ontology_pass1.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_pass1.py tests/test_ontology_pass1.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/ontology_pass1.py tests/test_ontology_pass1.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: no CLI/run-loop integration yet; this package intentionally exposes pure prompt/parser and record assembly only.
+- Checkpoint F is green.
+
+### 2026-05-05 - WP-13 Review Repair Request
+
+- A-4/Rawls returned a scoped WP-13 patch adding dashboard ontology run endpoints in `mempalace/dashboard_server.py`, tests in `tests/test_dashboard_server.py`, and a dashboard guide note.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_dashboard_server.py`: `10 passed`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
+- `O-0` observed `.venv/bin/python -m ruff check mempalace/dashboard_server.py tests/test_dashboard_server.py website/guide/dashboard.md` reports `C901 create_app is too complex`; broad complexity refactor is deferred because WP-13 is a read-only endpoint package.
+- `O-0` sent WP-13 back for narrow repair: restore equivalent existing overview telemetry test coverage removed by the patch, and make ontology run-root configuration honor the forbidden `/media/u0/Extreme SSD` constraint.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 
