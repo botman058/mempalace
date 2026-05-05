@@ -6,6 +6,9 @@
     baseUrl: DEFAULT_BASE,
     token: "",
     miningActive: false,
+    ontologyRuns: [],
+    selectedOntologyRunId: null,
+    selectedArtifactKey: null,
     taxonomy: [],
     drawers: [],
     selectedDrawerId: null,
@@ -33,6 +36,22 @@
     checkpointStatus: el("checkpointStatus"),
     lastRefresh: el("lastRefresh"),
     connectionState: el("connectionState"),
+    ontologyRunState: el("ontologyRunState"),
+    ontologyRunStatus: el("ontologyRunStatus"),
+    ontologyRunSummary: el("ontologyRunSummary"),
+    ontologyRunList: el("ontologyRunList"),
+    ontologyRunTitle: el("ontologyRunTitle"),
+    ontologyRunMeta: el("ontologyRunMeta"),
+    ontologyProgressBar: el("ontologyProgressBar"),
+    ontologyProgressLabel: el("ontologyProgressLabel"),
+    ontologyProgressPercent: el("ontologyProgressPercent"),
+    ontologyProgressStats: el("ontologyProgressStats"),
+    ontologyProgressDetail: el("ontologyProgressDetail"),
+    ontologyArtifactSummary: el("ontologyArtifactSummary"),
+    ontologyArtifactList: el("ontologyArtifactList"),
+    ontologyArtifactDetail: el("ontologyArtifactDetail"),
+    ontologyPreviewStatus: el("ontologyPreviewStatus"),
+    ontologyPreviewList: el("ontologyPreviewList"),
     searchLock: el("searchLock"),
     searchForm: el("searchForm"),
     searchQuery: el("searchQuery"),
@@ -200,6 +219,7 @@
     state.lastSnapshot = null;
     state.selectedDrawerId = null;
     state.selectedScope = { wing: "", room: "" };
+    resetOntologyState("Token required to load ontology runs.");
     setInteractionLock(true, "Token required", "muted");
     renderConnectionState(message, "warn");
     ui.serviceHealth.textContent = "Disconnected";
@@ -241,6 +261,510 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function isObject(value) {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
+  }
+
+  function ensureArray(value) {
+    if (Array.isArray(value)) return value;
+    if (isObject(value)) return Object.values(value);
+    return [];
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  }
+
+  function formatDuration(value) {
+    const total = Number(value);
+    if (!Number.isFinite(total) || total < 0) return "-";
+    const seconds = Math.round(total);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+    if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+    if (minutes > 0) return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+    return `${remainder}s`;
+  }
+
+  function formatBytes(value) {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes < 0) return "-";
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB", "TB"];
+    let current = bytes / 1024;
+    let unit = 0;
+    while (current >= 1024 && unit < units.length - 1) {
+      current /= 1024;
+      unit += 1;
+    }
+    return `${current >= 10 ? current.toFixed(0) : current.toFixed(1)} ${units[unit]}`;
+  }
+
+  function formatPercent(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "-";
+    return `${Math.round(number)}%`;
+  }
+
+  function formatMaybeEta(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    if (typeof value === "number") {
+      return value > 1_000_000_000 ? formatTimestamp(value) : formatDuration(value);
+    }
+    const asNumber = Number(value);
+    if (Number.isFinite(asNumber)) {
+      return asNumber > 1_000_000_000 ? formatTimestamp(asNumber) : formatDuration(asNumber);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+  }
+
+  function rowChip(label, value) {
+    return `<span class="row-chip">${escapeHtml(`${label}: ${textValue(value)}`)}</span>`;
+  }
+
+  function runIdFor(run) {
+    if (!run || typeof run !== "object") return "";
+    return String(run.run_id || run.id || run.runId || "");
+  }
+
+  function artifactKeyFor(artifact) {
+    if (!artifact || typeof artifact !== "object") return "";
+    return String(artifact.artifact_key || artifact.relative_path || artifact.path || artifact.id || "");
+  }
+
+  function runPriority(run) {
+    const status = String(pick(run, ["status"], "")).toLowerCase();
+    const selected = runIdFor(run) === state.selectedOntologyRunId;
+    const current = Boolean(pick(run, ["current", "is_current", "selected", "active"], false)) || status === "running";
+    if (selected) return 4;
+    if (current) return 3;
+    if (status === "completed") return 2;
+    if (status === "pending") return 1;
+    return 0;
+  }
+
+  function normalizeOntologyRuns(payload) {
+    const source = Array.isArray(payload)
+      ? payload
+      : ensureArray(payload?.runs || payload?.items || payload?.results || payload?.data || payload?.records);
+    return source.filter(isObject).map((run) => run);
+  }
+
+  function normalizeOntologyArtifacts(payload) {
+    const source = Array.isArray(payload)
+      ? payload
+      : ensureArray(payload?.artifacts || payload?.items || payload?.results || payload?.data || payload?.records);
+    return source.filter(isObject).map((artifact) => artifact);
+  }
+
+  function normalizeOntologyPreview(payload) {
+    const source = Array.isArray(payload)
+      ? payload
+      : ensureArray(payload?.preview || payload?.items || payload?.results || payload?.data || payload?.records);
+    return source.filter(isObject).map((item) => item);
+  }
+
+  function chooseOntologyRunId(runs) {
+    const ids = runs.map(runIdFor).filter(Boolean);
+    if (state.selectedOntologyRunId && ids.includes(state.selectedOntologyRunId)) {
+      return state.selectedOntologyRunId;
+    }
+    const prioritized = [...runs].sort((a, b) => {
+      const priorityDiff = runPriority(b) - runPriority(a);
+      if (priorityDiff) return priorityDiff;
+      const timeDiff = new Date(pick(b, ["updated_at", "started_at"], 0)).getTime() - new Date(pick(a, ["updated_at", "started_at"], 0)).getTime();
+      if (Number.isFinite(timeDiff) && timeDiff !== 0) return timeDiff;
+      return runIdFor(a).localeCompare(runIdFor(b));
+    });
+    return runIdFor(prioritized[0]) || null;
+  }
+
+  function ontologyCountValue(progress, keys, fallback = "-") {
+    if (!progress || typeof progress !== "object") return fallback;
+    for (const key of keys) {
+      const value = key.split(".").reduce((acc, part) => (acc && typeof acc === "object" ? acc[part] : undefined), progress);
+      if (value !== undefined && value !== null && value !== "") {
+        return fmtCount(value);
+      }
+    }
+    return fallback;
+  }
+
+  function resolveRunPayload(detail, fallback) {
+    if (isObject(detail?.run)) return detail.run;
+    if (isObject(detail?.progress) && !runIdFor(detail)) return fallback || detail.progress;
+    return isObject(detail) ? detail : fallback || {};
+  }
+
+  function resolveProgressPayload(detail, fallback) {
+    if (isObject(detail?.progress)) return detail.progress;
+    if (isObject(detail) && (detail.current_phase_progress || detail.totals || detail.status || detail.run_kind)) return detail;
+    if (isObject(detail?.run?.progress)) return detail.run.progress;
+    return isObject(fallback?.progress) ? fallback.progress : fallback || {};
+  }
+
+  function resetOntologyState(message) {
+    state.ontologyRuns = [];
+    state.selectedOntologyRunId = null;
+    state.selectedArtifactKey = null;
+    ui.ontologyRunState.textContent = "Token required";
+    ui.ontologyRunStatus.textContent = message;
+    ui.ontologyRunSummary.textContent = "Token required";
+    ui.ontologyRunList.replaceChildren();
+    ui.ontologyRunTitle.textContent = "No run selected";
+    ui.ontologyRunMeta.textContent = "Token required";
+    ui.ontologyProgressBar.className = "progress-fill is-unknown";
+    ui.ontologyProgressBar.style.width = "28%";
+    ui.ontologyProgressLabel.textContent = "No run loaded";
+    ui.ontologyProgressPercent.textContent = "-";
+    ui.ontologyProgressStats.replaceChildren();
+    ui.ontologyProgressDetail.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+    ui.ontologyArtifactSummary.textContent = "Token required";
+    ui.ontologyArtifactList.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+    ui.ontologyArtifactDetail.innerHTML = `<p>${escapeHtml(message)}</p>`;
+    ui.ontologyPreviewStatus.textContent = "Token required";
+    ui.ontologyPreviewList.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+  }
+
+  function renderOntologyMetricTiles(items) {
+    const fragment = document.createDocumentFragment();
+    items.forEach((item) => {
+      const tile = document.createElement("div");
+      tile.className = "stat-tile";
+      tile.innerHTML = `
+        <div class="stat-label">${escapeHtml(item.label)}</div>
+        <div class="stat-value">${escapeHtml(item.value)}</div>
+        <div class="stat-note">${escapeHtml(item.note)}</div>
+      `;
+      fragment.appendChild(tile);
+    });
+    ui.ontologyProgressStats.replaceChildren(fragment);
+  }
+
+  function renderOntologyProgress(run, detail) {
+    const runData = resolveRunPayload(detail, run);
+    const progress = resolveProgressPayload(detail, runData);
+    const runId = runIdFor(runData) || runIdFor(run) || "No run selected";
+    const status = String(pick(progress, ["status", "current_phase_status"], pick(runData, ["status"], "unknown")));
+    const currentPhase = textValue(pick(progress, ["current_phase"], pick(runData, ["current_phase"], "-")));
+    const phaseStatus = textValue(pick(progress, ["current_phase_status"], "-"));
+    const phaseProgress = isObject(progress.current_phase_progress) ? progress.current_phase_progress : {};
+    const total = Number(phaseProgress.total);
+    const processed = Number(phaseProgress.processed);
+    const percent = Number.isFinite(total) && total > 0 && Number.isFinite(processed) ? Math.max(0, Math.min(100, (processed / total) * 100)) : null;
+    const accepted = pick(phaseProgress, ["accepted"], "-");
+    const unresolved = pick(phaseProgress, ["unresolved"], "-");
+    const errors = pick(phaseProgress, ["errors"], "-");
+    const elapsedSeconds = pick(progress, ["elapsed_seconds"], pick(runData, ["elapsed_seconds"], null));
+    const etaValue = pick(progress, ["eta_seconds", "remaining_seconds", "estimated_remaining_seconds", "eta", "eta_at", "estimated_eta"], null);
+    const phaseOrder = Array.isArray(progress.phase_order) ? progress.phase_order : [];
+
+    ui.ontologyRunTitle.textContent = runId;
+    ui.ontologyRunMeta.textContent = [
+      `Status ${textValue(status)}`,
+      currentPhase && currentPhase !== "-" ? `Phase ${currentPhase}` : null,
+      phaseStatus && phaseStatus !== "-" ? `Phase state ${phaseStatus}` : null,
+      elapsedSeconds !== null && elapsedSeconds !== undefined ? `Elapsed ${formatDuration(elapsedSeconds)}` : null,
+      etaValue !== null && etaValue !== undefined ? `ETA ${formatMaybeEta(etaValue)}` : null,
+    ].filter(Boolean).join(" · ");
+    ui.ontologyRunState.textContent = textValue(status);
+    ui.ontologyRunState.className = `state-pill ${String(status).toLowerCase().includes("fail") || String(status).toLowerCase().includes("cancel") ? "status-bad" : String(status).toLowerCase().includes("run") ? "status-warn" : ""}`.trim();
+    ui.ontologyProgressLabel.textContent = `${runId} · ${currentPhase !== "-" ? currentPhase : "phase unknown"}`;
+    ui.ontologyProgressPercent.textContent = percent === null ? "-" : formatPercent(percent);
+    ui.ontologyProgressBar.className = `progress-fill${percent === null ? " is-unknown" : ""}`;
+    ui.ontologyProgressBar.style.width = percent === null ? "28%" : `${percent}%`;
+
+    renderOntologyMetricTiles([
+      { label: "Processed", value: fmtCount(processed), note: `Unit ${textValue(pick(phaseProgress, ["unit"], "-"))}` },
+      { label: "Total", value: fmtCount(total), note: `Accepted ${fmtCount(accepted)}` },
+      { label: "Unresolved", value: fmtCount(unresolved), note: `Errors ${fmtCount(errors)}` },
+      { label: "Elapsed", value: formatDuration(elapsedSeconds), note: etaValue !== null && etaValue !== undefined ? `ETA ${formatMaybeEta(etaValue)}` : "ETA unavailable" },
+    ]);
+
+    const totals = isObject(progress.totals) ? progress.totals : {};
+    const lastRecord = isObject(progress.last_record) ? progress.last_record : {};
+    const details = [
+      `<div><strong>Run kind</strong>: ${escapeHtml(textValue(pick(progress, ["run_kind"], pick(runData, ["run_kind"], "-"))))}</div>`,
+      `<div><strong>Source wing</strong>: ${escapeHtml(textValue(pick(progress, ["source_wing"], pick(runData, ["source_wing"], "-"))))}</div>`,
+      `<div><strong>Phase order</strong>: ${escapeHtml(Array.isArray(phaseOrder) && phaseOrder.length ? phaseOrder.join(" → ") : "-")}</div>`,
+      `<div><strong>Source drawers</strong>: ${escapeHtml(ontologyCountValue(totals, ["source_drawers_total"], "-"))}</div>`,
+      `<div><strong>Drawers processed</strong>: ${escapeHtml(ontologyCountValue(totals, ["source_drawers_processed"], "-"))}</div>`,
+      `<div><strong>Routes accepted</strong>: ${escapeHtml(ontologyCountValue(totals, ["routes_accepted"], "-"))}</div>`,
+      `<div><strong>Routes unresolved</strong>: ${escapeHtml(ontologyCountValue(totals, ["routes_unresolved"], "-"))}</div>`,
+      `<div><strong>Phase records</strong>: ${escapeHtml(ontologyCountValue(totals, ["phase_records_written"], "-"))}</div>`,
+      `<div><strong>Warnings</strong>: ${escapeHtml(ontologyCountValue(progress, ["warning_count"], pick(runData, ["warning_count"], "-")))}</div>`,
+      `<div><strong>Errors</strong>: ${escapeHtml(ontologyCountValue(progress, ["error_count"], pick(runData, ["error_count"], "-")))}</div>`,
+      lastRecord.phase ? `<div><strong>Last record</strong>: ${escapeHtml([lastRecord.phase, lastRecord.relative_path, lastRecord.subject_id].filter(Boolean).join(" · "))}</div>` : "",
+    ].filter(Boolean).join("");
+    ui.ontologyProgressDetail.innerHTML = details || `<div class="empty-state">No progress detail returned.</div>`;
+  }
+
+  function renderOntologyRunList(runs) {
+    state.ontologyRuns = Array.isArray(runs) ? runs : [];
+    ui.ontologyRunList.replaceChildren();
+    const rows = state.ontologyRuns;
+    ui.ontologyRunSummary.textContent = rows.length ? `${rows.length} run${rows.length === 1 ? "" : "s"} loaded` : "No runs";
+    if (!rows.length) {
+      ui.ontologyRunStatus.textContent = "No ontology runs returned.";
+      ui.ontologyRunList.innerHTML = `<div class="empty-state">No ontology runs returned.</div>`;
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    rows.forEach((run) => {
+      const runId = runIdFor(run);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `run-row${runId && runId === state.selectedOntologyRunId ? " active" : ""}`;
+      row.dataset.runId = runId;
+      const status = textValue(pick(run, ["status"], "unknown"));
+      const phase = textValue(pick(run, ["current_phase"], "-"));
+      const updated = formatTimestamp(pick(run, ["updated_at", "started_at"], ""));
+      row.innerHTML = `
+        <div class="row-head">
+          <div class="row-title">${escapeHtml(runId || "Run")}</div>
+          <span class="row-chip">${escapeHtml(status)}</span>
+        </div>
+        <div class="row-meta">
+          ${phase && phase !== "-" ? `<span>${escapeHtml(`Phase ${phase}`)}</span>` : ""}
+          ${pick(run, ["current_phase_status"], "") ? `<span>${escapeHtml(`State ${textValue(pick(run, ["current_phase_status"], "-"))}`)}</span>` : ""}
+          ${updated ? `<span>${escapeHtml(updated)}</span>` : ""}
+        </div>
+        <div class="row-subtle">${escapeHtml([
+          `Elapsed ${formatDuration(pick(run, ["elapsed_seconds"], null))}`,
+          `Processed ${fmtCount(pick(run, ["source_drawers_processed", "processed"], "-"))}`,
+        ].join(" · "))}</div>
+      `;
+      row.addEventListener("click", () => {
+        if (runId && runId !== state.selectedOntologyRunId) {
+          state.selectedOntologyRunId = runId;
+          state.selectedArtifactKey = null;
+          refreshOntology().catch((error) => renderConnectionState(error.message, "error"));
+        }
+      });
+      fragment.appendChild(row);
+    });
+    ui.ontologyRunList.appendChild(fragment);
+  }
+
+  function renderOntologyArtifactDetail(artifact) {
+    if (!artifact) {
+      ui.ontologyArtifactDetail.innerHTML = `<p>No artifact selected.</p>`;
+      return;
+    }
+    const metaPairs = [
+      ["Artifact", artifact.artifact_key || artifact.relative_path],
+      ["Path", artifact.relative_path],
+      ["Schema", artifact.schema_name],
+      ["Version", artifact.schema_version],
+      ["Kind", artifact.artifact_kind],
+      ["Phase", artifact.phase],
+      ["Content type", artifact.content_type],
+      ["Status", artifact.status],
+      ["Dashboard safe", artifact.dashboard_safe],
+      ["Privacy", artifact.privacy_level],
+      ["Records", artifact.records],
+      ["Bytes", formatBytes(artifact.bytes)],
+      ["Updated", formatTimestamp(artifact.updated_at)],
+    ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+    ui.ontologyArtifactDetail.innerHTML = `
+      <div class="artifact-detail">
+        ${buildChips(metaPairs.map(([label, value]) => `${label}: ${textValue(value)}`))}
+        ${metaPairs.map(([label, value]) => `<div><strong>${escapeHtml(label)}</strong>: ${escapeHtml(textValue(value))}</div>`).join("")}
+        <div class="row-subtle">${artifact.dashboard_safe ? "Dashboard-safe metadata only. No full artifact body is fetched here." : "Restricted artifact. Metadata only; preview content is intentionally withheld."}</div>
+      </div>
+    `;
+  }
+
+  function renderOntologyArtifactList(artifacts) {
+    const rows = Array.isArray(artifacts) ? artifacts : [];
+    ui.ontologyArtifactList.replaceChildren();
+    ui.ontologyArtifactSummary.textContent = rows.length ? `${rows.length} artifact${rows.length === 1 ? "" : "s"}` : "No artifacts";
+    if (!rows.length) {
+      ui.ontologyArtifactList.innerHTML = `<div class="empty-state">No artifacts indexed yet for this run.</div>`;
+      ui.ontologyArtifactDetail.innerHTML = `<p>No artifacts indexed yet for this run.</p>`;
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    rows.forEach((artifact) => {
+      const key = artifactKeyFor(artifact);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `artifact-row${key && key === state.selectedArtifactKey ? " active" : ""}`;
+      row.dataset.artifactKey = key;
+      row.innerHTML = `
+        <div class="row-head">
+          <div class="row-title">${escapeHtml(artifact.artifact_key || artifact.relative_path || key || "Artifact")}</div>
+          <span class="row-chip">${escapeHtml(artifact.dashboard_safe ? "safe" : "restricted")}</span>
+        </div>
+        <div class="row-meta">
+          <span>${escapeHtml(artifact.artifact_kind || "artifact")}</span>
+          <span>${escapeHtml(artifact.privacy_level || "privacy?")}</span>
+          <span>${escapeHtml(artifact.status || "status?")}</span>
+        </div>
+        <div class="artifact-summary">${escapeHtml([
+          artifact.relative_path,
+          artifact.records !== undefined ? `${fmtCount(artifact.records)} records` : null,
+          artifact.bytes !== undefined ? formatBytes(artifact.bytes) : null,
+        ].filter(Boolean).join(" · ") || "No artifact metadata returned.")}</div>
+      `;
+      row.addEventListener("click", () => {
+        state.selectedArtifactKey = key;
+        renderOntologyArtifactList(rows);
+        renderOntologyArtifactDetail(artifact);
+      });
+      fragment.appendChild(row);
+    });
+    ui.ontologyArtifactList.appendChild(fragment);
+    const selected = rows.find((artifact) => artifactKeyFor(artifact) === state.selectedArtifactKey) || rows[0];
+    if (selected) {
+      state.selectedArtifactKey = artifactKeyFor(selected);
+      renderOntologyArtifactDetail(selected);
+    }
+  }
+
+  function renderOntologyPreview(previewRows) {
+    const rows = Array.isArray(previewRows) ? previewRows : [];
+    ui.ontologyPreviewStatus.textContent = rows.length ? `${rows.length} preview item${rows.length === 1 ? "" : "s"}` : "No unresolved preview";
+    ui.ontologyPreviewList.replaceChildren();
+    if (!rows.length) {
+      ui.ontologyPreviewList.innerHTML = `<div class="empty-state">No bounded unresolved preview data returned for this run.</div>`;
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    rows.slice(0, 12).forEach((item) => {
+      const row = document.createElement("article");
+      row.className = "preview-row";
+      const candidateIds = Array.isArray(item.candidate_ids) ? item.candidate_ids.filter(Boolean) : [];
+      row.innerHTML = `
+        <div class="row-head">
+          <div class="row-title">${escapeHtml(item.source_drawer_id || item.subject_id || item.source_id || "Unresolved item")}</div>
+          <span class="row-chip">${escapeHtml(item.unresolved_status || item.reason_code || "preview")}</span>
+        </div>
+        <div class="row-meta">
+          <span>${escapeHtml(item.source_wing || "wing?")}</span>
+          <span>${escapeHtml(item.source_room || "room?")}</span>
+          <span>${escapeHtml(item.next_action || "next action?")}</span>
+        </div>
+        <div class="preview-summary">${escapeHtml([
+          item.reason_detail,
+          candidateIds.length ? `${candidateIds.length} candidate${candidateIds.length === 1 ? "" : "s"}` : null,
+          item.route_confidence !== undefined && item.route_confidence !== null ? `Confidence ${item.route_confidence}` : null,
+        ].filter(Boolean).join(" · ") || "No preview summary returned.")}</div>
+        ${item.source_excerpt ? `<pre>${escapeHtml(item.source_excerpt)}</pre>` : ""}
+      `;
+      fragment.appendChild(row);
+    });
+    ui.ontologyPreviewList.appendChild(fragment);
+  }
+
+  async function refreshOntology() {
+    if (!hasToken()) {
+      resetOntologyState("Token required to load ontology runs.");
+      return;
+    }
+
+    try {
+      const payload = await requestJson("/api/ontology/runs");
+      const runs = normalizeOntologyRuns(payload);
+      if (!runs.length) {
+        state.selectedOntologyRunId = null;
+        state.selectedArtifactKey = null;
+        ui.ontologyRunState.textContent = "Idle";
+        ui.ontologyRunState.className = "state-pill";
+        ui.ontologyRunStatus.textContent = "No ontology runs returned.";
+        ui.ontologyRunSummary.textContent = "No runs";
+        ui.ontologyRunList.innerHTML = `<div class="empty-state">No ontology runs returned.</div>`;
+        ui.ontologyRunTitle.textContent = "No run selected";
+        ui.ontologyRunMeta.textContent = "No ontology run data available.";
+        ui.ontologyProgressBar.className = "progress-fill is-unknown";
+        ui.ontologyProgressBar.style.width = "28%";
+        ui.ontologyProgressLabel.textContent = "No run loaded";
+        ui.ontologyProgressPercent.textContent = "-";
+        ui.ontologyProgressStats.replaceChildren();
+        ui.ontologyProgressDetail.innerHTML = `<div class="empty-state">No progress data returned.</div>`;
+        ui.ontologyArtifactSummary.textContent = "No runs";
+        ui.ontologyArtifactList.innerHTML = `<div class="empty-state">Select a run to inspect artifacts.</div>`;
+        ui.ontologyArtifactDetail.innerHTML = `<p>Select a run to inspect artifacts.</p>`;
+        ui.ontologyPreviewStatus.textContent = "No runs";
+        ui.ontologyPreviewList.innerHTML = `<div class="empty-state">No unresolved preview available.</div>`;
+        return;
+      }
+
+      state.ontologyRuns = runs;
+      const selectedRunId = chooseOntologyRunId(runs);
+      state.selectedOntologyRunId = selectedRunId;
+      renderOntologyRunList(runs);
+
+      const selectedRun = runs.find((run) => runIdFor(run) === selectedRunId) || runs[0];
+      ui.ontologyRunStatus.textContent = selectedRunId ? `Loaded ${runs.length} run${runs.length === 1 ? "" : "s"}` : "Run list loaded";
+      if (!selectedRunId) {
+        return;
+      }
+
+      const detailResult = await Promise.allSettled([
+        requestJson(`/api/ontology/runs/${encodeURIComponent(selectedRunId)}`),
+        requestJson(`/api/ontology/runs/${encodeURIComponent(selectedRunId)}/artifacts`),
+        requestJson(`/api/ontology/runs/${encodeURIComponent(selectedRunId)}/unresolved-preview`),
+      ]);
+      const [detailOutcome, artifactsOutcome, previewOutcome] = detailResult;
+
+      const detail = detailOutcome.status === "fulfilled" ? detailOutcome.value : selectedRun;
+      const artifacts = artifactsOutcome.status === "fulfilled" ? normalizeOntologyArtifacts(artifactsOutcome.value) : [];
+      const preview = previewOutcome.status === "fulfilled" ? normalizeOntologyPreview(previewOutcome.value) : [];
+
+      renderOntologyRunList(runs);
+      renderOntologyProgress(selectedRun, detail);
+      renderOntologyArtifactList(artifacts);
+      renderOntologyPreview(preview);
+
+      if (artifactsOutcome.status === "rejected") {
+        ui.ontologyArtifactSummary.textContent = `Artifacts error: ${artifactsOutcome.reason.message || artifactsOutcome.reason}`;
+        ui.ontologyArtifactList.innerHTML = `<div class="empty-state status-bad">${escapeHtml(artifactsOutcome.reason.message || String(artifactsOutcome.reason))}</div>`;
+      }
+      if (previewOutcome.status === "rejected") {
+        ui.ontologyPreviewStatus.textContent = `Preview error: ${previewOutcome.reason.message || previewOutcome.reason}`;
+        ui.ontologyPreviewList.innerHTML = `<div class="empty-state status-bad">${escapeHtml(previewOutcome.reason.message || String(previewOutcome.reason))}</div>`;
+      }
+      if (detailOutcome.status === "rejected") {
+        ui.ontologyRunMeta.textContent = `Detail error: ${detailOutcome.reason.message || detailOutcome.reason}`;
+        ui.ontologyProgressDetail.innerHTML = `<div class="empty-state status-bad">${escapeHtml(detailOutcome.reason.message || String(detailOutcome.reason))}</div>`;
+      }
+      if (!artifacts.length) {
+        ui.ontologyArtifactSummary.textContent = "No artifacts";
+      }
+      if (!preview.length) {
+        ui.ontologyPreviewStatus.textContent = "No unresolved preview";
+      }
+      ui.ontologyRunStatus.textContent = `Selected ${selectedRunId}`;
+    } catch (error) {
+      ui.ontologyRunState.textContent = "Error";
+      ui.ontologyRunState.className = "state-pill status-bad";
+      ui.ontologyRunStatus.textContent = `Unable to load ontology runs: ${error.message}`;
+      ui.ontologyRunSummary.textContent = "Error";
+      ui.ontologyRunList.innerHTML = `<div class="empty-state status-bad">${escapeHtml(error.message)}</div>`;
+      ui.ontologyRunTitle.textContent = "Ontology unavailable";
+      ui.ontologyRunMeta.textContent = error.message;
+      ui.ontologyProgressBar.className = "progress-fill is-unknown";
+      ui.ontologyProgressBar.style.width = "28%";
+      ui.ontologyProgressLabel.textContent = "Ontology unavailable";
+      ui.ontologyProgressPercent.textContent = "-";
+      ui.ontologyProgressStats.replaceChildren();
+      ui.ontologyProgressDetail.innerHTML = `<div class="empty-state status-bad">${escapeHtml(error.message)}</div>`;
+      ui.ontologyArtifactSummary.textContent = "Error";
+      ui.ontologyArtifactList.innerHTML = `<div class="empty-state status-bad">${escapeHtml(error.message)}</div>`;
+      ui.ontologyArtifactDetail.innerHTML = `<p class="status-bad">${escapeHtml(error.message)}</p>`;
+      ui.ontologyPreviewStatus.textContent = "Error";
+      ui.ontologyPreviewList.innerHTML = `<div class="empty-state status-bad">${escapeHtml(error.message)}</div>`;
+    }
   }
 
   function summarizeTelemetry(snapshot) {
@@ -482,12 +1006,14 @@
     summarizeTelemetry(body);
     applyMiningLock();
     renderConnectionState("Connected");
+    const tasks = [refreshOntology()];
     if (!state.miningActive) {
-      await Promise.allSettled([refreshTaxonomy(), refreshDrawers()]);
+      tasks.push(refreshTaxonomy(), refreshDrawers());
     } else {
       renderTaxonomy([]);
       renderDrawers([]);
     }
+    await Promise.allSettled(tasks);
   }
 
   async function refreshTaxonomy() {

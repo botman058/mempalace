@@ -185,6 +185,12 @@ button:focus {
   gap: var(--gap);
 }
 
+.ontology-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: var(--gap);
+}
+
 .telemetry-card {
   padding: 12px 14px;
   min-height: 74px;
@@ -261,6 +267,214 @@ button:focus {
   align-items: baseline;
   gap: 10px;
   margin: 6px 0 10px;
+}
+
+.run-list,
+.artifact-list,
+.preview-list {
+  display: grid;
+  gap: 10px;
+  min-height: 96px;
+}
+
+.run-list {
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.ontology-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
+  gap: var(--gap);
+  align-items: start;
+}
+
+.ontology-run-browser,
+.ontology-progress-body {
+  min-width: 0;
+}
+
+.ontology-progress-body {
+  display: grid;
+  gap: 12px;
+}
+
+.progress-head {
+  display: grid;
+  gap: 4px;
+}
+
+.progress-title {
+  font-size: 18px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.progress-subtle {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.progress-meter {
+  display: grid;
+  gap: 8px;
+}
+
+.progress-track {
+  height: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-alt);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.progress-fill.is-unknown {
+  width: 28%;
+}
+
+.progress-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ontology-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+  padding: 10px 12px;
+  min-height: 76px;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.stat-note {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.run-row,
+.artifact-row,
+.preview-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+  padding: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.run-row {
+  display: grid;
+  gap: 8px;
+}
+
+.run-row.active,
+.artifact-row.active {
+  border-color: rgba(33, 78, 117, 0.45);
+  background: rgba(33, 78, 117, 0.06);
+}
+
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.row-title {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.row-subtle {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: rgba(33, 78, 117, 0.08);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.artifact-row,
+.preview-row {
+  display: grid;
+  gap: 8px;
+}
+
+.artifact-summary,
+.preview-summary {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.artifact-detail,
+.ontology-progress-detail {
+  display: grid;
+  gap: 10px;
+}
+
+.artifact-detail pre,
+.preview-row pre,
+.ontology-progress-detail pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.preview-list {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.preview-row {
+  background: #f9fbfc;
 }
 
 .result-list,
@@ -401,8 +615,13 @@ select:disabled {
   .topbar,
   .overview,
   .telemetry-strip,
+  .ontology-workbench,
   .workbench,
   .drawer-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ontology-layout {
     grid-template-columns: 1fr;
   }
 
@@ -425,6 +644,10 @@ select:disabled {
   .connection-bar,
   .search-controls {
     grid-template-columns: 1fr;
+  }
+
+  .ontology-stats {
+    grid-template-columns: 1fr 1fr;
   }
 
   .metric-value {

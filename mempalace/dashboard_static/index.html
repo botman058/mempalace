@@ -69,6 +69,70 @@
           </div>
         </section>
 
+        <section class="ontology-workbench" aria-label="Ontology progress">
+          <div class="pane ontology-progress-pane">
+            <div class="pane-head">
+              <div>
+                <h2>Ontology progress</h2>
+                <p>Read-only run browser and live phase telemetry.</p>
+              </div>
+              <div id="ontologyRunState" class="state-pill">Token required</div>
+            </div>
+            <div id="ontologyRunStatus" class="empty-state">Token required to load ontology runs.</div>
+            <div class="ontology-layout">
+              <div class="ontology-run-browser">
+                <div class="results-header">
+                  <h3>Runs</h3>
+                  <span id="ontologyRunSummary">Token required</span>
+                </div>
+                <div id="ontologyRunList" class="run-list" role="list"></div>
+              </div>
+              <div class="ontology-progress-body">
+                <div class="progress-head">
+                  <div>
+                    <div class="metric-label">Selected run</div>
+                    <div id="ontologyRunTitle" class="progress-title">No run selected</div>
+                    <div id="ontologyRunMeta" class="progress-subtle">Token required</div>
+                  </div>
+                </div>
+                <div class="progress-meter">
+                  <div class="progress-track" aria-hidden="true">
+                    <div id="ontologyProgressBar" class="progress-fill"></div>
+                  </div>
+                  <div class="progress-caption">
+                    <span id="ontologyProgressLabel">No run loaded</span>
+                    <span id="ontologyProgressPercent">-</span>
+                  </div>
+                </div>
+                <div id="ontologyProgressStats" class="ontology-stats"></div>
+                <div id="ontologyProgressDetail" class="ontology-progress-detail"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pane ontology-artifact-pane">
+            <div class="pane-head">
+              <div>
+                <h2>Artifact browser</h2>
+                <p>Metadata only for published artifacts and bounded unresolved previews.</p>
+              </div>
+            </div>
+            <div class="results-header">
+              <h3>Artifacts</h3>
+              <span id="ontologyArtifactSummary">Token required</span>
+            </div>
+            <div id="ontologyArtifactList" class="artifact-list" role="list"></div>
+            <article id="ontologyArtifactDetail" class="detail-card">
+              <p>Token required to inspect artifact metadata.</p>
+            </article>
+            <div class="results-header ontology-preview-header">
+              <h3>Unresolved preview</h3>
+              <span id="ontologyPreviewStatus">Token required</span>
+            </div>
+            <div id="ontologyPreviewList" class="preview-list" role="list"></div>
+          </div>
+        </section>
+
         <section class="workbench">
           <div class="pane search-pane">
             <div class="pane-head">

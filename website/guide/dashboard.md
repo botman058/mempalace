@@ -86,7 +86,15 @@ If no rooms or drawers appear, clear the wing/room filters and try again.
 
 ## Ontology Progress
 
-The dashboard backend also exposes read-only ontology run endpoints for the
+The **Ontology progress** section shows the latest ontology runs, the selected
+run's current phase, a progress bar based on `current_phase_progress`, artifact
+metadata, and a bounded unresolved preview.
+
+The artifact browser lists metadata from `artifacts_index.json`. It does not
+download full artifact bodies. The unresolved preview panel shows only the
+bounded excerpts published by the backend for dashboard-safe artifacts.
+
+The dashboard backend exposes these read-only ontology run endpoints for the
 progress panel:
 
 - `GET /api/ontology/runs`
