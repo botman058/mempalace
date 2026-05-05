@@ -532,7 +532,7 @@ Insufficient evidence:
 | E - Progressive Run Green | green | WP-05 materializes initial progress artifacts and resume markers with source-wing consistency checks; milestone commit `6a56036` pushed. | WP-06/WP-13 |
 | F - Pass1 Candidate Green | green | WP-06 adds LocalAI/openai-compatible pass1 prompt/parser, invalid-output records, and sample JSONL serialization tests; milestone commit `76d6014` pushed. | WP-07 |
 | G - Canonical Candidate Green | green | WP-07 candidate clustering plus WP-08 canonical naming/pruning accepted; candidate `wing:room` ambiguity preserved. | WP-09 |
-| H - Routing Green | in progress | WP-09 route candidate retrieval accepted; WP-10 route prompt/parser remains. | WP-10 |
+| H - Routing Green | green | WP-09 route candidate retrieval plus WP-10 route pass prompt/parser accepted; candidate/null route records are durable. | WP-11 |
 | I - Verification And Iteration Green | blocked | Requires WP-11 and WP-12. | WP-11/WP-12 |
 | J - Dashboard Progress Green | green | WP-13 backend endpoints plus WP-14 static dashboard progress UI and contract tests accepted. | WP-15 after routing/verification packages |
 | K - Release Green | blocked | Requires WP-17 and WP-18. | WP-17/WP-18 |
@@ -553,8 +553,8 @@ Insufficient evidence:
 | WP-07 | complete | A-3/Bernoulli | Candidate clustering accepted; milestone commit `780297a` pushed. |
 | WP-08 | complete | A-1/Archimedes | Candidate naming/pruning accepted; milestone commit `e6c2906` pushed. |
 | WP-09 | complete | A-3R/Kepler | Route candidate retrieval accepted; milestone commit `701ba4a` pushed. |
-| WP-10 | in progress | A-1/Anscombe | Pass2 route prompt/parser activated after WP-09. |
-| WP-11 | blocked | A-1 | Local verification pass. |
+| WP-10 | complete | A-1/Anscombe | Pass2 route prompt/parser accepted; milestone pending commit. |
+| WP-11 | pending | A-1 | Local verification pass; unblocked by WP-10. |
 | WP-12 | blocked | A-3 | Iteration controller and convergence reports. |
 | WP-13 | complete | A-4/Rawls | Dashboard progress endpoints accepted; milestone commit `fdbf41d` pushed. |
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
@@ -995,6 +995,24 @@ Each drift entry must include:
 - A-1 write scope is limited to `mempalace/ontology_route_pass2.py` and `tests/test_ontology_route_pass2.py`.
 - A-1 is forbidden from editing CLI/run-loop, MCP, dashboard backend/static files, `.agents/plugins/marketplace.json`, `docs/reference/`, or this worksheet.
 - WP-10 must build LocalAI/OpenAI-compatible route prompts and parse candidate-or-null route decisions without network calls or mutation behavior.
+
+### 2026-05-05 - WP-10 Acceptance Evidence
+
+- A-1/Anscombe added `mempalace/ontology_route_pass2.py` and `tests/test_ontology_route_pass2.py`.
+- `build_route_pass2_prompt()` creates a strict LocalAI/OpenAI-compatible prompt from one drawer excerpt and one WP-09 `route_candidates` shortlist.
+- `parse_route_pass2_response()` emits JSONL-ready `ontology.phase_record` records for `phase: route_pass2`, `subject_type: drawer`, supporting selected-candidate routes and explicit null routes.
+- Selected-candidate parsing validates shortlist membership, selected candidate ID/key consistency, canonical wing/room slug keys, and canonical wing/room match against the chosen shortlist candidate.
+- Null-route parsing requires null selected/canonical fields, reason code, reason detail, and an optional bounded next-action hint.
+- Invalid JSON, malformed response shapes, missing selected candidates, candidates outside the shortlist, wing/room mismatches, invalid confidence values, and non-text response objects become durable `invalid_model_output` records with bounded raw excerpts and `retryable: true`.
+- Low-confidence selected routes stay durable with `route_status: low_confidence`, a reason code/detail, and `next_action: reroute`.
+- `docs/chatgpt_signal_ontology_artifacts.md` now documents `route_pass2` payload behavior.
+- `CHANGELOG.md` records the route pass parser helper.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_route_pass2.py tests/test_ontology_route_candidates.py tests/test_ontology_candidate_names.py`: 28 passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_route_pass2.py tests/test_ontology_route_pass2.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_route_pass2.py tests/test_ontology_route_pass2.py`: passed.
+- `O-0` ran `git diff --check -- CHANGELOG.md docs/chatgpt_signal_ontology_artifacts.md mempalace/ontology_route_pass2.py tests/test_ontology_route_pass2.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Known gap: no CLI/run-loop integration or artifact publishing yet; WP-10 intentionally provides pure prompt/parser and record assembly only.
+- Checkpoint H is green.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 

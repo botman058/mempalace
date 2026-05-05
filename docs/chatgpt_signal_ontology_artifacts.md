@@ -217,6 +217,10 @@ Important phase payloads:
   to one source drawer before route-pass prompting. Payloads include ranked
   candidate IDs/keys, canonical wing/room, label/definition, score features,
   source candidate refs, and bounded source excerpts.
+- `route_pass2` records store the model route decision for one source drawer.
+  Payloads choose one shortlist candidate or a null route, preserve shortlist
+  provenance, include route confidence and concise rationale when present, and
+  record invalid model output durably instead of crashing.
 
 Example:
 
