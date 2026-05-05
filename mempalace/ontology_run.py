@@ -14,6 +14,8 @@ _RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 _PHASE_ORDER = [
     "pass1_open",
     "candidate_clusters",
+    "canonical_candidates",
+    "route_candidates",
     "route_pass2",
     "route_verify",
     "apply_copies",
@@ -139,6 +141,8 @@ def _ensure_append_ready_files(run_dir: Path) -> None:
     append_ready_files = [
         "pass1_open.jsonl",
         "candidate_clusters.jsonl",
+        "canonical_candidates.jsonl",
+        "route_candidates.jsonl",
         "route_pass2.jsonl",
         "route_verify.jsonl",
         "apply_copies.jsonl",
@@ -231,8 +235,12 @@ def _write_artifact_index(run: OntologyRunShell, *, now: str) -> None:
         privacy_level: str,
     ) -> dict:
         file_path = run.run_dir / relative_path
-        size = file_path.stat().st_size if file_path.exists() else 0
-        records = 1 if relative_path == "progress.json" and file_path.exists() else _count_jsonl(file_path)
+        exists = file_path.exists()
+        size = file_path.stat().st_size if exists else 0
+        if content_type == "application/json" and not append_only:
+            records = 1 if exists else 0
+        else:
+            records = _count_jsonl(file_path)
         return {
             "artifact_key": key,
             "relative_path": relative_path,
@@ -279,6 +287,28 @@ def _write_artifact_index(run: OntologyRunShell, *, now: str) -> None:
             schema_name="ontology.phase_record",
             artifact_kind="phase_records",
             phase="candidate_clusters",
+            content_type="application/jsonl",
+            append_only=True,
+            dashboard_safe=False,
+            privacy_level="restricted",
+        ),
+        _entry(
+            key="canonical_candidates",
+            relative_path="canonical_candidates.jsonl",
+            schema_name="ontology.phase_record",
+            artifact_kind="phase_records",
+            phase="canonical_candidates",
+            content_type="application/jsonl",
+            append_only=True,
+            dashboard_safe=False,
+            privacy_level="restricted",
+        ),
+        _entry(
+            key="route_candidates",
+            relative_path="route_candidates.jsonl",
+            schema_name="ontology.phase_record",
+            artifact_kind="phase_records",
+            phase="route_candidates",
             content_type="application/jsonl",
             append_only=True,
             dashboard_safe=False,
@@ -347,6 +377,28 @@ def _write_artifact_index(run: OntologyRunShell, *, now: str) -> None:
             phase=None,
             content_type="application/jsonl",
             append_only=True,
+            dashboard_safe=True,
+            privacy_level="summary",
+        ),
+        _entry(
+            key="convergence_report",
+            relative_path="convergence_report.json",
+            schema_name="ontology.convergence_report",
+            artifact_kind="summary",
+            phase=None,
+            content_type="application/json",
+            append_only=False,
+            dashboard_safe=True,
+            privacy_level="summary",
+        ),
+        _entry(
+            key="apply_ready_manifest",
+            relative_path="apply_ready_manifest.json",
+            schema_name="ontology.apply_ready_manifest",
+            artifact_kind="summary",
+            phase=None,
+            content_type="application/json",
+            append_only=False,
             dashboard_safe=True,
             privacy_level="summary",
         ),

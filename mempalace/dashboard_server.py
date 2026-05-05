@@ -997,7 +997,7 @@ def create_app(
     if ontology_run_root is None:
         ontology_run_root = load_ontology_run_root()
     else:
-        ontology_run_root = Path(ontology_run_root).expanduser().resolve(strict=False)
+        ontology_run_root = resolve_run_root(str(ontology_run_root))
 
     async def require_bearer(authorization: Optional[str] = Header(default=None)):
         if auth_required_but_missing:

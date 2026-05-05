@@ -8,6 +8,17 @@ from mempalace.cli import cmd_ontology_chatgpt_signals, main
 from mempalace.ontology_run import generate_run_id, initialize_run_shell, validate_run_id
 
 
+EXPECTED_PHASE_ORDER = [
+    "pass1_open",
+    "candidate_clusters",
+    "canonical_candidates",
+    "route_candidates",
+    "route_pass2",
+    "route_verify",
+    "apply_copies",
+]
+
+
 def test_generate_run_id_shape():
     run_id = generate_run_id()
     assert run_id.endswith("_chatgpt_signal_ontology")
@@ -71,20 +82,59 @@ def test_cmd_ontology_chatgpt_signals_materializes_progress_and_artifacts(tmp_pa
     assert (run_dir / "run_metadata.json").exists()
     assert (run_dir / "progress.json").exists()
     assert (run_dir / "artifacts_index.json").exists()
-    assert (run_dir / "pass1_open.jsonl").exists()
-    assert (run_dir / "resume_markers.jsonl").exists()
+    append_ready_expected = [
+        "pass1_open.jsonl",
+        "candidate_clusters.jsonl",
+        "canonical_candidates.jsonl",
+        "route_candidates.jsonl",
+        "route_pass2.jsonl",
+        "route_verify.jsonl",
+        "apply_copies.jsonl",
+        "accepted_routes.jsonl",
+        "unresolved.jsonl",
+        "resume_markers.jsonl",
+    ]
+    for relative in append_ready_expected:
+        assert (run_dir / relative).exists()
 
     progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
     assert progress["schema_name"] == "ontology.progress"
     assert progress["status"] == "pending"
+    assert progress["phase_order"] == EXPECTED_PHASE_ORDER
+    assert set(progress["phase_attempts"]) == set(EXPECTED_PHASE_ORDER)
     assert progress["phase_attempts"]["pass1_open"] == 0
 
     index = json.loads((run_dir / "artifacts_index.json").read_text(encoding="utf-8"))
     assert index["schema_name"] == "ontology.artifact_index"
-    keys = {entry["artifact_key"] for entry in index["artifacts"]}
-    assert "progress" in keys
-    assert "pass1_open" in keys
-    assert "resume_markers" in keys
+    artifacts_by_key = {entry["artifact_key"]: entry for entry in index["artifacts"]}
+    assert "progress" in artifacts_by_key
+    assert "resume_markers" in artifacts_by_key
+
+    for phase in EXPECTED_PHASE_ORDER:
+        entry = artifacts_by_key[phase]
+        assert entry["schema_name"] == "ontology.phase_record"
+        assert entry["artifact_kind"] == "phase_records"
+        assert entry["phase"] == phase
+        assert entry["content_type"] == "application/jsonl"
+        assert entry["append_only"] is True
+        assert entry["dashboard_safe"] is False
+        assert entry["privacy_level"] == "restricted"
+
+    convergence = artifacts_by_key["convergence_report"]
+    assert convergence["schema_name"] == "ontology.convergence_report"
+    assert convergence["artifact_kind"] == "summary"
+    assert convergence["content_type"] == "application/json"
+    assert convergence["append_only"] is False
+    assert convergence["records"] == 0
+    assert convergence["bytes"] == 0
+
+    apply_ready = artifacts_by_key["apply_ready_manifest"]
+    assert apply_ready["schema_name"] == "ontology.apply_ready_manifest"
+    assert apply_ready["artifact_kind"] == "summary"
+    assert apply_ready["content_type"] == "application/json"
+    assert apply_ready["append_only"] is False
+    assert apply_ready["records"] == 0
+    assert apply_ready["bytes"] == 0
 
     marker_lines = [
         line
@@ -123,6 +173,31 @@ def test_cmd_ontology_chatgpt_signals_rerun_appends_resume_marker(tmp_path):
     assert first["event"] == "initialized"
     assert second["event"] == "resumed"
     assert second["sequence"] == 2
+
+
+def test_cmd_ontology_chatgpt_signals_resume_updates_summary_artifact_records(tmp_path):
+    run_root = tmp_path / "ontology_runs"
+    args = argparse.Namespace(
+        run_dir=str(run_root),
+        run_id="custom_run_summary_records",
+        source_wing="chatgpt_signals",
+        dry_run=False,
+    )
+    cmd_ontology_chatgpt_signals(args)
+    run_dir = run_root / "custom_run_summary_records"
+
+    (run_dir / "convergence_report.json").write_text(
+        json.dumps({"summary": {"accepted": 3, "unresolved": 1}}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    cmd_ontology_chatgpt_signals(args)
+
+    index = json.loads((run_dir / "artifacts_index.json").read_text(encoding="utf-8"))
+    artifacts_by_key = {entry["artifact_key"]: entry for entry in index["artifacts"]}
+    convergence = artifacts_by_key["convergence_report"]
+    assert convergence["records"] == 1
+    assert convergence["bytes"] > 0
 
 
 def test_cmd_ontology_chatgpt_signals_rerun_with_different_source_wing_fails(tmp_path, capsys):

@@ -560,8 +560,8 @@ Insufficient evidence:
 | WP-14 | complete | A-5/James | Dashboard progress meter and artifact browser accepted; milestone commit `d002072` pushed. |
 | WP-15 | complete | B-1/Meitner | Cross-contract tests accepted; milestone commit `0bda43f` pushed. |
 | WP-16 | complete | B-1/Helmholtz | Tiny-palace integration tests accepted; milestone commit `662edac` pushed. |
-| WP-17 | in progress | R-1 | Independent safety and drift review activated after WP-16. |
-| WP-18 | blocked | O-0 | Integration, docs, commit, push. |
+| WP-17 | complete | R-1/Herschel | Independent review complete; two medium findings remediated; milestone pending. |
+| WP-18 | pending | O-0 | Final integration, docs, verification, commit, push unblocked. |
 
 ---
 
@@ -1168,9 +1168,33 @@ Each drift entry must include:
 ### 2026-05-05 - WP-17 Activation
 
 - `O-0` reread this worksheet before activation.
-- WP-17 was assigned to R-1 with model `gpt-5.4` and reasoning depth `high`.
+- WP-17 was assigned to R-1/Herschel with model `gpt-5.4` and reasoning depth `high`.
 - R-1 scope is read-only review of accepted diff, worksheet, safety boundaries, progress visibility, cloud gating, and idempotency.
 - R-1 is forbidden from editing files, staging commits, deleting files, touching `.agents/plugins/marketplace.json`, touching `docs/reference/`, or running mutation commands.
+
+### 2026-05-05 - WP-17 Independent Review Findings
+
+- R-1/Herschel found no high-severity issues.
+- Medium finding 1: `mempalace/ontology_run.py` run shell and artifact index still omitted `canonical_candidates` and `route_candidates`, so accepted ontology phases could be invisible or misreported through dashboard artifact discovery.
+- Medium finding 2: `mempalace/dashboard_server.py:create_app(..., ontology_run_root=...)` bypassed the forbidden-root guard for explicit constructor values, even though the env-driven path refused `/media/u0/Extreme SSD`.
+- Residual test gaps noted by R-1: no shell-generated run dir read back through dashboard, and static dashboard tests remain structural rather than rendered-value checks.
+- Remediation finding 1 assigned to worker Hegel with model `gpt-5.3-codex` and reasoning depth `medium`; write scope: `mempalace/ontology_run.py`, `tests/test_ontology_cli.py`.
+- Remediation finding 2 assigned to worker Ptolemy with model `gpt-5.3-codex` and reasoning depth `medium`; write scope: `mempalace/dashboard_server.py`, `tests/test_dashboard_server.py`.
+
+### 2026-05-05 - WP-17 Remediation Acceptance Evidence
+
+- Hegel updated `mempalace/ontology_run.py` and `tests/test_ontology_cli.py`.
+- The run shell now publishes full phase order: `pass1_open`, `candidate_clusters`, `canonical_candidates`, `route_candidates`, `route_pass2`, `route_verify`, `apply_copies`.
+- Run materialization now creates append-ready `canonical_candidates.jsonl` and `route_candidates.jsonl`, and `artifacts_index.json` includes both phase artifacts.
+- `artifacts_index.json` now also includes absent-or-present summary entries for `convergence_report.json` and `apply_ready_manifest.json`; non-append JSON summaries report `records: 0` when absent and `records: 1` when present.
+- Ptolemy updated `mempalace/dashboard_server.py` and `tests/test_dashboard_server.py`.
+- Explicit `create_app(..., ontology_run_root=...)` values now pass through the same forbidden-root validation as env-driven ontology run roots.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_ontology_contract.py tests/test_ontology_tiny_palace_integration.py`: 29 passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_ontology_cli.py tests/test_dashboard_server.py tests/test_dashboard_static_contract.py tests/test_ontology_contract.py tests/test_ontology_tiny_palace_integration.py tests/test_ontology_iteration.py tests/test_ontology_route_verify.py tests/test_ontology_route_pass2.py tests/test_ontology_route_candidates.py tests/test_ontology_candidate_names.py tests/test_ontology_candidates.py tests/test_ontology_pass1.py`: 104 passed, 23 subtests passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/ontology_run.py tests/test_ontology_cli.py mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/ontology_run.py tests/test_ontology_cli.py tests/test_dashboard_server.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/ontology_run.py tests/test_ontology_cli.py mempalace/dashboard_server.py tests/test_dashboard_server.py docs/worksheets/mempalace_chatgpt_signal_ontology_worksheet_2026-05-05.md`: passed.
+- Medium findings from R-1 are resolved; remaining residual gaps are low severity and deferred to future full run-loop/apply work.
 
 ### 2026-05-05 - WP-04 Acceptance Evidence
 

@@ -554,6 +554,19 @@ def test_load_ontology_run_root_refuses_forbidden_root(monkeypatch):
         load_ontology_run_root()
 
 
+def test_create_app_refuses_forbidden_explicit_ontology_run_root():
+    upstream = FakeUpstream()
+    detector = FakeMiningDetector(active=False)
+
+    with pytest.raises(ValueError, match="forbidden"):
+        create_app(
+            token="secret",
+            upstream_client=upstream,
+            mining_detector=detector,
+            ontology_run_root="/media/u0/Extreme SSD",
+        )
+
+
 def test_mining_active_locks_heavy_endpoints_without_mcp():
     client, upstream = _client(mining_active=True)
 
