@@ -17,6 +17,8 @@ It covers:
 - `artifacts_index.json`
 - `accepted_routes.jsonl`
 - `unresolved.jsonl`
+- `convergence_report.json`
+- `apply_ready_manifest.json`
 - routed copy metadata attached to semantic copies
 
 It does not define ontology prompts, clustering, routing logic, dashboard UI, or copy execution code.
@@ -304,6 +306,7 @@ Required fields:
 | `source_wing` | `string` |
 | `source_room` | `string` |
 | `candidate_id` | `string` |
+| `candidate_key` | `string`; `canonical_wing:canonical_room` |
 | `canonical_wing` | `string` |
 | `canonical_room` | `string` |
 | `route_confidence` | `number|null` |
@@ -311,18 +314,19 @@ Required fields:
 | `copy_ready` | `boolean` |
 | `route_record_ref` | `string` |
 | `verification_record_ref` | `string` |
+| `route_candidate_record_ref` | `string|null` |
 | `rationale_summary` | `string` |
 
 Semantics:
 
 - Append-only.
 - One line per accepted routing decision per run and iteration.
-- `copy_ready: true` means later apply work may materialize a semantic copy; it does not mean the copy already exists.
+- `copy_ready: true` means later apply work may materialize a semantic copy if this is still the drawer's latest terminal state; it does not mean the copy already exists.
 
 Example:
 
 ```json
-{"schema_name":"ontology.accepted_route","schema_version":1,"run_id":"20260505T143015Z_chatgpt_signal_ontology","sequence":1,"recorded_at":"2026-05-05T15:12:44Z","route_status":"accepted","route_iteration":1,"source_drawer_id":"drawer_chatgpt_signals_general_3d7e47b0d88b3a6c22d4d7a9","source_wing":"chatgpt_signals","source_room":"general","candidate_id":"cand_life_admin__appointments_and_forms","canonical_wing":"life_admin","canonical_room":"appointments_and_forms","route_confidence":0.93,"verification_confidence":0.96,"copy_ready":true,"route_record_ref":"route_pass2.jsonl#54","verification_record_ref":"route_verify.jsonl#54","rationale_summary":"Verified against drawer text, candidate definition, and source room context."}
+{"schema_name":"ontology.accepted_route","schema_version":1,"run_id":"20260505T143015Z_chatgpt_signal_ontology","sequence":1,"recorded_at":"2026-05-05T15:12:44Z","route_status":"accepted","route_iteration":1,"source_drawer_id":"drawer_chatgpt_signals_general_3d7e47b0d88b3a6c22d4d7a9","source_wing":"chatgpt_signals","source_room":"general","candidate_id":"cand_life_admin__appointments_and_forms","candidate_key":"life_admin:appointments_and_forms","canonical_wing":"life_admin","canonical_room":"appointments_and_forms","route_confidence":0.93,"verification_confidence":0.96,"copy_ready":true,"route_record_ref":"route_pass2.jsonl#54","verification_record_ref":"route_verify.jsonl#54","route_candidate_record_ref":"route_candidates.jsonl#54","rationale_summary":"Verified against drawer text, candidate definition, and source room context."}
 ```
 
 ## 8. `unresolved.jsonl`
@@ -344,11 +348,16 @@ Required fields:
 | `source_room` | `string` |
 | `unresolved_status` | `string`; unresolved status enum |
 | `candidate_ids` | `array[string]` |
+| `candidate_keys` | `array[string]` |
 | `reason_code` | `string` |
 | `reason_detail` | `string` |
 | `route_confidence` | `number|null` |
+| `verification_confidence` | `number|null` |
 | `next_action` | `string`; `reroute`, `manual_review`, `drop`, or `retry_later` |
 | `retryable` | `boolean` |
+| `route_record_ref` | `string` |
+| `verification_record_ref` | `string` |
+| `route_candidate_record_ref` | `string|null` |
 | `source_excerpt` | `string|null`; bounded excerpt only |
 
 Semantics:
@@ -360,10 +369,69 @@ Semantics:
 Example:
 
 ```json
-{"schema_name":"ontology.unresolved_route","schema_version":1,"run_id":"20260505T143015Z_chatgpt_signal_ontology","sequence":2,"recorded_at":"2026-05-05T15:13:12Z","route_iteration":2,"source_drawer_id":"drawer_chatgpt_signals_general_55c58f6c1b3db93da6f13344","source_wing":"chatgpt_signals","source_room":"general","unresolved_status":"conflict","candidate_ids":["cand_life_admin__appointments_and_forms","cand_work_admin__meeting_coordination"],"reason_code":"verifier_disagreed","reason_detail":"Route pass selected life_admin, verifier preferred work_admin with overlapping evidence.","route_confidence":0.58,"next_action":"manual_review","retryable":false,"source_excerpt":"The drawer mixes meeting scheduling with personal paperwork and lacks a dominant target."}
+{"schema_name":"ontology.unresolved_route","schema_version":1,"run_id":"20260505T143015Z_chatgpt_signal_ontology","sequence":2,"recorded_at":"2026-05-05T15:13:12Z","route_iteration":2,"source_drawer_id":"drawer_chatgpt_signals_general_55c58f6c1b3db93da6f13344","source_wing":"chatgpt_signals","source_room":"general","unresolved_status":"conflict","candidate_ids":["cand_life_admin__appointments_and_forms","cand_work_admin__meeting_coordination"],"candidate_keys":["life_admin:appointments_and_forms","work_admin:meeting_coordination"],"reason_code":"verifier_disagreed","reason_detail":"Route pass selected life_admin, verifier preferred work_admin with overlapping evidence.","route_confidence":0.58,"verification_confidence":0.74,"next_action":"manual_review","retryable":false,"route_record_ref":"route_pass2.jsonl#55","verification_record_ref":"route_verify.jsonl#55","route_candidate_record_ref":"route_candidates.jsonl#55","source_excerpt":"The drawer mixes meeting scheduling with personal paperwork and lacks a dominant target."}
 ```
 
-## 9. Routed copy metadata
+## 9. `convergence_report.json`
+
+Purpose: compact terminal summary for one ontology route/verify run.
+
+Required fields:
+
+| Field | Type |
+|---|---|
+| `schema_name` | `string`; `ontology.convergence_report` |
+| `schema_version` | `integer`; `1` |
+| `run_id` | `string` |
+| `terminal_status` | `string`; `empty`, `converged`, `needs_review`, or `error` |
+| `total_verification_records` | `integer` |
+| `total_drawers` | `integer` |
+| `iteration_count` | `integer` |
+| `iteration_summaries` | `array[object]` |
+| `accepted_count` | `integer` |
+| `unresolved_count` | `integer` |
+| `error_count` | `integer` |
+| `retryable_count` | `integer` |
+| `reason_counts` | `object<string, integer>` |
+| `terminal_status_counts` | `object<string, integer>` |
+| `latest_terminal_drawer_states` | `array[object]` |
+| `unresolved_drawer_refs` | `array[object]` |
+| `skipped_summary` | `object` |
+
+Semantics:
+
+- The latest terminal state per drawer wins across accepted and unresolved records.
+- Later accepted routes may resolve earlier unresolved lines without rewriting them.
+- Later unresolved/error lines suppress earlier accepted routes for convergence and apply-manifest purposes.
+- The report is a JSON summary artifact, not a mutation instruction.
+
+## 10. `apply_ready_manifest.json`
+
+Purpose: final candidate list for apply code after convergence review.
+
+Required fields:
+
+| Field | Type |
+|---|---|
+| `schema_name` | `string`; `ontology.apply_ready_manifest` |
+| `schema_version` | `integer`; `1` |
+| `run_id` | `string` |
+| `route_count` | `integer` |
+| `routes` | `array[object]` |
+| `skipped_summary` | `object` |
+
+Each `routes[]` entry includes source drawer ID/wing/room, route iteration,
+candidate ID/key, canonical wing/room, route and verification confidence,
+route/verification/accepted-route record refs, route-candidate record ref, and
+a bounded rationale summary.
+
+Semantics:
+
+- Only drawers whose latest terminal state is accepted should appear.
+- If unresolved records are available, apply-manifest generation must exclude stale accepted routes superseded by later unresolved/error/low-confidence records.
+- The manifest never creates copies by itself; apply code must still use the idempotent semantic copy path.
+
+## 11. Routed copy metadata
 
 Purpose: prove lineage on the semantic copy without mutating the source drawer.
 
@@ -414,7 +482,7 @@ Example:
 }
 ```
 
-## 10. Dashboard read contract
+## 12. Dashboard read contract
 
 The dashboard is read-only and must:
 
@@ -430,7 +498,7 @@ The dashboard must not:
 - display full source drawer bodies from restricted artifacts
 - infer accepted copies without `accepted_routes.jsonl` or copy metadata evidence
 
-## 11. Privacy and safety
+## 13. Privacy and safety
 
 1. `progress.json` and `artifacts_index.json` must not contain raw drawer bodies, prompts, secrets, or full model transcripts.
 2. JSONL artifacts may contain bounded excerpts only where explicitly allowed.
