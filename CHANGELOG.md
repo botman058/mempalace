@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **ChatGPT signal ontology route pass parser.** Added a pure `route_pass2` helper that builds strict LocalAI-compatible route prompts from drawer excerpts and candidate shortlists, parses selected-candidate or null-route decisions, validates shortlist membership and canonical `wing:room` keys, and emits durable invalid-output records for malformed model responses. (#TBD)
 - **ChatGPT signal ontology route verifier.** Added a pure `route_verify` helper that builds LocalAI-compatible verification prompts, parses approve/reject decisions for selected-candidate and null routes, preserves route provenance, and emits copy-ready or unresolved verification records without mutating drawers. (#TBD)
 - **ChatGPT signal ontology iteration reports.** Added pure iteration decision builders that convert verified routes into append-only accepted/unresolved route records, terminal convergence reports, and apply-ready manifests that exclude stale accepted routes superseded by later unresolved states. (#TBD)
+- **Thread-aware ChatGPT signal rebuild groundwork.** Added a deterministic ChatGPT conversation segmenter for the replacement LocalAI signal pass. The segmenter splits long conversations by turn windows, handles oversized first messages without dropping suffix text, preserves stable source/subthread provenance, and provides focused coverage tests for multi-topic conversations before the new `chatgpt_thread_signals` layer is mined. (#TBD)
 
 ### Bug Fixes
 

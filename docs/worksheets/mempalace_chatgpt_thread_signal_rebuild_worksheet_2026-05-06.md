@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint B is green. WP-02, WP-03, and WP-06 may be activated in bounded worker-owned slices. WP-04 remains blocked on the segment/subthread contracts.
+Checkpoint C and Checkpoint D are green after O-0 review. WP-04 may be activated in a bounded worker-owned slice. WP-06 remains in worker rework; WP-07 and WP-09 remain blocked until Checkpoint E and Checkpoint F are green.
 
 ---
 
@@ -473,3 +473,40 @@ No drift recorded yet.
 - Latest superseded artifact remains `/media/u0/OneDrive_Backup/mempalace/data/ontology/20260505T175609Z_chatgpt_signal_ontology/progress.json`.
 - That progress artifact still says `status: running`, phase `pass1_open`, and `6962` processed of discovered `7000` because `O-0` did not mutate old run artifacts in place.
 - Checkpoint B verdict: green.
+
+### 2026-05-06 - WP-02/WP-03/WP-06 Activation
+
+- `O-0` reread this worksheet before package activation.
+- WP-02 and WP-03 were assigned to B-1/Gibbs with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-1 write scope is limited to a focused segmentation/subthread helper module under `mempalace/` and focused tests, preferably `tests/test_chatgpt_thread_segments.py`.
+- WP-06 was assigned to B-2/Linnaeus with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-2 write scope is limited to `mempalace/mcp_server.py`, `tests/test_mcp_server.py`, and only if needed one focused deterministic ID helper.
+- Both workers were instructed that they are not alone in the codebase, must not revert others' edits, and must not touch `.agents/plugins/marketplace.json`, unaccepted `docs/reference/`, existing `chatgpt` or `chatgpt_signals` drawers, ontology runner files, extractor script files outside their scopes, or docs.
+
+### 2026-05-06 - WP-02/WP-03 Acceptance Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- B-1/Gibbs returned new focused helper files `mempalace/chatgpt_thread_segments.py` and `tests/test_chatgpt_thread_segments.py`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_thread_segments.py`: `6 passed in 0.35s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_thread_segments.py tests/test_chatgpt_thread_segments.py`: passed.
+- Coverage evidence includes short conversation, long multi-turn segmentation with overlap, first-message-over-12k splitting, no dropped oversized-message suffix, deterministic reruns, and multiple subthreads in one conversation.
+- Checkpoint C verdict: green.
+- Checkpoint D verdict: green.
+
+### 2026-05-06 - WP-06 Rework Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- B-2/Linnaeus returned an MCP write-path patch in `mempalace/mcp_server.py` and `tests/test_mcp_server.py`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/mcp_server.py tests/test_mcp_server.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'add_signal_drawer or tools_list'`: `4 failed, 2 passed, 84 deselected`.
+- The two tools/list checks passed, but all four functional `mempalace_add_signal_drawer` checks returned `success: False`.
+- Rework diagnosis: the patch sanitizes optional provenance fields with `sanitize_kg_value` even when they default to empty strings, so minimal valid signal writes fail before persistence.
+- B-2 was sent remediation instructions within the original WP-06 write scope.
+- Checkpoint E verdict: red until the reworked patch passes idempotent write and no-source-mutation tests.
+
+### 2026-05-06 - WP-04 Activation
+
+- `O-0` reread this worksheet before package activation.
+- WP-04 was assigned to B-3/Curie with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-3 write scope is limited to a new thread-aware extraction runner, focused tests, and only if needed one narrow extraction-specific pure helper.
+- B-3 was instructed to use the accepted `mempalace/chatgpt_thread_segments.py` contract, avoid live network in tests, refuse cloud LLM URLs, write progressive `progress.json` and append-only segment artifacts, and avoid drawer writes/reconciliation/systemd/dashboard changes.
