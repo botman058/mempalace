@@ -179,7 +179,10 @@ scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh --publish
 
 Resume or inspect an existing run directory with `--run-dir PATH`. The wrapper
 prints the unit name, run directory, progress path, checkpoint/artifact paths,
-and the `journalctl -fu ...` follow command after launch.
+the MCP publish timeout, and the `journalctl -fu ...` follow command after
+launch. The default MemPalace HTTP MCP timeout is `300` seconds because Chroma
+embedding/index writes on the hosted palace can exceed a short client timeout.
+Override it with `--mcp-timeout N` if needed.
 
 The script only publishes when `--publish` is present. It does not delete or
 rewrite palace data, does not restart services, and refuses any path under

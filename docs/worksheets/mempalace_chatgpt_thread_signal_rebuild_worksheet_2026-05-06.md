@@ -603,3 +603,25 @@ No drift recorded yet.
 - `O-0` reran the same command set in the parent workspace: pytest `23 passed, 90 deselected in 15.51s`; py_compile, shell syntax, and diff-check passed.
 - Coverage checklist was confirmed for long-conversation suffix retention, first-message-over-12k splitting, multiple subthreads, invalid output durability, reconciliation idempotency, no default publisher writes, publisher MCP argument bounds, deterministic signal write idempotency, and old-wing no-mutation.
 - WP-08 verdict: green.
+
+### 2026-05-06 - WP-09 Smoke Attempt 1
+
+- `O-0` reread this worksheet before live service operations.
+- A clean `git archive` of committed `HEAD` `049ae11` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260506T022008Z-049ae11/app` on `snow-white-iii`.
+- `O-0` promoted the staged tree with `promote_snow_white_iii_app_update.sh`; the promotion reported no file deletion, no service restart, and no palace data touch.
+- First smoke unit `mempalace-localai-chatgpt-thread-signals-20260506022030` was started with `--limit 5 --publish`.
+- Extraction and reconciliation produced progressive artifacts under `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506022030_thread_signal_rebuild`.
+- Publish failed because the still-running `mempalace-http.service` did not know `mempalace_add_signal_drawer` after app promotion.
+- `O-0` stopped the failed smoke unit without deleting its artifacts.
+- `O-0` restarted only `mempalace-http.service` to load promoted code; resource caps remained `CPUQuota=200%` and `MemoryMax=16G`.
+- HTTP MCP `tools/list` then included `mempalace_add_signal_drawer`.
+
+### 2026-05-06 - WP-09 Smoke Attempt 2 and Timeout Remediation
+
+- Second smoke unit `mempalace-localai-chatgpt-thread-signals-20260506022912` was started with `--limit 2 --publish`.
+- Extraction and reconciliation produced progressive artifacts under `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506022912_thread_signal_rebuild`.
+- Publish wrote one drawer successfully to `chatgpt_thread_signals`: `drawer_thread_signal_d81d3d5c4a6b107393e13e9e`.
+- The next publish call timed out at the script default `120` seconds while the hosted HTTP MCP service was doing Chroma write work.
+- `O-0` stopped the smoke unit without deleting artifacts.
+- Emergency repair mode was declared for `scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`, `scripts/systemd/README.md`, `CHANGELOG.md`, and this worksheet.
+- The wrapper now exposes `--mcp-timeout` and defaults MemPalace HTTP MCP publish timeout to `300` seconds.

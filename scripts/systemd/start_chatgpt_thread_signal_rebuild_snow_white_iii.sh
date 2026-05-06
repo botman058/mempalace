@@ -16,6 +16,7 @@ UNIT_BASE="${MEMPALACE_THREAD_SIGNAL_UNIT_BASE:-mempalace-localai-chatgpt-thread
 RUN_DIR_ARG=""
 LIMIT=""
 PUBLISH=0
+MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-300}"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 usage() {
@@ -30,6 +31,7 @@ Options:
   --limit N        process at most N segments
   --publish        publish reconciled signals back to MemPalace
   --model MODEL    LocalAI model to use
+  --mcp-timeout N  MemPalace HTTP MCP timeout in seconds (default: 300)
 
 The wrapper never deletes or overwrites palace data, never restarts services,
 and refuses any path under /media/u0/Extreme SSD.
@@ -52,6 +54,10 @@ while (($#)); do
       ;;
     --model)
       MODEL="${2:?--model requires a value}"
+      shift 2
+      ;;
+    --mcp-timeout)
+      MCP_TIMEOUT="${2:?--mcp-timeout requires a value}"
       shift 2
       ;;
     -h|--help)
@@ -109,6 +115,7 @@ if [[ "$EUID" -ne 0 ]]; then
     MEMPALACE_THREAD_SIGNAL_UNIT="$UNIT" \
     MEMPALACE_THREAD_SIGNAL_LIMIT="$LIMIT" \
     MEMPALACE_THREAD_SIGNAL_PUBLISH="$PUBLISH" \
+    MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT="$MCP_TIMEOUT" \
     "$SCRIPT_PATH"
 fi
 
@@ -144,6 +151,12 @@ fi
 
 LIMIT="${MEMPALACE_THREAD_SIGNAL_LIMIT:-$LIMIT}"
 PUBLISH="${MEMPALACE_THREAD_SIGNAL_PUBLISH:-$PUBLISH}"
+MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-$MCP_TIMEOUT}"
+
+if [[ ! "$MCP_TIMEOUT" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "invalid --mcp-timeout value: $MCP_TIMEOUT" >&2
+  exit 2
+fi
 
 install -d -o mempalace -g mempalace -m 0750 "$RUN_DIR"
 
@@ -156,6 +169,7 @@ cmd=(
   --localai-token-file "$LOCALAI_TOKEN_FILE"
   --mempalace-url "$HTTP_URL"
   --mempalace-token-file "$MCP_TOKEN_FILE"
+  --mempalace-timeout "$MCP_TIMEOUT"
   --wing "$WING"
   --model "$MODEL"
 )
@@ -209,5 +223,6 @@ Artifacts: $RUN_DIR/segment_extractions.jsonl
            $RUN_DIR/invalid_outputs.jsonl
            $RUN_DIR/reconciled_signals.jsonl
 Publish:   $RUN_DIR/publish_checkpoint.jsonl (only if --publish is used)
+MCP timeout: $MCP_TIMEOUT seconds
 Journal:   journalctl -fu $UNIT
 EOF
