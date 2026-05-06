@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, and WP-07 are green after O-0 review. WP-08 may be activated in a bounded worker-owned slice. WP-09 remains blocked until consolidated verification is accepted.
+Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, WP-07, and WP-08 are green after O-0 review. WP-09 remote smoke may proceed as the next bounded live operation; full rebuild remains blocked until Checkpoint G smoke is green.
 
 ---
 
@@ -585,3 +585,21 @@ No drift recorded yet.
 - `O-0` ran `bash -n scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`: passed.
 - `O-0` ran `git diff --check -- scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh scripts/systemd/README.md`: passed.
 - Checkpoint G precondition verdict: green.
+
+### 2026-05-06 - WP-08 Activation
+
+- `O-0` reread this worksheet before package activation.
+- WP-08 consolidated verification was assigned to B-5/Cicero with model `gpt-5.4-mini` and reasoning depth `medium`.
+- B-5 was asked to prefer read-only verification; if a small missing test is necessary, write scope is limited to the focused thread segment, thread signal, or MCP tests.
+- B-5 was instructed not to touch implementation, docs, systemd, worksheet, changelog, `.agents/plugins/marketplace.json`, `docs/reference/`, dashboard, ontology, remote services, or palace data.
+
+### 2026-05-06 - WP-08 Acceptance Evidence
+
+- B-5/Cicero completed WP-08 as read-only verification and changed no files.
+- B-5 ran `.venv/bin/python -m pytest -q tests/test_chatgpt_thread_segments.py tests/test_localai_chatgpt_thread_signals.py tests/test_mcp_server.py -k 'add_signal_drawer or tools_list or localai_chatgpt_thread_signals'`: `23 passed, 90 deselected in 16.76s`.
+- B-5 ran `.venv/bin/python -m py_compile mempalace/chatgpt_thread_segments.py scripts/localai_chatgpt_thread_signals.py mempalace/mcp_server.py`: passed.
+- B-5 ran `bash -n scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`: passed.
+- B-5 ran `git diff --check -- mempalace/chatgpt_thread_segments.py scripts/localai_chatgpt_thread_signals.py mempalace/mcp_server.py tests/test_chatgpt_thread_segments.py tests/test_localai_chatgpt_thread_signals.py tests/test_mcp_server.py scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`: passed.
+- `O-0` reran the same command set in the parent workspace: pytest `23 passed, 90 deselected in 15.51s`; py_compile, shell syntax, and diff-check passed.
+- Coverage checklist was confirmed for long-conversation suffix retention, first-message-over-12k splitting, multiple subthreads, invalid output durability, reconciliation idempotency, no default publisher writes, publisher MCP argument bounds, deterministic signal write idempotency, and old-wing no-mutation.
+- WP-08 verdict: green.
