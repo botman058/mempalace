@@ -144,6 +144,47 @@ CPUQuota=200%
 The wrapper also defaults to no drawer-copy materialization. Use
 `--apply-copies` only after inspecting `apply_ready_manifest.json`.
 
+## Thread-aware ChatGPT signal rebuild
+
+This wrapper runs the LocalAI-backed thread signal extractor on
+`snow-white-iii` as the `mempalace` service user and keeps the same bounded
+resource profile:
+
+```text
+MemoryMax=16G
+CPUQuota=200%
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+```
+
+LocalAI is the host-local service at `http://snow-white-iii:8080/v1`; no cloud
+LLM is used for this pass. The wrapper writes under:
+
+```text
+/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/
+```
+
+Smoke run:
+
+```bash
+scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh --limit 50
+```
+
+Full run with explicit publish:
+
+```bash
+scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh --publish
+```
+
+Resume or inspect an existing run directory with `--run-dir PATH`. The wrapper
+prints the unit name, run directory, progress path, checkpoint/artifact paths,
+and the `journalctl -fu ...` follow command after launch.
+
+The script only publishes when `--publish` is present. It does not delete or
+rewrite palace data, does not restart services, and refuses any path under
+`/media/u0/Extreme SSD`.
+
 ## MemPalace dashboard service
 
 The dashboard is a separate service and should be deployed only when it will not

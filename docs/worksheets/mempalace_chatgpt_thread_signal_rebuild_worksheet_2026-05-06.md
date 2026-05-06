@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, and the WP-07 publisher support slice are green after O-0 review. WP-07 ops/docs and WP-08 may be activated in bounded worker-owned slices. WP-09 remains blocked until runner/docs and consolidated verification are accepted.
+Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, and WP-07 are green after O-0 review. WP-08 may be activated in a bounded worker-owned slice. WP-09 remains blocked until consolidated verification is accepted.
 
 ---
 
@@ -567,3 +567,21 @@ No drift recorded yet.
 - `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py`: passed.
 - `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py tests/test_mcp_server.py -k 'add_signal_drawer or tools_list or localai_chatgpt_thread_signals'`: `23 passed, 90 deselected in 15.37s`.
 - WP-07 publisher support slice verdict: green.
+
+### 2026-05-06 - WP-07 Ops/Docs Activation
+
+- `O-0` reread this worksheet before package activation.
+- WP-07 ops/docs was assigned to B-4/Kierkegaard with model `gpt-5.4-mini` and reasoning depth `medium`.
+- B-4 write scope is limited to a snow-white-iii thread-signal rebuild wrapper under `scripts/systemd/` and operator docs in `scripts/systemd/README.md`.
+- B-4 was instructed not to touch Python implementation, tests, worksheet, changelog, dashboard, ontology, `.agents/plugins/marketplace.json`, `docs/reference/`, or palace data, and not to start live services.
+
+### 2026-05-06 - WP-07 Ops/Docs Acceptance Evidence
+
+- B-4/Kierkegaard returned `scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh` and updates to `scripts/systemd/README.md`.
+- The wrapper runs the deployed thread-signal runner as service user `mempalace` via transient `systemd-run`, defaults to `/media/u0/OneDrive_Backup/mempalace`, refuses `/media/u0/Extreme SSD`, and applies `CPUQuota=200%`, `MemoryMax=16G`, `Nice=10`, and low-priority IO.
+- The wrapper supports `--limit`, `--run-dir`, `--model`, and explicit `--publish`; default behavior does not publish drawers.
+- `O-0` rejected the first revision because `--limit` and `--publish` were lost across sudo re-exec.
+- B-4 remediated by preserving those values through explicit environment handoff and using an absolute script path for sudo re-exec.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`: passed.
+- `O-0` ran `git diff --check -- scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh scripts/systemd/README.md`: passed.
+- Checkpoint G precondition verdict: green.
