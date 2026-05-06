@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -25,6 +26,7 @@ EXTRACTION_VERSION = "localai_chatgpt_thread_signals_v1"
 _MAX_EVIDENCE_CHARS = 280
 _MAX_INVALID_EXCERPT_CHARS = 500
 _MAX_SEGMENT_EXCERPT_CHARS = 320
+_MAX_RECON_EVIDENCE = 3
 _PROVIDER_BLOCKLIST = (
     "api.openai.com",
     "anthropic.com",
@@ -178,6 +180,175 @@ def _append_jsonl(path: Path, row: dict[str, Any]) -> None:
 def _write_progress(path: Path, row: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(row, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+def _text_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+
+
+def _normalize_room(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    room = re.sub(r"[^a-z0-9_]+", "_", value.strip().lower()).strip("_")
+    return room
+
+
+def _canonical_item_text(value: str) -> str:
+    lowered = value.lower()
+    lowered = re.sub(r"\s+", " ", lowered).strip()
+    lowered = re.sub(r"[^a-z0-9 ]+", "", lowered)
+    return lowered
+
+
+def _content_body(*, room: str, item_type: str, text: str, importance: int, evidence: list[str]) -> str:
+    lines = [
+        "LOCALAI_THREAD_SIGNAL",
+        f"room: {room}",
+        f"item_type: {item_type}",
+        f"importance: {importance}",
+        "",
+        text,
+    ]
+    if evidence:
+        lines.append("")
+        lines.append("evidence:")
+        lines.extend([f"- {item}" for item in evidence])
+    return "\n".join(lines)
+
+
+def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                rows.append(row)
+    return rows
+
+
+def reconcile_segment_extractions(*, run_dir: Path, model: str) -> dict[str, int]:
+    extracted_path = run_dir / "segment_extractions.jsonl"
+    reconciled_path = run_dir / "reconciled_signals.jsonl"
+    rows = _load_jsonl_rows(extracted_path)
+    by_group: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for row in rows:
+        if row.get("status") != "classified":
+            continue
+        logical_source_id = row.get("logical_source_id")
+        source_hash = row.get("source_hash")
+        subthread_id = row.get("subthread_id")
+        if not all(isinstance(v, str) and v for v in (logical_source_id, source_hash, subthread_id)):
+            continue
+        by_group.setdefault((logical_source_id, source_hash, subthread_id), []).append(row)
+
+    final_rows: list[dict[str, Any]] = []
+    for (logical_source_id, source_hash, subthread_id), group in sorted(by_group.items()):
+        group = sorted(group, key=lambda r: (int(r.get("segment_index", 0)), str(r.get("segment_id", ""))))
+        item_bucket: dict[str, dict[str, Any]] = {}
+        for segment in group:
+            items = segment.get("items")
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                text = item.get("text")
+                if not isinstance(text, str) or not text.strip():
+                    continue
+                canonical_text = _canonical_item_text(text)
+                if not canonical_text:
+                    continue
+                item_type = str(item.get("type") or "fact").strip().lower() or "fact"
+                key = f"{item_type}|{canonical_text}"
+                entry = item_bucket.get(key)
+                evidence_text = str(item.get("evidence") or "").strip()[:_MAX_EVIDENCE_CHARS]
+                room = _normalize_room(item.get("room"))
+                if not room:
+                    sub_label = _normalize_room(segment.get("subthread_label"))
+                    room = _normalize_room(item_type) or sub_label or "general"
+                if entry is None:
+                    importance = item.get("importance", 3)
+                    try:
+                        importance_int = max(1, min(5, int(importance)))
+                    except (TypeError, ValueError):
+                        importance_int = 3
+                    entry = {
+                        "room": room,
+                        "item_type": item_type,
+                        "text": text.strip(),
+                        "importance": importance_int,
+                        "segment_ids": set(),
+                        "segment_refs": [],
+                        "evidence": [],
+                    }
+                    item_bucket[key] = entry
+                importance_update = item.get("importance", 3)
+                try:
+                    importance_int_update = max(1, min(5, int(importance_update)))
+                except (TypeError, ValueError):
+                    importance_int_update = 3
+                entry["segment_ids"].add(str(segment.get("segment_id") or ""))
+                entry["segment_refs"].append(
+                    {
+                        "segment_id": str(segment.get("segment_id") or ""),
+                        "segment_index": int(segment.get("segment_index", 0)),
+                        "char_start": int(segment.get("char_start", 0)),
+                        "char_end": int(segment.get("char_end", 0)),
+                    }
+                )
+                if evidence_text and evidence_text not in entry["evidence"] and len(entry["evidence"]) < _MAX_RECON_EVIDENCE:
+                    entry["evidence"].append(evidence_text)
+                if len(text.strip()) > len(entry["text"]):
+                    entry["text"] = text.strip()
+                entry["importance"] = max(entry["importance"], importance_int_update)
+
+        for item_key, entry in sorted(item_bucket.items()):
+            first = group[0]
+            segment_ids = sorted([sid for sid in entry["segment_ids"] if sid])
+            signal_basis = "|".join([logical_source_id, source_hash, subthread_id, item_key])
+            source_signal_id = f"srcsig:{_text_digest(signal_basis)}"
+            final_rows.append(
+                {
+                    "source_signal_id": source_signal_id,
+                    "room": entry["room"],
+                    "content": _content_body(
+                        room=entry["room"],
+                        item_type=entry["item_type"],
+                        text=entry["text"],
+                        importance=entry["importance"],
+                        evidence=entry["evidence"],
+                    ),
+                    "logical_source_id": logical_source_id,
+                    "source_hash": source_hash,
+                    "conversation_id": first.get("conversation_id"),
+                    "conversation_title": first.get("conversation_title") or "",
+                    "subthread_id": subthread_id,
+                    "subthread_label": first.get("subthread_label") or "",
+                    "segment_ids": segment_ids,
+                    "segment_refs": sorted(entry["segment_refs"], key=lambda r: (r["segment_index"], r["segment_id"])),
+                    "evidence": entry["evidence"],
+                    "extraction_version": first.get("extraction_version") or EXTRACTION_VERSION,
+                    "model": model,
+                }
+            )
+
+    reconciled_path.parent.mkdir(parents=True, exist_ok=True)
+    with reconciled_path.open("w", encoding="utf-8") as handle:
+        for row in sorted(final_rows, key=lambda r: r["source_signal_id"]):
+            handle.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+
+    return {
+        "reconciled_groups": len(by_group),
+        "reconciled_signals": len(final_rows),
+        "reconciled_source_rows": len(rows),
+    }
 
 
 def _iter_conversations(source_dir: Path):
@@ -413,6 +584,10 @@ def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) ->
             "elapsed_seconds": round(time.time() - started, 2),
         },
     )
+    recon_stats = reconcile_segment_extractions(run_dir=run_dir, model=args.model)
+    progress = json.loads(progress_path.read_text(encoding="utf-8"))
+    progress.update(recon_stats)
+    _write_progress(progress_path, progress)
     print(
         json.dumps(
             {
@@ -422,6 +597,7 @@ def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) ->
                 "classified_segments": classified,
                 "invalid_segments": invalid,
                 "error_segments": errors,
+                **recon_stats,
             },
             sort_keys=True,
         ),

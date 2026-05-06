@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, Checkpoint E, and Checkpoint F extraction evidence are green after O-0 review. WP-05 may be activated in a bounded worker-owned slice. WP-07 and WP-09 remain blocked until Checkpoint F reconciliation evidence and runner/docs preconditions are accepted.
+Checkpoint C, Checkpoint D, Checkpoint E, and Checkpoint F are green after O-0 review. WP-07 and WP-08 may be activated in bounded worker-owned slices. WP-09 remains blocked until runner/docs and consolidated verification are accepted.
 
 ---
 
@@ -530,3 +530,21 @@ No drift recorded yet.
 - `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py`: passed.
 - `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py`: `11 passed in 0.54s`.
 - Checkpoint F extraction verdict: green.
+
+### 2026-05-06 - WP-05 Activation
+
+- `O-0` reread this worksheet before package activation.
+- WP-05 was assigned to B-3/Curie with model `gpt-5.3-codex` and reasoning depth `medium`, continuing from the accepted WP-04 runner.
+- B-3 write scope remains limited to `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- B-3 was instructed to add offline conversation/subthread reconciliation from segment extraction artifacts into deterministic final signal records, preserve high recall, dedupe overlapping segment items, avoid drawer writes, and prove rerun idempotency.
+
+### 2026-05-06 - WP-05 Acceptance Evidence
+
+- B-3/Curie returned reconciliation changes in `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- The reconciliation pass reads `segment_extractions.jsonl`, groups by `logical_source_id`, `source_hash`, and `subthread_id`, and writes deterministic `reconciled_signals.jsonl`.
+- Final signal records include deterministic `source_signal_id`, `room`, `content`, source/subthread provenance, `segment_ids`, `segment_refs`, bounded evidence, extraction version, and model.
+- Tests prove overlapping items dedupe with merged segment provenance, distinct items remain separate, same-text items in separate subthreads stay distinct, reruns do not duplicate records, and records include fields needed by `mempalace_add_signal_drawer`.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py`: `16 passed in 0.61s`.
+- Checkpoint F reconciliation verdict: green.
+- Checkpoint F overall verdict: green.

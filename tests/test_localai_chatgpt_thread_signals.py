@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.localai_chatgpt_thread_signals import ensure_localai_base_url, run
+from scripts.localai_chatgpt_thread_signals import ensure_localai_base_url, reconcile_segment_extractions, run
 
 
 def _conversation_from_messages(messages: list[tuple[str, str]], conversation_id: str = "conv-1") -> dict:
@@ -186,3 +186,196 @@ def test_ensure_localai_base_url_accepts_local_and_refuses_cloud_urls():
         ensure_localai_base_url("https://api.openai.com/v1")
     with pytest.raises(Exception):
         ensure_localai_base_url("https://openrouter.ai/api/v1")
+
+
+def test_reconcile_dedupes_overlapping_items_and_merges_segment_ids(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "status": "classified",
+            "logical_source_id": "chatgpt:c1",
+            "source_hash": "h1",
+            "conversation_id": "c1",
+            "conversation_title": "T1",
+            "subthread_id": "chatgpt:c1:subthread:000",
+            "subthread_label": "projects",
+            "segment_id": "seg-1",
+            "segment_index": 0,
+            "char_start": 0,
+            "char_end": 100,
+            "extraction_version": "v1",
+            "items": [
+                {"type": "task", "text": "Refactor login flow", "importance": 3, "evidence": "Refactor login flow now"}
+            ],
+        },
+        {
+            "status": "classified",
+            "logical_source_id": "chatgpt:c1",
+            "source_hash": "h1",
+            "conversation_id": "c1",
+            "conversation_title": "T1",
+            "subthread_id": "chatgpt:c1:subthread:000",
+            "subthread_label": "projects",
+            "segment_id": "seg-2",
+            "segment_index": 1,
+            "char_start": 90,
+            "char_end": 180,
+            "extraction_version": "v1",
+            "items": [
+                {"type": "task", "text": "refactor   login flow.", "importance": 4, "evidence": "refactor login flow"}
+            ],
+        },
+    ]
+    with (run_dir / "segment_extractions.jsonl").open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row) + "\n")
+
+    stats = reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    out = _read_jsonl(run_dir / "reconciled_signals.jsonl")
+    assert stats["reconciled_signals"] == 1
+    assert len(out) == 1
+    assert out[0]["segment_ids"] == ["seg-1", "seg-2"]
+    assert out[0]["subthread_id"] == "chatgpt:c1:subthread:000"
+
+
+def test_reconcile_preserves_distinct_items_in_same_subthread(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "status": "classified",
+            "logical_source_id": "chatgpt:c2",
+            "source_hash": "h2",
+            "conversation_id": "c2",
+            "conversation_title": "T2",
+            "subthread_id": "chatgpt:c2:subthread:000",
+            "subthread_label": "general",
+            "segment_id": "seg-a",
+            "segment_index": 0,
+            "char_start": 0,
+            "char_end": 50,
+            "items": [
+                {"type": "task", "text": "Ship release checklist", "importance": 3, "evidence": "release checklist"},
+                {"type": "problem", "text": "Staging deploy keeps failing", "importance": 4, "evidence": "deploy fails"},
+            ],
+        }
+    ]
+    with (run_dir / "segment_extractions.jsonl").open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row) + "\n")
+    reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    out = _read_jsonl(run_dir / "reconciled_signals.jsonl")
+    assert len(out) == 2
+    texts = {row["content"] for row in out}
+    assert any("Ship release checklist" in text for text in texts)
+    assert any("Staging deploy keeps failing" in text for text in texts)
+
+
+def test_reconcile_keeps_distinct_provenance_across_subthreads_and_conversations(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "status": "classified",
+            "logical_source_id": "chatgpt:c3",
+            "source_hash": "h3",
+            "conversation_id": "c3",
+            "conversation_title": "T3",
+            "subthread_id": "chatgpt:c3:subthread:000",
+            "subthread_label": "general",
+            "segment_id": "seg-1",
+            "segment_index": 0,
+            "char_start": 0,
+            "char_end": 30,
+            "items": [{"type": "fact", "text": "Room alpha", "importance": 2, "evidence": "alpha"}],
+        },
+        {
+            "status": "classified",
+            "logical_source_id": "chatgpt:c3",
+            "source_hash": "h3",
+            "conversation_id": "c3",
+            "conversation_title": "T3",
+            "subthread_id": "chatgpt:c3:subthread:001",
+            "subthread_label": "general",
+            "segment_id": "seg-2",
+            "segment_index": 1,
+            "char_start": 31,
+            "char_end": 60,
+            "items": [{"type": "fact", "text": "Room alpha", "importance": 2, "evidence": "alpha"}],
+        },
+    ]
+    with (run_dir / "segment_extractions.jsonl").open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row) + "\n")
+    reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    out = _read_jsonl(run_dir / "reconciled_signals.jsonl")
+    assert len(out) == 2
+    assert out[0]["source_signal_id"] != out[1]["source_signal_id"]
+
+
+def test_reconcile_rerun_is_idempotent_and_does_not_duplicate(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "status": "classified",
+        "logical_source_id": "chatgpt:c4",
+        "source_hash": "h4",
+        "conversation_id": "c4",
+        "conversation_title": "T4",
+        "subthread_id": "chatgpt:c4:subthread:000",
+        "subthread_label": "plans",
+        "segment_id": "seg-x",
+        "segment_index": 0,
+        "char_start": 0,
+        "char_end": 10,
+        "items": [{"type": "task", "text": "Book dentist", "importance": 4, "evidence": "book dentist"}],
+    }
+    (run_dir / "segment_extractions.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    first = (run_dir / "reconciled_signals.jsonl").read_text(encoding="utf-8")
+    reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    second = (run_dir / "reconciled_signals.jsonl").read_text(encoding="utf-8")
+    assert first == second
+    assert len(_read_jsonl(run_dir / "reconciled_signals.jsonl")) == 1
+
+
+def test_reconcile_records_include_fields_for_signal_drawer_write(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "status": "classified",
+        "logical_source_id": "chatgpt:c5",
+        "source_hash": "h5",
+        "conversation_id": "c5",
+        "conversation_title": "T5",
+        "subthread_id": "chatgpt:c5:subthread:000",
+        "subthread_label": "finance",
+        "segment_id": "seg-y",
+        "segment_index": 0,
+        "char_start": 0,
+        "char_end": 12,
+        "extraction_version": "v5",
+        "items": [{"type": "fact", "text": "Budget is due Friday", "importance": 3, "evidence": "due Friday"}],
+    }
+    (run_dir / "segment_extractions.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    reconcile_segment_extractions(run_dir=run_dir, model="fake-model")
+    out = _read_jsonl(run_dir / "reconciled_signals.jsonl")
+    assert len(out) == 1
+    record = out[0]
+    for field in (
+        "source_signal_id",
+        "room",
+        "content",
+        "logical_source_id",
+        "source_hash",
+        "conversation_id",
+        "conversation_title",
+        "subthread_id",
+        "subthread_label",
+        "segment_ids",
+        "segment_refs",
+        "evidence",
+        "extraction_version",
+    ):
+        assert field in record
