@@ -670,3 +670,20 @@ No drift recorded yet.
 - `O-0` ran `git diff --check -- mempalace/dashboard_server.py tests/test_dashboard_server.py scripts/systemd/README.md docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md CHANGELOG.md docs/worksheets/mempalace_chatgpt_thread_signal_rebuild_worksheet_2026-05-06.md`: passed.
 - WP-09R verdict: green.
 - Checkpoint G remains amber until this accepted repair is committed, pushed, deployed on `snow-white-iii`, and the dashboard is restarted in forced telemetry-only mode or left stopped during WP-10.
+
+### 2026-05-06 - WP-09R Commit and Deployment Evidence
+
+- `git commit -m "Harden dashboard during thread signal rebuilds"` created `d198430`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `d198430` to the fork branch.
+- A clean `git archive` of `d198430` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260506T030852Z-d198430/app` on `snow-white-iii`.
+- The staged tree was promoted with `promote_snow_white_iii_app_update.sh`; promotion reported no file deletion, no service restart, and no palace data touch.
+- `O-0` updated `/media/u0/OneDrive_Backup/mempalace/mempalace-dashboard.env` to set `MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY=1`, then started only `mempalace-dashboard.service`.
+- Dashboard service evidence: `ActiveState=active`, `SubState=running`, `CPUQuotaPerSecUSec=1s`, and `MemoryMax=8589934592`.
+- HTTP MCP service evidence after stabilization: `ActiveState=active`, `SubState=running`, `CPUQuotaPerSecUSec=2s`, `MemoryMax=17179869184`, and low CPU.
+- Dashboard verification with the dashboard token:
+  - `/api/overview` returned HTTP `200` in telemetry-only mode with `forced_telemetry_only: true`.
+  - `/api/taxonomy` returned HTTP `423` with `forced_telemetry_only: true`.
+  - `/api/drawers` returned HTTP `423` with `forced_telemetry_only: true`.
+- HTTP MCP journal during verification showed only a `GET /healthz` call from dashboard overview, not heavy MCP tool calls.
+- Checkpoint G final verdict: green.
+- WP-10 full thread-signal rebuild is unblocked.
