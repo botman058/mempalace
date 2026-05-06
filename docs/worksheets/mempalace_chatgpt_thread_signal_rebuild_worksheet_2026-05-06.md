@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, Checkpoint E, and Checkpoint F are green after O-0 review. WP-07 and WP-08 may be activated in bounded worker-owned slices. WP-09 remains blocked until runner/docs and consolidated verification are accepted.
+Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, and the WP-07 publisher support slice are green after O-0 review. WP-07 ops/docs and WP-08 may be activated in bounded worker-owned slices. WP-09 remains blocked until runner/docs and consolidated verification are accepted.
 
 ---
 
@@ -548,3 +548,22 @@ No drift recorded yet.
 - `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py`: `16 passed in 0.61s`.
 - Checkpoint F reconciliation verdict: green.
 - Checkpoint F overall verdict: green.
+
+### 2026-05-06 - WP-07 Publisher Support Slice Activation
+
+- `O-0` reread this worksheet before package activation.
+- A missing glue point was identified between WP-05 `reconciled_signals.jsonl` and WP-06 `mempalace_add_signal_drawer`.
+- B-3/Curie was assigned a bounded WP-07 support slice with model `gpt-5.3-codex` and reasoning depth `medium`.
+- B-3 write scope is limited to `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- B-3 was instructed to add an explicit publisher mode with durable publish checkpoint/progress artifacts, fake MCP tests, no default live writes, and no docs/systemd/dashboard changes.
+
+### 2026-05-06 - WP-07 Publisher Support Slice Acceptance Evidence
+
+- B-3/Curie returned publisher changes in `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- Publisher mode is explicit opt-in via `--publish`; default extraction/reconciliation does not call MCP.
+- Publisher reads `reconciled_signals.jsonl`, calls `mempalace_add_signal_drawer`, writes append-only `publish_checkpoint.jsonl`, and updates `progress.json` with publish counters.
+- Tests prove field mapping, rerun skip after successful checkpoint, no-op success counting, failed result checkpointing, no default publish, string-only metadata fields, and 128-character metadata bounds compatible with WP-06 sanitizers.
+- `O-0` rejected two earlier revisions before acceptance: first for dict `segment_ref`, then for overlong metadata bounds.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py tests/test_mcp_server.py -k 'add_signal_drawer or tools_list or localai_chatgpt_thread_signals'`: `23 passed, 90 deselected in 15.37s`.
+- WP-07 publisher support slice verdict: green.

@@ -19,6 +19,8 @@ from mempalace.chatgpt_thread_segments import ChatGPTThreadSegment, build_chatgp
 
 DEFAULT_SOURCE_DIR = "/media/u0/OneDrive_Backup/mempalace/sources/chatgpt"
 DEFAULT_RUN_DIR = "/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals"
+DEFAULT_MEMPALACE_URL = "http://100.112.179.49:8765"
+DEFAULT_MEMPALACE_TOKEN_FILE = "/media/u0/OneDrive_Backup/mempalace/secrets/http_token"
 DEFAULT_LOCALAI_BASE_URL = "http://snow-white-iii:8080/v1"
 DEFAULT_LOCALAI_TOKEN_FILE = "/media/u0/OneDrive_Backup/mempalace/secrets/localai_token"
 DEFAULT_MODEL = "qwen3-vl-8b-instruct"
@@ -27,6 +29,7 @@ _MAX_EVIDENCE_CHARS = 280
 _MAX_INVALID_EXCERPT_CHARS = 500
 _MAX_SEGMENT_EXCERPT_CHARS = 320
 _MAX_RECON_EVIDENCE = 3
+_MAX_MCP_METADATA_CHARS = 128
 _PROVIDER_BLOCKLIST = (
     "api.openai.com",
     "anthropic.com",
@@ -44,6 +47,12 @@ class FatalRemoteError(RuntimeError):
 
 class SegmentProvider(Protocol):
     def classify_segment(self, *, prompt_messages: list[dict[str, str]]) -> str: ...
+
+
+class MCPCaller(Protocol):
+    def call_tool(
+        self, *, tool_name: str, arguments: dict[str, Any], timeout: float
+    ) -> dict[str, Any]: ...
 
 
 def read_token(value: str | None, path: str | None, label: str) -> str:
@@ -93,6 +102,36 @@ def _post_json(url: str, payload: dict[str, Any], token: str, timeout: float) ->
     if not isinstance(data, dict):
         raise FatalRemoteError(f"Unexpected response shape from {url}")
     return data
+
+
+class HttpMCPCaller:
+    def __init__(self, *, base_url: str, token: str) -> None:
+        self.base_url = base_url
+        self.token = token
+
+    def call_tool(
+        self, *, tool_name: str, arguments: dict[str, Any], timeout: float
+    ) -> dict[str, Any]:
+        endpoint = self.base_url.rstrip("/")
+        if not endpoint.endswith("/mcp"):
+            endpoint = f"{endpoint}/mcp"
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": arguments},
+        }
+        data = _post_json(endpoint, payload, self.token, timeout)
+        if data.get("error"):
+            raise FatalRemoteError(f"MemPalace MCP error from {tool_name}: {data['error']}")
+        try:
+            text = data["result"]["content"][0]["text"]
+            result = json.loads(text)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            raise FatalRemoteError(f"Unexpected MCP response from {tool_name}: {data}") from exc
+        if not isinstance(result, dict):
+            raise FatalRemoteError(f"Unexpected MCP result from {tool_name}: {result}")
+        return result
 
 
 class HttpSegmentProvider:
@@ -233,6 +272,47 @@ def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_publish_checkpoint(path: Path) -> dict[str, str]:
+    seen: dict[str, str] = {}
+    for row in _load_jsonl_rows(path):
+        source_signal_id = row.get("source_signal_id")
+        status = row.get("status")
+        if isinstance(source_signal_id, str) and isinstance(status, str):
+            seen[source_signal_id] = status
+    return seen
+
+
+def _serialize_segment_ref(segment_refs: list[Any]) -> str:
+    if not segment_refs:
+        return ""
+    first = segment_refs[0]
+    if isinstance(first, dict):
+        segment_id = str(first.get("segment_id") or "").strip()
+        segment_index = first.get("segment_index")
+        char_start = first.get("char_start")
+        char_end = first.get("char_end")
+        parts = []
+        if segment_id:
+            parts.append(f"segment_id:{segment_id}")
+        if isinstance(segment_index, int):
+            parts.append(f"segment_index:{segment_index}")
+        if isinstance(char_start, int) and isinstance(char_end, int):
+            parts.append(f"chars:{char_start}-{char_end}")
+        value = "|".join(parts)
+        return value[:_MAX_MCP_METADATA_CHARS]
+    if isinstance(first, str):
+        return first.strip()[:_MAX_MCP_METADATA_CHARS]
+    return str(first)[:_MAX_MCP_METADATA_CHARS]
+
+
+def _metadata_str(value: Any, *, fallback: str = "") -> str:
+    if value is None:
+        text = fallback
+    else:
+        text = str(value)
+    return text.strip()[:_MAX_MCP_METADATA_CHARS]
+
+
 def reconcile_segment_extractions(*, run_dir: Path, model: str) -> dict[str, int]:
     extracted_path = run_dir / "segment_extractions.jsonl"
     reconciled_path = run_dir / "reconciled_signals.jsonl"
@@ -351,6 +431,115 @@ def reconcile_segment_extractions(*, run_dir: Path, model: str) -> dict[str, int
     }
 
 
+def publish_reconciled_signals(
+    *,
+    run_dir: Path,
+    wing: str,
+    added_by: str,
+    mcp_timeout: float,
+    mcp_caller: MCPCaller,
+) -> dict[str, int]:
+    reconciled_path = run_dir / "reconciled_signals.jsonl"
+    checkpoint_path = run_dir / "publish_checkpoint.jsonl"
+    rows = _load_jsonl_rows(reconciled_path)
+    seen = _load_publish_checkpoint(checkpoint_path)
+    published = 0
+    skipped = 0
+    failed = 0
+    attempted = 0
+    for row in rows:
+        source_signal_id = row.get("source_signal_id")
+        if not isinstance(source_signal_id, str) or not source_signal_id:
+            continue
+        if seen.get(source_signal_id) in {"success", "noop_success"}:
+            skipped += 1
+            continue
+        attempted += 1
+        evidence = row.get("evidence")
+        segment_refs = row.get("segment_refs")
+        segment_ids = row.get("segment_ids")
+        if not isinstance(evidence, list):
+            evidence = []
+        if not isinstance(segment_refs, list):
+            segment_refs = []
+        if not isinstance(segment_ids, list):
+            segment_ids = []
+        room = _normalize_room(row.get("room")) or "general"
+        arguments = {
+            "wing": wing,
+            "room": room,
+            "content": row.get("content") or "",
+            "source_signal_id": _metadata_str(source_signal_id),
+            "logical_source_id": _metadata_str(row.get("logical_source_id")),
+            "source_hash": _metadata_str(row.get("source_hash")),
+            "conversation_id": _metadata_str(row.get("conversation_id")),
+            "conversation_title": _metadata_str(row.get("conversation_title")),
+            "subthread_id": _metadata_str(row.get("subthread_id")),
+            "subthread_label": _metadata_str(row.get("subthread_label")),
+            "segment_ids": segment_ids[:48],
+            "segment_ref": _serialize_segment_ref(segment_refs),
+            "evidence_excerpt": _metadata_str(evidence[0] if evidence else ""),
+            "extraction_version": _metadata_str(row.get("extraction_version") or EXTRACTION_VERSION),
+            "added_by": _metadata_str(added_by, fallback="localai_chatgpt_thread_signals"),
+        }
+        status = "failed"
+        result_payload: dict[str, Any] = {}
+        error_code = ""
+        try:
+            result = mcp_caller.call_tool(
+                tool_name="mempalace_add_signal_drawer",
+                arguments=arguments,
+                timeout=mcp_timeout,
+            )
+            result_payload = result
+            if result.get("success"):
+                noop = bool(result.get("noop"))
+                status = "noop_success" if noop else "success"
+                published += 1
+            else:
+                status = "failed"
+                error_code = str(result.get("error") or "mcp_result_error")
+                failed += 1
+        except Exception as exc:
+            status = "failed"
+            failed += 1
+            error_code = str(exc)[:_MAX_INVALID_EXCERPT_CHARS]
+        _append_jsonl(
+            checkpoint_path,
+            {
+                "source_signal_id": source_signal_id,
+                "status": status,
+                "wing": wing,
+                "error": error_code,
+                "result": result_payload,
+            },
+        )
+        seen[source_signal_id] = status
+
+    return {
+        "publish_attempted": attempted,
+        "publish_success": published,
+        "publish_failed": failed,
+        "publish_skipped": skipped,
+    }
+
+
+def _reconciled_stats_from_existing(run_dir: Path) -> dict[str, int]:
+    rows = _load_jsonl_rows(run_dir / "reconciled_signals.jsonl")
+    groups: set[tuple[str, str, str]] = set()
+    for row in rows:
+        logical_source_id = row.get("logical_source_id")
+        source_hash = row.get("source_hash")
+        subthread_id = row.get("subthread_id")
+        if isinstance(logical_source_id, str) and isinstance(source_hash, str) and isinstance(subthread_id, str):
+            groups.add((logical_source_id, source_hash, subthread_id))
+    return {
+        "reconciled_groups": len(groups),
+        "reconciled_signals": len(rows),
+        "reconciled_source_rows": len(_load_jsonl_rows(run_dir / "segment_extractions.jsonl")),
+    }
+
+
 def _iter_conversations(source_dir: Path):
     files = sorted(source_dir.rglob("conversations.json"))
     if not files:
@@ -445,7 +634,12 @@ def _build_prompt(segment: ChatGPTThreadSegment, source_file: Path) -> list[dict
     ]
 
 
-def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) -> int:
+def run(
+    args: argparse.Namespace,
+    *,
+    provider: SegmentProvider | None = None,
+    mcp_caller: MCPCaller | None = None,
+) -> int:
     source_dir = Path(args.source_dir)
     run_dir = Path(args.run_dir)
     progress_path = run_dir / "progress.json"
@@ -471,6 +665,7 @@ def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) ->
     errors = 0
     started = time.time()
     stop = False
+    publish_enabled = bool(getattr(args, "publish", False))
 
     for source_file, conversation in _iter_conversations(source_dir):
         segments = build_chatgpt_thread_segments(conversation=conversation)
@@ -584,9 +779,26 @@ def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) ->
             "elapsed_seconds": round(time.time() - started, 2),
         },
     )
-    recon_stats = reconcile_segment_extractions(run_dir=run_dir, model=args.model)
+    if processed > 0 or not (run_dir / "reconciled_signals.jsonl").exists():
+        recon_stats = reconcile_segment_extractions(run_dir=run_dir, model=args.model)
+    else:
+        recon_stats = _reconciled_stats_from_existing(run_dir)
     progress = json.loads(progress_path.read_text(encoding="utf-8"))
     progress.update(recon_stats)
+    if publish_enabled:
+        if mcp_caller is None:
+            mempalace_token = read_token(
+                args.mempalace_token, args.mempalace_token_file, "MemPalace"
+            )
+            mcp_caller = HttpMCPCaller(base_url=args.mempalace_url, token=mempalace_token)
+        publish_stats = publish_reconciled_signals(
+            run_dir=run_dir,
+            wing=args.wing,
+            added_by=args.added_by,
+            mcp_timeout=args.mempalace_timeout,
+            mcp_caller=mcp_caller,
+        )
+        progress.update(publish_stats)
     _write_progress(progress_path, progress)
     print(
         json.dumps(
@@ -598,6 +810,16 @@ def run(args: argparse.Namespace, *, provider: SegmentProvider | None = None) ->
                 "invalid_segments": invalid,
                 "error_segments": errors,
                 **recon_stats,
+                **(
+                    {
+                        "publish_attempted": progress.get("publish_attempted", 0),
+                        "publish_success": progress.get("publish_success", 0),
+                        "publish_failed": progress.get("publish_failed", 0),
+                        "publish_skipped": progress.get("publish_skipped", 0),
+                    }
+                    if publish_enabled
+                    else {}
+                ),
             },
             sort_keys=True,
         ),
@@ -626,6 +848,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--localai-token", default=os.environ.get("LOCALAI_TOKEN") or os.environ.get("ARCHIVEKG_OPENAI_API_KEY"))
     parser.add_argument("--localai-token-file", default=os.environ.get("LOCALAI_TOKEN_FILE") or DEFAULT_LOCALAI_TOKEN_FILE)
+    parser.add_argument("--publish", action="store_true")
+    parser.add_argument("--wing", default=os.environ.get("LOCALAI_THREAD_SIGNAL_WING", "chatgpt_thread_signals"))
+    parser.add_argument(
+        "--added-by",
+        default=os.environ.get("LOCALAI_THREAD_SIGNAL_ADDED_BY", "localai_chatgpt_thread_signals"),
+    )
+    parser.add_argument("--mempalace-url", default=os.environ.get("MEMPALACE_HTTP_URL") or DEFAULT_MEMPALACE_URL)
+    parser.add_argument("--mempalace-token", default=os.environ.get("MEMPALACE_HTTP_TOKEN"))
+    parser.add_argument(
+        "--mempalace-token-file",
+        default=os.environ.get("MEMPALACE_HTTP_TOKEN_FILE") or DEFAULT_MEMPALACE_TOKEN_FILE,
+    )
+    parser.add_argument("--mempalace-timeout", type=float, default=float(os.environ.get("MEMPALACE_HTTP_TIMEOUT", "120")))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("LOCALAI_THREAD_SIGNAL_LIMIT", "0")))
     parser.add_argument("--localai-timeout", type=float, default=float(os.environ.get("LOCALAI_TIMEOUT", "180")))
     return parser.parse_args(argv)

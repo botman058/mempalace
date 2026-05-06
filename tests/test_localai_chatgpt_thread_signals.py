@@ -49,6 +49,18 @@ class _FakeProvider:
         return '{"summary":"ok","items":[]}'
 
 
+class _FakeMCPCaller:
+    def __init__(self, results: list[dict] | None = None) -> None:
+        self.results = list(results or [])
+        self.calls: list[dict] = []
+
+    def call_tool(self, *, tool_name: str, arguments: dict, timeout: float) -> dict:
+        self.calls.append({"tool_name": tool_name, "arguments": arguments, "timeout": timeout})
+        if self.results:
+            return self.results.pop(0)
+        return {"success": True, "noop": False}
+
+
 def _read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -379,3 +391,344 @@ def test_reconcile_records_include_fields_for_signal_drawer_write(tmp_path):
         "extraction_version",
     ):
         assert field in record
+
+
+def test_publish_maps_reconciled_fields_to_add_signal_drawer_args(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "source_signal_id": "srcsig:abc",
+        "room": "projects",
+        "content": "LOCALAI_THREAD_SIGNAL\n\nDo thing",
+        "logical_source_id": "chatgpt:c6",
+        "source_hash": "h6",
+        "conversation_id": "c6",
+        "conversation_title": "T6",
+        "subthread_id": "chatgpt:c6:subthread:000",
+        "subthread_label": "projects",
+        "segment_ids": ["seg-1", "seg-2"],
+        "segment_refs": [{"segment_id": "seg-1", "segment_index": 0, "char_start": 0, "char_end": 8}],
+        "evidence": ["proof line"],
+        "extraction_version": "v6",
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp = _FakeMCPCaller([{"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp)
+    assert len(mcp.calls) == 1
+    call = mcp.calls[0]
+    assert call["tool_name"] == "mempalace_add_signal_drawer"
+    assert call["arguments"]["wing"] == "chatgpt_thread_signals"
+    assert call["arguments"]["room"] == "projects"
+    assert call["arguments"]["source_signal_id"] == "srcsig:abc"
+    assert call["arguments"]["logical_source_id"] == "chatgpt:c6"
+    assert call["arguments"]["source_hash"] == "h6"
+    assert call["arguments"]["conversation_id"] == "c6"
+    assert call["arguments"]["conversation_title"] == "T6"
+    assert call["arguments"]["subthread_id"] == "chatgpt:c6:subthread:000"
+    assert call["arguments"]["subthread_label"] == "projects"
+    assert call["arguments"]["segment_ids"] == ["seg-1", "seg-2"]
+    assert isinstance(call["arguments"]["segment_ref"], str)
+    assert call["arguments"]["segment_ref"] == "segment_id:seg-1|segment_index:0|chars:0-8"
+    assert len(call["arguments"]["segment_ref"]) <= 128
+    assert call["arguments"]["evidence_excerpt"] == "proof line"
+    assert call["arguments"]["extraction_version"] == "v6"
+
+
+def test_publish_rerun_skips_success_checkpoint_without_second_call(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "source_signal_id": "srcsig:rerun",
+        "room": "general",
+        "content": "x",
+        "logical_source_id": "chatgpt:c7",
+        "source_hash": "h7",
+        "conversation_id": "c7",
+        "conversation_title": "",
+        "subthread_id": "chatgpt:c7:subthread:000",
+        "subthread_label": "general",
+        "segment_ids": ["seg-a"],
+        "segment_refs": [],
+        "evidence": [],
+        "extraction_version": "v7",
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp1 = _FakeMCPCaller([{"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp1)
+    assert len(mcp1.calls) == 1
+    mcp2 = _FakeMCPCaller([{"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp2)
+    assert len(mcp2.calls) == 0
+
+
+def test_publish_noop_result_counts_as_success(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "source_signal_id": "srcsig:noop",
+        "room": "general",
+        "content": "x",
+        "logical_source_id": "chatgpt:c8",
+        "source_hash": "h8",
+        "conversation_id": "c8",
+        "conversation_title": "",
+        "subthread_id": "chatgpt:c8:subthread:000",
+        "subthread_label": "general",
+        "segment_ids": ["seg-n"],
+        "segment_refs": [],
+        "evidence": [],
+        "extraction_version": "v8",
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    run(args, provider=_FakeProvider([]), mcp_caller=_FakeMCPCaller([{"success": True, "noop": True}]))
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["publish_success"] == 1
+    checkpoint = _read_jsonl(run_dir / "publish_checkpoint.jsonl")
+    assert checkpoint[0]["status"] == "noop_success"
+
+
+def test_publish_failed_result_is_checkpointed_and_progress_failed(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "source_signal_id": "srcsig:fail",
+        "room": "general",
+        "content": "x",
+        "logical_source_id": "chatgpt:c9",
+        "source_hash": "h9",
+        "conversation_id": "c9",
+        "conversation_title": "",
+        "subthread_id": "chatgpt:c9:subthread:000",
+        "subthread_label": "general",
+        "segment_ids": ["seg-f"],
+        "segment_refs": [],
+        "evidence": [],
+        "extraction_version": "v9",
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    run(args, provider=_FakeProvider([]), mcp_caller=_FakeMCPCaller([{"success": False, "error": "boom"}]))
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["publish_failed"] == 1
+    checkpoint = _read_jsonl(run_dir / "publish_checkpoint.jsonl")
+    assert checkpoint[0]["status"] == "failed"
+
+
+def test_run_without_publish_does_not_call_mcp(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-no-pub")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=False,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp = _FakeMCPCaller()
+    run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}']), mcp_caller=mcp)
+    assert len(mcp.calls) == 0
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert "publish_success" not in progress
+
+
+def test_publish_string_only_fields_never_receive_dict_or_list(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    row = {
+        "source_signal_id": "srcsig:flat",
+        "room": "general",
+        "content": "x",
+        "logical_source_id": "chatgpt:c10",
+        "source_hash": "h10",
+        "conversation_id": "c10",
+        "conversation_title": "",
+        "subthread_id": "chatgpt:c10:subthread:000",
+        "subthread_label": "general",
+        "segment_ids": ["seg-z"],
+        "segment_refs": [{"segment_id": "seg-z", "segment_index": 7, "char_start": 10, "char_end": 42}],
+        "evidence": ["flat proof"],
+        "extraction_version": "v10",
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp = _FakeMCPCaller([{"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp)
+    call_args = mcp.calls[0]["arguments"]
+    assert isinstance(call_args["segment_ref"], str)
+    assert isinstance(call_args["evidence_excerpt"], str)
+    assert not isinstance(call_args["segment_ref"], (dict, list))
+    assert not isinstance(call_args["evidence_excerpt"], (dict, list))
+
+
+def test_publish_metadata_string_fields_are_bounded_to_128(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    long = "x" * 400
+    row = {
+        "source_signal_id": "srcsig:" + ("a" * 160),
+        "room": "general",
+        "content": "x" * 5000,
+        "logical_source_id": long,
+        "source_hash": long,
+        "conversation_id": long,
+        "conversation_title": long,
+        "subthread_id": long,
+        "subthread_label": long,
+        "segment_ids": ["seg-long"],
+        "segment_refs": [{"segment_id": "s" * 220, "segment_index": 123456, "char_start": 0, "char_end": 999999}],
+        "evidence": [long],
+        "extraction_version": long,
+    }
+    (run_dir / "reconciled_signals.jsonl").write_text(json.dumps(row) + "\n", encoding="utf-8")
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        wing="chatgpt_thread_signals",
+        added_by=long,
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp = _FakeMCPCaller([{"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp)
+    call = mcp.calls[0]["arguments"]
+    for field in (
+        "source_signal_id",
+        "logical_source_id",
+        "source_hash",
+        "conversation_id",
+        "conversation_title",
+        "subthread_id",
+        "subthread_label",
+        "segment_ref",
+        "evidence_excerpt",
+        "extraction_version",
+        "added_by",
+    ):
+        assert isinstance(call[field], str)
+        assert len(call[field]) <= 128
+    assert len(call["content"]) == 5000
