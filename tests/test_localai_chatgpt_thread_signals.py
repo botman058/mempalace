@@ -547,6 +547,75 @@ def test_publish_noop_result_counts_as_success(tmp_path):
     assert checkpoint[0]["status"] == "noop_success"
 
 
+def test_publish_limit_bounds_publish_attempts(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "source_signal_id": "srcsig:limit-1",
+            "room": "general",
+            "content": "x",
+            "logical_source_id": "chatgpt:limit",
+            "source_hash": "h-limit",
+            "conversation_id": "limit",
+            "conversation_title": "",
+            "subthread_id": "chatgpt:limit:subthread:000",
+            "subthread_label": "general",
+            "segment_ids": ["seg-1"],
+            "segment_refs": [],
+            "evidence": [],
+            "extraction_version": "v-limit",
+        },
+        {
+            "source_signal_id": "srcsig:limit-2",
+            "room": "general",
+            "content": "y",
+            "logical_source_id": "chatgpt:limit",
+            "source_hash": "h-limit",
+            "conversation_id": "limit",
+            "conversation_title": "",
+            "subthread_id": "chatgpt:limit:subthread:000",
+            "subthread_label": "general",
+            "segment_ids": ["seg-2"],
+            "segment_refs": [],
+            "evidence": [],
+            "extraction_version": "v-limit",
+        },
+    ]
+    (run_dir / "reconciled_signals.jsonl").write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
+    args = SimpleNamespace(
+        source_dir=str(source_dir),
+        run_dir=str(run_dir),
+        localai_base_url="http://snow-white-iii:8080/v1",
+        localai_token=None,
+        localai_token_file=None,
+        model="fake-model",
+        localai_timeout=1.0,
+        limit=0,
+        publish=True,
+        publish_limit=1,
+        wing="chatgpt_thread_signals",
+        added_by="localai_chatgpt_thread_signals",
+        mempalace_url="http://localhost:8765",
+        mempalace_token=None,
+        mempalace_token_file=None,
+        mempalace_timeout=5.0,
+    )
+    mcp = _FakeMCPCaller([{"success": True, "noop": False}, {"success": True, "noop": False}])
+    run(args, provider=_FakeProvider([]), mcp_caller=mcp)
+    assert len(mcp.calls) == 1
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["publish_attempted"] == 1
+    assert progress["publish_success"] == 1
+    assert len(_read_jsonl(run_dir / "publish_checkpoint.jsonl")) == 1
+
+
 def test_publish_failed_result_is_checkpointed_and_progress_failed(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True, exist_ok=True)

@@ -16,6 +16,7 @@ UNIT_BASE="${MEMPALACE_THREAD_SIGNAL_UNIT_BASE:-mempalace-localai-chatgpt-thread
 RUN_DIR_ARG=""
 LIMIT=""
 PUBLISH=0
+PUBLISH_LIMIT="${MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT:-0}"
 MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-300}"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
@@ -30,6 +31,7 @@ Options:
   --run-dir PATH   reuse or inspect an existing run directory
   --limit N        process at most N segments
   --publish        publish reconciled signals back to MemPalace
+  --publish-limit N  publish at most N reconciled signals (default: no limit)
   --model MODEL    LocalAI model to use
   --mcp-timeout N  MemPalace HTTP MCP timeout in seconds (default: 300)
 
@@ -51,6 +53,10 @@ while (($#)); do
     --publish)
       PUBLISH=1
       shift
+      ;;
+    --publish-limit)
+      PUBLISH_LIMIT="${2:?--publish-limit requires a value}"
+      shift 2
       ;;
     --model)
       MODEL="${2:?--model requires a value}"
@@ -115,6 +121,7 @@ if [[ "$EUID" -ne 0 ]]; then
     MEMPALACE_THREAD_SIGNAL_UNIT="$UNIT" \
     MEMPALACE_THREAD_SIGNAL_LIMIT="$LIMIT" \
     MEMPALACE_THREAD_SIGNAL_PUBLISH="$PUBLISH" \
+    MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT="$PUBLISH_LIMIT" \
     MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT="$MCP_TIMEOUT" \
     "$SCRIPT_PATH"
 fi
@@ -151,8 +158,13 @@ fi
 
 LIMIT="${MEMPALACE_THREAD_SIGNAL_LIMIT:-$LIMIT}"
 PUBLISH="${MEMPALACE_THREAD_SIGNAL_PUBLISH:-$PUBLISH}"
+PUBLISH_LIMIT="${MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT:-$PUBLISH_LIMIT}"
 MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-$MCP_TIMEOUT}"
 
+if [[ ! "$PUBLISH_LIMIT" =~ ^[0-9]+$ ]]; then
+  echo "invalid --publish-limit value: $PUBLISH_LIMIT" >&2
+  exit 2
+fi
 if [[ ! "$MCP_TIMEOUT" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   echo "invalid --mcp-timeout value: $MCP_TIMEOUT" >&2
   exit 2
@@ -175,6 +187,9 @@ cmd=(
 )
 if [[ "$PUBLISH" -eq 1 ]]; then
   cmd+=(--publish)
+  if [[ "$PUBLISH_LIMIT" != "0" ]]; then
+    cmd+=(--publish-limit "$PUBLISH_LIMIT")
+  fi
 fi
 if [[ -n "$LIMIT" ]]; then
   if [[ ! "$LIMIT" =~ ^[0-9]+$ ]]; then
@@ -223,6 +238,7 @@ Artifacts: $RUN_DIR/segment_extractions.jsonl
            $RUN_DIR/invalid_outputs.jsonl
            $RUN_DIR/reconciled_signals.jsonl
 Publish:   $RUN_DIR/publish_checkpoint.jsonl (only if --publish is used)
+Publish limit: $PUBLISH_LIMIT (0 means no limit)
 MCP timeout: $MCP_TIMEOUT seconds
 Journal:   journalctl -fu $UNIT
 EOF

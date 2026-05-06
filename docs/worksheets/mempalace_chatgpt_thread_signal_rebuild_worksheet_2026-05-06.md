@@ -625,3 +625,4 @@ No drift recorded yet.
 - `O-0` stopped the smoke unit without deleting artifacts.
 - Emergency repair mode was declared for `scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`, `scripts/systemd/README.md`, `CHANGELOG.md`, and this worksheet.
 - The wrapper now exposes `--mcp-timeout` and defaults MemPalace HTTP MCP publish timeout to `300` seconds.
+- A second emergency repair added explicit `--publish-limit` support so smoke runs can verify bounded publication without attempting every reconciled signal.

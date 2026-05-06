@@ -438,6 +438,7 @@ def publish_reconciled_signals(
     added_by: str,
     mcp_timeout: float,
     mcp_caller: MCPCaller,
+    publish_limit: int = 0,
 ) -> dict[str, int]:
     reconciled_path = run_dir / "reconciled_signals.jsonl"
     checkpoint_path = run_dir / "publish_checkpoint.jsonl"
@@ -454,6 +455,8 @@ def publish_reconciled_signals(
         if seen.get(source_signal_id) in {"success", "noop_success"}:
             skipped += 1
             continue
+        if publish_limit and attempted >= publish_limit:
+            break
         attempted += 1
         evidence = row.get("evidence")
         segment_refs = row.get("segment_refs")
@@ -797,6 +800,7 @@ def run(
             added_by=args.added_by,
             mcp_timeout=args.mempalace_timeout,
             mcp_caller=mcp_caller,
+            publish_limit=getattr(args, "publish_limit", 0),
         )
         progress.update(publish_stats)
     _write_progress(progress_path, progress)
@@ -861,6 +865,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("MEMPALACE_HTTP_TOKEN_FILE") or DEFAULT_MEMPALACE_TOKEN_FILE,
     )
     parser.add_argument("--mempalace-timeout", type=float, default=float(os.environ.get("MEMPALACE_HTTP_TIMEOUT", "120")))
+    parser.add_argument("--publish-limit", type=int, default=int(os.environ.get("LOCALAI_THREAD_SIGNAL_PUBLISH_LIMIT", "0")))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("LOCALAI_THREAD_SIGNAL_LIMIT", "0")))
     parser.add_argument("--localai-timeout", type=float, default=float(os.environ.get("LOCALAI_TIMEOUT", "180")))
     return parser.parse_args(argv)
