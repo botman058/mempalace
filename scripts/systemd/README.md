@@ -196,6 +196,17 @@ compete with active mining or LocalAI classification. If those workflows are
 running, delay the deployment or keep the dashboard in telemetry-only mode; do
 not expect search, taxonomy, or drawer browsing until the system is idle.
 
+During heavy ChatGPT thread-signal rebuilds, set:
+
+```bash
+MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY=1
+```
+
+This forces telemetry-only mode even if process detection misses a transient
+runner/unit. In forced mode the dashboard still serves `/api/overview` and
+read-only ontology run progress/artifact endpoints, but search/taxonomy/drawer
+endpoints return `423 Locked` without upstream MCP tool calls.
+
 Default layout:
 
 ```text
@@ -247,6 +258,7 @@ MEMPALACE_DASHBOARD_MCP_TOKEN_FILE=/media/u0/OneDrive_Backup/mempalace/secrets/h
 LOCALAI_BASE_URL=http://snow-white-iii:8080/v1
 LOCALAI_TOKEN_FILE=/media/u0/OneDrive_Backup/mempalace/secrets/localai_token
 LOCALAI_SIGNAL_CHECKPOINT=/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_signals.checkpoint.jsonl
+MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY=0
 ```
 
 The service runs as `mempalace:mempalace`, binds only to the Tailscale IPv4

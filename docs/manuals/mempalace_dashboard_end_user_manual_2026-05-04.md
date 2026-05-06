@@ -88,6 +88,15 @@ The telemetry strip shows:
 If `mempalace-localai-chatgpt-signals.service` or a mining process is active,
 the dashboard switches to telemetry-only mode.
 
+Operators can also force telemetry-only mode with:
+
+```bash
+MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY=1
+```
+
+Use forced mode during ChatGPT thread-signal rebuilds (`localai_chatgpt_thread_signals.py`)
+to prevent dashboard heavy reads from competing with rebuild CPU/IO.
+
 This is expected. In telemetry-only mode, the dashboard does not run heavy
 Chroma-backed reads. That protects the active mining/classification job.
 
@@ -97,6 +106,7 @@ Available in telemetry-only mode:
 - LocalAI telemetry
 - checkpoint telemetry
 - mining-state details
+- ontology progress runs and dashboard-safe ontology artifact previews
 
 Disabled in telemetry-only mode:
 
@@ -154,6 +164,7 @@ If the browser looks empty, clear the wing and room filters.
 | `401 Unauthorized` | The request did not include a token. | Re-enter the dashboard token. |
 | `403 Forbidden` | The token is wrong. | Re-read `secrets/dashboard_token`. |
 | `423 Locked` | Mining or LocalAI classification is active. | Wait; this protects the active job. |
+| `423 Locked` while system looks idle | Forced telemetry-only mode is enabled. | Verify `MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY`; set to `0` when rebuild is complete. |
 | `upstream_unavailable` | Dashboard cannot reach the hosted HTTP MCP service. | Check `mempalace-http.service` on `snow-white-iii`. |
 | LocalAI says unavailable | LocalAI telemetry failed. | Check LocalAI on `snow-white-iii`; dashboard search may still work when idle. |
 | Checkpoint says unavailable | The checkpoint path is missing or unreadable. | Check `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_signals.checkpoint.jsonl`. |

@@ -626,3 +626,47 @@ No drift recorded yet.
 - Emergency repair mode was declared for `scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`, `scripts/systemd/README.md`, `CHANGELOG.md`, and this worksheet.
 - The wrapper now exposes `--mcp-timeout` and defaults MemPalace HTTP MCP publish timeout to `300` seconds.
 - A second emergency repair added explicit `--publish-limit` support so smoke runs can verify bounded publication without attempting every reconciled signal.
+
+### 2026-05-06 - WP-09 Smoke Attempt 3 and Dashboard Load Blocker
+
+- `O-0` reread this worksheet before live service operations after context compaction.
+- Current local branch remained `codex/mempalace-http-mcp-closure`; out-of-scope dirty `.agents/plugins/marketplace.json` and unaccepted untracked `docs/reference/` remained unstaged and untouched.
+- Latest deployed/promoted app commit remained `cae016e`.
+- Smoke unit `mempalace-localai-chatgpt-thread-signals-20260506024609` had completed with `ActiveState=inactive`, `SubState=dead`, `Result=success`, and `ExecMainStatus=0`, but progress recorded `publish_attempted: 1`, `publish_failed: 1`, `publish_success: 0`.
+- Run directory evidence under `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506022912_thread_signal_rebuild` showed `processed_segments: 1`, `classified_segments: 1`, `reconciled_signals: 29`, and two failed timeout checkpoint rows for `srcsig:0f5edb2b4fe76a73d16230a5`.
+- HTTP MCP journal evidence showed earlier successful writes to `chatgpt_thread_signals`, including:
+  - `drawer_thread_signal_d81d3d5c4a6b107393e13e9e` in room `task`.
+  - `drawer_thread_signal_40559d926bae77cbc4ede88c` in room `problem`.
+  - `drawer_thread_signal_1101cb5b22b1317519620124` in room `fact`.
+- Read-only `mempalace_get_drawer` probes for those known drawer IDs timed out while HTTP MCP was already backlogged; `mempalace-http.service` was observed at about one CPU core with health checks timing out.
+- `O-0` restarted only `mempalace-http.service` to clear the stuck request backlog; no files or palace data were deleted.
+- `O-0` reran a bounded resume smoke as service user `mempalace` through the wrapper:
+  `--run-dir /media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506022912_thread_signal_rebuild --limit 1 --publish --publish-limit 1 --mcp-timeout 300`.
+- Smoke unit `mempalace-localai-chatgpt-thread-signals-20260506025858` completed successfully with `publish_attempted: 1`, `publish_failed: 0`, `publish_skipped: 1`, `publish_success: 1`, `processed_segments: 1`, `classified_segments: 1`, and `status: complete`.
+- The publish checkpoint now records `srcsig:0f5edb2b4fe76a73d16230a5` as `noop_success` for existing drawer `drawer_thread_signal_40559d926bae77cbc4ede88c`, proving idempotent retry after an ambiguous timeout.
+- HTTP MCP service caps were observed as `CPUQuotaPerSecUSec=2s` and `MemoryMax=17179869184`; the service log showed CUDA embedding initialization with providers `['CUDAExecutionProvider', 'CPUExecutionProvider']`.
+- Checkpoint G functional smoke verdict: green for LocalAI-local execution, bounded wrapper caps, `chatgpt_thread_signals` publication, and idempotent resume.
+- Operational blocker: an open dashboard browser was repeatedly calling `/api/overview`, `/api/drawers`, and `/api/taxonomy`; dashboard logs showed repeated `503` responses while those calls drove recurring MCP requests and kept HTTP MCP CPU high.
+- `O-0` stopped `mempalace-dashboard.service` and restarted only `mempalace-http.service` to stabilize the machine before WP-10; no files or palace data were deleted.
+- After stabilization, `mempalace-dashboard.service` was `inactive/dead`; `mempalace-http.service` was active with caps still present.
+- Checkpoint G operational verdict: amber until dashboard load-safety repair is accepted and deployed; WP-10 full rebuild remains blocked.
+
+### 2026-05-06 - WP-09R Dashboard Load-safety Repair Activation
+
+- `O-0` activated a bounded emergency safety repair package because dashboard polling violated the requirement that inspection cannot disturb active mining/rebuild work.
+- WP-09R was assigned to worker Hooke with model `gpt-5.3-codex` and reasoning depth `medium`.
+- Hooke write scope is limited to `mempalace/dashboard_server.py`, `tests/test_dashboard_server.py`, `scripts/systemd/README.md`, `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`, and `CHANGELOG.md`.
+- Hooke was instructed not to touch `.agents/plugins/marketplace.json`, unaccepted `docs/reference/`, MCP write tools, LocalAI extraction runner, systemd service control scripts, or palace data.
+- Required repair evidence: dashboard mining detection must catch active `localai_chatgpt_thread_signals.py` rebuilds, an explicit forced telemetry-only env must lock heavy endpoints without upstream MCP tool calls, overview and ontology progress endpoints must remain read-only, and focused tests/docs must be updated.
+
+### 2026-05-06 - WP-09R Acceptance Evidence
+
+- Hooke returned a scoped repair touching only `mempalace/dashboard_server.py`, `tests/test_dashboard_server.py`, `scripts/systemd/README.md`, `docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md`, and `CHANGELOG.md`.
+- The dashboard mining detector now recognizes `localai_chatgpt_thread_signals.py`, the snow-white thread-signal wrapper name, broader thread-signal process signatures, and the ontology service.
+- The dashboard now honors `MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY=1` by returning `423 Locked` for taxonomy, search, drawer list, and drawer detail without issuing upstream MCP tool calls.
+- Forced telemetry-only mode leaves `/api/overview` and read-only ontology run progress/artifact endpoints available.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/dashboard_server.py tests/test_dashboard_server.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_dashboard_server.py`: `17 passed in 2.58s`.
+- `O-0` ran `git diff --check -- mempalace/dashboard_server.py tests/test_dashboard_server.py scripts/systemd/README.md docs/manuals/mempalace_dashboard_end_user_manual_2026-05-04.md CHANGELOG.md docs/worksheets/mempalace_chatgpt_thread_signal_rebuild_worksheet_2026-05-06.md`: passed.
+- WP-09R verdict: green.
+- Checkpoint G remains amber until this accepted repair is committed, pushed, deployed on `snow-white-iii`, and the dashboard is restarted in forced telemetry-only mode or left stopped during WP-10.

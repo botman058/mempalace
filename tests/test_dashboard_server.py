@@ -7,7 +7,13 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient
 
-from mempalace.dashboard_server import MiningStatus, create_app, load_ontology_run_root, load_upstream_token
+from mempalace.dashboard_server import (
+    MiningDetector,
+    MiningStatus,
+    create_app,
+    load_ontology_run_root,
+    load_upstream_token,
+)
 
 
 def _headers():
@@ -626,3 +632,81 @@ def test_static_index_route_serves_html_without_api_token():
     assert response.status_code == 200
     assert "text/html" in response.headers.get("content-type", "")
     assert "MemPalace Dashboard" in response.text
+
+
+def test_default_mining_detector_matches_thread_signal_rebuild_process():
+    detector = MiningDetector(
+        services=[],
+        process_lister=lambda: [
+            {"pid": 9912, "args": "python localai_chatgpt_thread_signals.py --run-dir /tmp/run"},
+        ],
+    )
+
+    status = detector.detect()
+
+    assert status.active is True
+    assert status.matched_processes
+    assert "localai_chatgpt_thread_signals.py" in status.matched_processes[0]["args"]
+
+
+def test_forced_telemetry_only_locks_heavy_endpoints_without_mcp(monkeypatch):
+    monkeypatch.setenv("MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY", "1")
+    client, upstream = _client(mining_active=False)
+
+    response = client.get("/api/taxonomy", headers=_headers())
+    _assert_locked(response)
+    assert response.json()["mining"]["forced_telemetry_only"] is True
+
+    response = client.get("/api/search?q=alpha", headers=_headers())
+    _assert_locked(response)
+
+    response = client.get("/api/drawers", headers=_headers())
+    _assert_locked(response)
+
+    response = client.get("/api/drawers/drawer-1", headers=_headers())
+    _assert_locked(response)
+
+    assert upstream.calls == []
+
+
+def test_overview_still_returns_telemetry_in_forced_telemetry_only_mode(monkeypatch):
+    monkeypatch.setenv("MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY", "1")
+    client, upstream = _client(mining_active=False)
+
+    response = client.get("/api/overview", headers=_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "telemetry-only"
+    assert body["mining"]["forced_telemetry_only"] is True
+    assert body["telemetry"]["mode"] == "telemetry-only"
+    assert body["drawer_count"] == 42
+    assert upstream.calls == []
+
+
+def test_ontology_progress_endpoints_work_in_forced_telemetry_only_mode(monkeypatch, tmp_path):
+    monkeypatch.setenv("MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY", "1")
+    run_id = "20260505T143015Z_chatgpt_signal_ontology"
+    progress = _progress_payload(
+        run_id,
+        status="running",
+        current_phase="pass1_open",
+        current_phase_status="running",
+        ended_at=None,
+    )
+    _make_run(tmp_path, run_id, progress)
+    client, upstream = _client(mining_active=False, ontology_run_root=tmp_path)
+
+    response = client.get("/api/ontology/runs", headers=_headers())
+    assert response.status_code == 200
+
+    detail = client.get(f"/api/ontology/runs/{run_id}", headers=_headers())
+    assert detail.status_code == 200
+    assert detail.json()["progress"]["status"] == "running"
+
+    artifacts = client.get(f"/api/ontology/runs/{run_id}/artifacts", headers=_headers())
+    assert artifacts.status_code == 200
+
+    preview = client.get(f"/api/ontology/runs/{run_id}/unresolved-preview", headers=_headers())
+    assert preview.status_code == 200
+    assert upstream.calls == []

@@ -82,10 +82,15 @@ _ONTOLOGY_RUN_ROOT_ENV_VARS = (
 _DEFAULT_MINING_SERVICES = (
     "mempalace-mine-chatgpt.service",
     "mempalace-localai-chatgpt-signals.service",
+    "mempalace-ontology-chatgpt-signals.service",
 )
 _DEFAULT_MINING_PROCESS_PATTERNS = (
     r"(^|[=/ ])ingest_chatgpt_canonical\.(py|sh)([ ]|$)",
     r"(^|[=/ ])localai_chatgpt_signals\.py([ ]|$)",
+    r"(^|[=/ ])localai_chatgpt_thread_signals\.py([ ]|$)",
+    r"(^|[=/ ])start_chatgpt_thread_signal_rebuild_snow_white_iii\.sh([ ]|$)",
+    r"(^|[=/ ])mempalace([ ]+.+)?[ ]ontology[ ]chatgpt-signals([ ]|$)",
+    r"chatgpt[_-]thread[_-]signal",
 )
 _DEFAULT_ALLOWED_HOSTS = {"localhost", "snow-white-iii"}
 _DEFAULT_ALLOWED_HOST_SUFFIXES = (".ts.net", ".local", ".lan", ".internal", ".home.arpa")
@@ -103,6 +108,11 @@ _READ_ONLY_TOOLS = frozenset(
         "mempalace_get_drawer",
     }
 )
+
+
+def _env_flag_enabled(name: str) -> bool:
+    raw = os.environ.get(name, "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _load_first_env(env_vars: Sequence[str]) -> Optional[str]:
@@ -524,14 +534,16 @@ class MiningStatus:
     configured_services: List[str]
     configured_process_patterns: List[str]
     detection_errors: List[str]
+    forced_telemetry_only: bool = False
 
     def mode(self) -> str:
-        return "telemetry-only" if self.active else "idle"
+        return "telemetry-only" if (self.active or self.forced_telemetry_only) else "idle"
 
     def to_payload(self) -> Dict[str, Any]:
         return {
             "active": self.active,
             "mode": self.mode(),
+            "forced_telemetry_only": self.forced_telemetry_only,
             "active_services": list(self.active_services),
             "matched_processes": list(self.matched_processes),
             "configured_services": list(self.configured_services),
@@ -1023,7 +1035,18 @@ def create_app(
             )
 
     async def current_mining_status() -> MiningStatus:
-        return await run_in_threadpool(mining_detector.detect)
+        mining = await run_in_threadpool(mining_detector.detect)
+        if _env_flag_enabled("MEMPALACE_DASHBOARD_FORCE_TELEMETRY_ONLY"):
+            return MiningStatus(
+                active=True,
+                active_services=list(mining.active_services),
+                matched_processes=list(mining.matched_processes),
+                configured_services=list(mining.configured_services),
+                configured_process_patterns=list(mining.configured_process_patterns),
+                detection_errors=list(mining.detection_errors),
+                forced_telemetry_only=True,
+            )
+        return mining
 
     async def current_overview(mining: MiningStatus) -> Tuple[int, Dict[str, Any]]:
         localai = await run_in_threadpool(_localai_summary)
