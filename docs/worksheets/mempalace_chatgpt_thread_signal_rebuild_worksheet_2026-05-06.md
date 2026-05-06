@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint A is not green until this worksheet is committed and pushed. Only WP-00 may proceed before Checkpoint A.
+Checkpoint B is green. WP-02, WP-03, and WP-06 may be activated in bounded worker-owned slices. WP-04 remains blocked on the segment/subthread contracts.
 
 ---
 
@@ -455,3 +455,21 @@ No drift recorded yet.
 - `git remote -v` showed local `origin` as upstream `git@github.com:MemPalace/mempalace.git`; fork push target remains explicit.
 - `tako_orchestrated_worksheet_template_mutation_lock_2026-05-03.md` was read from `/home/u4/tako_orchestrated_worksheet_template_mutation_lock_2026-05-03.md` and used for this worksheet structure.
 - `snow-white-iii` active superseded ontology run was observed as `20260505T175609Z_chatgpt_signal_ontology`, phase `pass1_open`, `6920` processed of currently discovered `7000`, `8` errors, and `copies_materialized: 0`.
+
+### 2026-05-06 - WP-00 Milestone Commit Evidence
+
+- `git add docs/worksheets/mempalace_chatgpt_thread_signal_rebuild_worksheet_2026-05-06.md` staged only the worksheet.
+- `git diff --cached --check` passed.
+- `git commit -m "Add ChatGPT thread signal rebuild worksheet"` created `44076d2`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `44076d2` to the fork branch.
+- Checkpoint A verdict: green.
+
+### 2026-05-06 - WP-01 Superseded Run Stop Evidence
+
+- `O-0` reread the worksheet before live service action.
+- `O-0` stopped `mempalace-ontology-chatgpt-signals.service` on `snow-white-iii` using direct `root@snow-white-iii` SSH.
+- `systemctl show mempalace-ontology-chatgpt-signals.service` reported `ActiveState=inactive`, `SubState=dead`, `MainPID=0`, `Result=success`, and `ExecMainStatus=0`.
+- No files or palace data were deleted.
+- Latest superseded artifact remains `/media/u0/OneDrive_Backup/mempalace/data/ontology/20260505T175609Z_chatgpt_signal_ontology/progress.json`.
+- That progress artifact still says `status: running`, phase `pass1_open`, and `6962` processed of discovered `7000` because `O-0` did not mutate old run artifacts in place.
+- Checkpoint B verdict: green.
