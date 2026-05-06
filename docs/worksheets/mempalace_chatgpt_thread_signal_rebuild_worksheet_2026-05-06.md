@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, WP-07, and WP-08 are green after O-0 review. WP-09 remote smoke may proceed as the next bounded live operation; full rebuild remains blocked until Checkpoint G smoke is green.
+Checkpoint C, Checkpoint D, Checkpoint E, Checkpoint F, WP-07, WP-08, WP-09, and WP-09R are green after O-0 review. Checkpoint G is green. WP-10 full thread-signal rebuild is running on `snow-white-iii`; WP-11 remains blocked until Checkpoint H is green.
 
 ---
 
@@ -687,3 +687,16 @@ No drift recorded yet.
 - HTTP MCP journal during verification showed only a `GET /healthz` call from dashboard overview, not heavy MCP tool calls.
 - Checkpoint G final verdict: green.
 - WP-10 full thread-signal rebuild is unblocked.
+
+### 2026-05-06 - WP-10 Full Rebuild Start Evidence
+
+- `O-0` reread this worksheet before starting WP-10.
+- Full rebuild was started on `snow-white-iii` through `start_chatgpt_thread_signal_rebuild_snow_white_iii.sh --publish --mcp-timeout 300`.
+- Unit: `mempalace-localai-chatgpt-thread-signals-20260506031028`.
+- Run directory: `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506031028_thread_signal_rebuild`.
+- The wrapper launched the runner as service user `mempalace` with `CPUQuotaPerSecUSec=2s` and `MemoryMax=17179869184`.
+- The runner command uses LocalAI at `http://snow-white-iii:8080/v1`, token file `/media/u0/OneDrive_Backup/mempalace/secrets/localai_token`, MemPalace HTTP MCP at `http://100.112.179.49:8765`, target wing `chatgpt_thread_signals`, and model `qwen3-vl-8b-instruct`.
+- Early progress after about 73 seconds: `processed_segments: 3`, `classified_segments: 3`, `invalid_segments: 0`, `error_segments: 0`, `status: running`.
+- Early checkpoint rows prove progressive materialization in `segment_checkpoint.jsonl` and distinct subthread IDs for the first conversation.
+- Dashboard remains in forced telemetry-only mode, and HTTP MCP stayed low CPU during the initial WP-10 check.
+- Checkpoint H verdict: pending.
