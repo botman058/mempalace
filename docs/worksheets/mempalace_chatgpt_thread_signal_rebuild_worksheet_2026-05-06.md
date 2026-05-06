@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C, Checkpoint D, and Checkpoint E are green after O-0 review. WP-04 is active in a bounded worker-owned slice. WP-07 and WP-09 remain blocked until Checkpoint F is green and runner/docs preconditions are accepted.
+Checkpoint C, Checkpoint D, Checkpoint E, and Checkpoint F extraction evidence are green after O-0 review. WP-05 may be activated in a bounded worker-owned slice. WP-07 and WP-09 remain blocked until Checkpoint F reconciliation evidence and runner/docs preconditions are accepted.
 
 ---
 
@@ -519,3 +519,14 @@ No drift recorded yet.
 - `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'add_signal_drawer or tools_list'`: `6 passed, 84 deselected in 15.66s`.
 - Accepted behavior includes deterministic `drawer_thread_signal_<digest>` IDs, duplicate same-content no-op, fail-closed source-signal collision, provenance metadata, and tests proving existing `chatgpt` and `chatgpt_signals` drawers are not mutated.
 - Checkpoint E verdict: green.
+
+### 2026-05-06 - WP-04 Acceptance Evidence
+
+- B-3/Curie returned new files `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- The runner uses the accepted `build_chatgpt_thread_segments(...)` contract instead of leading-character truncation.
+- The runner writes progressive `progress.json`, append-only `segment_checkpoint.jsonl`, `segment_extractions.jsonl`, and `invalid_outputs.jsonl` under a run directory.
+- Invalid LocalAI output is recorded durably and is not treated as a valid extraction.
+- The runner includes a fake-provider seam for no-network tests and refuses cloud LLM provider URLs.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py tests/test_chatgpt_thread_segments.py`: `11 passed in 0.54s`.
+- Checkpoint F extraction verdict: green.
