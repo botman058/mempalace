@@ -441,6 +441,16 @@ def _ontology_copy_drawer_id(source_drawer_id: str, canonical_wing: str, canonic
     return f"drawer_{canonical_wing}_{canonical_room}_{digest}"
 
 
+_THREAD_SIGNAL_DRAWER_PREFIX = "thread-signal:v1\0"
+
+
+def _thread_signal_drawer_id(source_signal_id: str) -> str:
+    digest = hashlib.sha256(
+        (_THREAD_SIGNAL_DRAWER_PREFIX + source_signal_id).encode("utf-8")
+    ).hexdigest()[:24]
+    return f"drawer_thread_signal_{digest}"
+
+
 def _validate_flat_scalar_metadata(meta: dict) -> dict:
     """Return a copy of metadata safe to persist back into Chroma.
 
@@ -1109,6 +1119,169 @@ def tool_copy_drawer(
             "error": f"Palace write already active; no copy written: {e}",
         }
     except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def tool_add_signal_drawer(
+    room: str,
+    content: str,
+    source_signal_id: str,
+    wing: str = "chatgpt_thread_signals",
+    logical_source_id: str = "",
+    source_hash: str = "",
+    conversation_id: str = "",
+    conversation_title: str = "",
+    subthread_id: str = "",
+    subthread_label: str = "",
+    segment_ids=None,
+    segment_ref: str = "",
+    evidence_excerpt: str = "",
+    evidence_ref: str = "",
+    extraction_version: str = "",
+    added_by: str = "localai_chatgpt_thread_signals",
+):
+    """File recovered ChatGPT thread signals with deterministic provenance semantics."""
+    global _metadata_cache
+
+    def _sanitize_optional_kg(value, field_name: str) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str) and value == "":
+            return ""
+        return sanitize_kg_value(value, field_name)
+
+    try:
+        wing = sanitize_name(wing, "wing")
+        room = sanitize_name(room, "room")
+        content = sanitize_content(content)
+        source_signal_id = sanitize_kg_value(source_signal_id, "source_signal_id")
+        logical_source_id = _sanitize_optional_kg(logical_source_id, "logical_source_id")
+        source_hash = _sanitize_optional_kg(source_hash, "source_hash")
+        conversation_id = _sanitize_optional_kg(conversation_id, "conversation_id")
+        conversation_title = _sanitize_optional_kg(conversation_title, "conversation_title")
+        subthread_id = _sanitize_optional_kg(subthread_id, "subthread_id")
+        subthread_label = _sanitize_optional_kg(subthread_label, "subthread_label")
+        segment_ref = _sanitize_optional_kg(segment_ref, "segment_ref")
+        evidence_excerpt = _sanitize_optional_kg(evidence_excerpt, "evidence_excerpt")
+        evidence_ref = _sanitize_optional_kg(evidence_ref, "evidence_ref")
+        extraction_version = _sanitize_optional_kg(extraction_version, "extraction_version")
+        added_by = _sanitize_optional_kg(added_by, "added_by")
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    if segment_ids is None:
+        segment_ids_serialized = ""
+    elif isinstance(segment_ids, list):
+        try:
+            segment_ids_serialized = json.dumps(
+                [sanitize_kg_value(str(v), "segment_ids[]") for v in segment_ids],
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+    elif isinstance(segment_ids, str):
+        try:
+            segment_ids_serialized = sanitize_kg_value(segment_ids, "segment_ids")
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+    else:
+        return {"success": False, "error": "segment_ids must be a list of IDs or a string"}
+
+    col = _get_collection(create=True)
+    if not col:
+        return _no_palace()
+
+    drawer_id = _thread_signal_drawer_id(source_signal_id)
+    content_hash = _content_sha256(content)
+    _wal_log(
+        "add_signal_drawer",
+        {
+            "drawer_id": drawer_id,
+            "wing": wing,
+            "room": room,
+            "source_signal_id": source_signal_id,
+            "content_hash": content_hash,
+            "content_length": len(content),
+            "added_by": added_by,
+        },
+    )
+
+    try:
+        existing = col.get(ids=[drawer_id], include=["documents", "metadatas"])
+        if existing and existing["ids"]:
+            existing_hash = _content_sha256(existing["documents"][0])
+            if existing_hash == content_hash:
+                return {
+                    "success": True,
+                    "reason": "already_exists",
+                    "noop": True,
+                    "drawer_id": drawer_id,
+                    "wing": wing,
+                    "room": room,
+                    "source_signal_id": source_signal_id,
+                }
+            return {
+                "success": False,
+                "error": (
+                    f"Signal collision for source_signal_id '{source_signal_id}': "
+                    f"existing content hash {existing_hash} does not match incoming hash {content_hash}"
+                ),
+            }
+    except Exception:
+        pass
+
+    try:
+        filed_at = _utc_now_rfc3339()
+        col.add(
+            ids=[drawer_id],
+            documents=[content],
+            metadatas=[
+                {
+                    "wing": wing,
+                    "room": room,
+                    "source_signal_id": source_signal_id,
+                    "logical_source_id": logical_source_id,
+                    "source_hash": source_hash,
+                    "conversation_id": conversation_id,
+                    "conversation_title": conversation_title,
+                    "subthread_id": subthread_id,
+                    "subthread_label": subthread_label,
+                    "segment_ids": segment_ids_serialized,
+                    "segment_ref": segment_ref,
+                    "evidence_excerpt": evidence_excerpt,
+                    "evidence_ref": evidence_ref,
+                    "extraction_version": extraction_version,
+                    "signal_content_sha256": content_hash,
+                    "added_by": added_by,
+                    "filed_at": filed_at,
+                }
+            ],
+        )
+        _metadata_cache = None
+        logger.info(f"Filed recovered signal drawer: {drawer_id} → {wing}/{room}")
+        return {
+            "success": True,
+            "drawer_id": drawer_id,
+            "wing": wing,
+            "room": room,
+            "source_signal_id": source_signal_id,
+        }
+    except Exception as e:
+        try:
+            existing = col.get(ids=[drawer_id], include=["documents"])
+            if existing and existing["ids"] and _content_sha256(existing["documents"][0]) == content_hash:
+                return {
+                    "success": True,
+                    "reason": "already_exists",
+                    "noop": True,
+                    "drawer_id": drawer_id,
+                    "wing": wing,
+                    "room": room,
+                    "source_signal_id": source_signal_id,
+                }
+        except Exception:
+            pass
         return {"success": False, "error": str(e)}
 
 
@@ -2068,6 +2241,43 @@ TOOLS = {
             ],
         },
         "handler": tool_copy_drawer,
+    },
+    "mempalace_add_signal_drawer": {
+        "description": "Write a recovered ChatGPT thread signal with deterministic source_signal_id-based drawer ID and flat provenance metadata.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "wing": {
+                    "type": "string",
+                    "description": "Target wing (default: chatgpt_thread_signals)",
+                },
+                "room": {"type": "string", "description": "Target room"},
+                "content": {"type": "string", "description": "Recovered final signal content"},
+                "source_signal_id": {
+                    "type": "string",
+                    "description": "Deterministic source signal ID used for drawer identity",
+                },
+                "logical_source_id": {"type": "string"},
+                "source_hash": {"type": "string"},
+                "conversation_id": {"type": "string"},
+                "conversation_title": {"type": "string"},
+                "subthread_id": {"type": "string"},
+                "subthread_label": {"type": "string"},
+                "segment_ids": {
+                    "oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "string"}]
+                },
+                "segment_ref": {"type": "string"},
+                "evidence_excerpt": {"type": "string"},
+                "evidence_ref": {"type": "string"},
+                "extraction_version": {"type": "string"},
+                "added_by": {
+                    "type": "string",
+                    "description": "Writer identity (default: localai_chatgpt_thread_signals)",
+                },
+            },
+            "required": ["room", "content", "source_signal_id"],
+        },
+        "handler": tool_add_signal_drawer,
     },
     "mempalace_delete_drawer": {
         "description": "Delete a drawer by ID. Irreversible.",

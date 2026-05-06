@@ -46,7 +46,7 @@ One worksheet controls this tranche:
 
 ### Current hard gate
 
-Checkpoint C and Checkpoint D are green after O-0 review. WP-04 may be activated in a bounded worker-owned slice. WP-06 remains in worker rework; WP-07 and WP-09 remain blocked until Checkpoint E and Checkpoint F are green.
+Checkpoint C, Checkpoint D, and Checkpoint E are green after O-0 review. WP-04 is active in a bounded worker-owned slice. WP-07 and WP-09 remain blocked until Checkpoint F is green and runner/docs preconditions are accepted.
 
 ---
 
@@ -510,3 +510,12 @@ No drift recorded yet.
 - WP-04 was assigned to B-3/Curie with model `gpt-5.3-codex` and reasoning depth `medium`.
 - B-3 write scope is limited to a new thread-aware extraction runner, focused tests, and only if needed one narrow extraction-specific pure helper.
 - B-3 was instructed to use the accepted `mempalace/chatgpt_thread_segments.py` contract, avoid live network in tests, refuse cloud LLM URLs, write progressive `progress.json` and append-only segment artifacts, and avoid drawer writes/reconciliation/systemd/dashboard changes.
+
+### 2026-05-06 - WP-06 Acceptance Evidence
+
+- B-2/Linnaeus returned a scoped remediation in `mempalace/mcp_server.py`.
+- Remediation allows empty/absent optional provenance fields while preserving required validation for `room`, `content`, and `source_signal_id`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/mcp_server.py tests/test_mcp_server.py`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_mcp_server.py -k 'add_signal_drawer or tools_list'`: `6 passed, 84 deselected in 15.66s`.
+- Accepted behavior includes deterministic `drawer_thread_signal_<digest>` IDs, duplicate same-content no-op, fail-closed source-signal collision, provenance metadata, and tests proving existing `chatgpt` and `chatgpt_signals` drawers are not mutated.
+- Checkpoint E verdict: green.

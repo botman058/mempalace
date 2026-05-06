@@ -116,9 +116,21 @@ class TestHandleRequest:
         assert "mempalace_status" in names
         assert "mempalace_search" in names
         assert "mempalace_add_drawer" in names
+        assert "mempalace_add_signal_drawer" in names
         assert "mempalace_copy_drawer" in names
         assert "mempalace_kg_add" in names
         assert "mempalace_export_drawers" in names
+
+    def test_tools_list_includes_add_signal_drawer_schema(self):
+        from mempalace.mcp_server import handle_request
+
+        resp = handle_request({"method": "tools/list", "id": 12, "params": {}})
+        tools = resp["result"]["tools"]
+        target = next(t for t in tools if t["name"] == "mempalace_add_signal_drawer")
+        schema = target["inputSchema"]
+        assert schema["required"] == ["room", "content", "source_signal_id"]
+        assert "wing" in schema["properties"]
+        assert "segment_ids" in schema["properties"]
 
     def test_null_arguments_does_not_hang(self, monkeypatch, config, palace_path, seeded_kg):
         """Sending arguments: null should return a result, not hang (#394)."""
@@ -873,6 +885,116 @@ class TestWriteTools:
 
         assert result["success"] is False
         assert "flat scalar" in result["error"]
+
+    def test_add_signal_drawer_writes_provenance_and_defaults_wing(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_add_signal_drawer
+
+        result = tool_add_signal_drawer(
+            room="general",
+            content="Recovered thread signal body for scheduling and forms.",
+            source_signal_id="conv-001/subthread-a/signal-1",
+            logical_source_id="chatgpt:conv-001:subthread-a",
+            source_hash="sha256:abc123",
+            conversation_id="conv-001",
+            conversation_title="Health admin follow-up",
+            subthread_id="subthread-a",
+            subthread_label="appointments",
+            segment_ids=["seg-003", "seg-004"],
+            evidence_excerpt="Please reschedule and update the intake form.",
+            evidence_ref="segments.jsonl#44",
+            extraction_version="localai-thread-v2",
+        )
+        assert result["success"] is True
+        assert result["wing"] == "chatgpt_thread_signals"
+
+        expected_drawer_id = "drawer_thread_signal_" + hashlib.sha256(
+            ("thread-signal:v1\0" + "conv-001/subthread-a/signal-1").encode("utf-8")
+        ).hexdigest()[:24]
+        assert result["drawer_id"] == expected_drawer_id
+
+        stored = collection.get(ids=[expected_drawer_id], include=["documents", "metadatas"])
+        assert stored["documents"][0] == "Recovered thread signal body for scheduling and forms."
+        meta = stored["metadatas"][0]
+        assert meta["wing"] == "chatgpt_thread_signals"
+        assert meta["room"] == "general"
+        assert meta["source_signal_id"] == "conv-001/subthread-a/signal-1"
+        assert meta["logical_source_id"] == "chatgpt:conv-001:subthread-a"
+        assert meta["source_hash"] == "sha256:abc123"
+        assert meta["segment_ids"] == "[\"seg-003\",\"seg-004\"]"
+        assert meta["added_by"] == "localai_chatgpt_thread_signals"
+
+    def test_add_signal_drawer_duplicate_same_content_noops(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_add_signal_drawer
+
+        args = {
+            "room": "general",
+            "content": "Recovered signal stable body.",
+            "source_signal_id": "conv-001/subthread-a/signal-2",
+        }
+        result1 = tool_add_signal_drawer(**args)
+        result2 = tool_add_signal_drawer(**args)
+        assert result1["success"] is True
+        assert result2["success"] is True
+        assert result2["reason"] == "already_exists"
+        assert result2["noop"] is True
+        assert collection.count() == 1
+
+    def test_add_signal_drawer_source_signal_collision_fails_closed(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_add_signal_drawer
+
+        first = tool_add_signal_drawer(
+            room="general",
+            content="First recovered body.",
+            source_signal_id="conv-001/subthread-a/signal-3",
+        )
+        second = tool_add_signal_drawer(
+            room="general",
+            content="Different body for same source signal id.",
+            source_signal_id="conv-001/subthread-a/signal-3",
+        )
+        assert first["success"] is True
+        assert second["success"] is False
+        assert "Signal collision for source_signal_id" in second["error"]
+        assert collection.count() == 1
+
+    def test_add_signal_drawer_does_not_mutate_existing_chatgpt_wings(
+        self, monkeypatch, config, collection, kg
+    ):
+        _patch_mcp_server(monkeypatch, config, kg)
+        from mempalace.mcp_server import tool_add_signal_drawer
+
+        collection.add(
+            ids=["drawer_chatgpt_orig_1", "drawer_chatgpt_signals_orig_1"],
+            documents=["raw chatgpt source", "legacy extracted signal"],
+            metadatas=[
+                {"wing": "chatgpt", "room": "raw", "chunk_index": 0},
+                {"wing": "chatgpt_signals", "room": "general", "chunk_index": 0},
+            ],
+        )
+
+        result = tool_add_signal_drawer(
+            room="general",
+            content="Recovered signal body for new wing only.",
+            source_signal_id="conv-001/subthread-a/signal-4",
+        )
+        assert result["success"] is True
+
+        after = collection.get(
+            ids=["drawer_chatgpt_orig_1", "drawer_chatgpt_signals_orig_1"],
+            include=["documents", "metadatas"],
+        )
+        assert after["documents"] == ["raw chatgpt source", "legacy extracted signal"]
+        assert after["metadatas"][0]["wing"] == "chatgpt"
+        assert after["metadatas"][1]["wing"] == "chatgpt_signals"
 
     def test_delete_drawer(self, monkeypatch, config, palace_path, seeded_collection, kg):
         _patch_mcp_server(monkeypatch, config, kg)
