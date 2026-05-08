@@ -723,3 +723,17 @@ No drift recorded yet.
 - `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_thread_segments.py tests/test_localai_chatgpt_thread_signals.py tests/test_mcp_server.py -k 'add_signal_drawer or tools_list or localai_chatgpt_thread_signals'`: `28 passed, 90 deselected in 16.02s`.
 - `O-0` ran `git diff --check` over the accepted repair files: passed.
 - Checkpoint H remains pending until the repaired runner is committed, pushed, deployed, and resumed against the existing WP-10 run directory without deleting artifacts.
+
+### 2026-05-08 - WP-10 Safe Resume Deployment Evidence
+
+- `git commit -m "Harden thread signal rebuild resume"` created `02560fd`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `02560fd` to the fork branch.
+- A clean `git archive` of `02560fd` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260508T151845Z-02560fd/app` on `snow-white-iii`.
+- The staged tree was promoted with `promote_snow_white_iii_app_update.sh`; promotion reported no file deletion, no service restart, and no palace data touch.
+- Resume unit `mempalace-localai-chatgpt-thread-signals-20260508151924` was started against the preserved run directory:
+  `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506031028_thread_signal_rebuild`.
+- Resume flags were `--publish --mcp-timeout 300 --retry-errors --provider-max-attempts 3`.
+- The runner process is owned by service user `mempalace`, uses LocalAI at `http://snow-white-iii:8080/v1`, targets wing `chatgpt_thread_signals`, and keeps `CPUQuotaPerSecUSec=2s` plus `MemoryMax=17179869184`.
+- First resume progress evidence after restart: `processed_segments: 1`, `classified_segments: 1`, `error_segments: 0`, `invalid_segments: 0`, `skipped_segments: 195`, `source_files_processed: 1`, `source_file_error_count: 0`, and `status: running`.
+- Artifact preservation evidence after restart: existing `segment_checkpoint.jsonl`, `segment_extractions.jsonl`, and `invalid_outputs.jsonl` remain present; the new runner appended progress to the same checkpoint/extraction artifacts instead of deleting them.
+- Checkpoint H remains pending until the full repaired run completes and publishes the recovered `chatgpt_thread_signals` layer.
