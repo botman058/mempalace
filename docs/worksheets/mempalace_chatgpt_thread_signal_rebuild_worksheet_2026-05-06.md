@@ -700,3 +700,26 @@ No drift recorded yet.
 - Early checkpoint rows prove progressive materialization in `segment_checkpoint.jsonl` and distinct subthread IDs for the first conversation.
 - Dashboard remains in forced telemetry-only mode, and HTTP MCP stayed low CPU during the initial WP-10 check.
 - Checkpoint H verdict: pending.
+
+### 2026-05-08 - WP-10 Safe Resume Repair Evidence
+
+- `O-0` reread this worksheet before diagnosing the interrupted WP-10 run.
+- Full rebuild unit `mempalace-localai-chatgpt-thread-signals-20260506031028` was no longer active; journal evidence showed exit status `2/INVALIDARGUMENT`.
+- The fatal source error was a malformed/truncated duplicate source file:
+  `/media/u0/OneDrive_Backup/mempalace/sources/chatgpt/ChatGPT Conversation Exports/1e3ea48d6c9a6f6c3964a3a1766681b1dc1dd49b4584fdece62f8d61cd7d0707-2024-12-06-17-36-55/conversations.json`.
+- The same export also exists as a larger top-level source file under `/media/u0/OneDrive_Backup/mempalace/sources/chatgpt/1e3ea48d6c9a6f6c3964a3a1766681b1dc1dd49b4584fdece62f8d61cd7d0707-2024-12-06-17-36-55/conversations.json`; no source files were deleted or rewritten.
+- Run directory preservation evidence before repair:
+  `segment_checkpoint.jsonl` had `16,376` rows, `segment_extractions.jsonl` had `4,379` rows, `invalid_outputs.jsonl` had `11,997` rows, and no `reconciled_signals.jsonl` or `publish_checkpoint.jsonl` had been produced.
+- Existing `invalid_outputs.jsonl` contained many checkpointed `provider_error` rows from LocalAI connection resets; LocalAI `/v1/models` was healthy when checked after the crash.
+- Emergency repair mode was activated and delegated to Bohr with model `gpt-5.3-codex` and reasoning depth `medium`.
+- Bohr write scope was limited to `scripts/localai_chatgpt_thread_signals.py`, `tests/test_localai_chatgpt_thread_signals.py`, `scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`, `scripts/systemd/README.md`, and `CHANGELOG.md`.
+- The accepted repair changes source-file load failures from fatal run failures into durable source-level records in `source_file_errors.jsonl` and `source_checkpoint.jsonl`, then continues to remaining source files.
+- The accepted repair adds `--retry-errors` / `LOCALAI_THREAD_SIGNAL_RETRY_ERRORS` so resume can retry only prior checkpoint rows with latest `status: error`; existing `classified` and `invalid_output` rows remain skipped.
+- The accepted repair adds bounded LocalAI provider retries through `--provider-max-attempts` / `LOCALAI_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS`, defaulting to `2`.
+- The snow-white wrapper now forwards `--retry-errors` and `--provider-max-attempts` while keeping `CPUQuota=200%`, `MemoryMax=16G`, the `mempalace` service user, path guards, and no-delete behavior.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh`: passed.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_localai_chatgpt_thread_signals.py`: `22 passed in 0.94s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_thread_segments.py tests/test_localai_chatgpt_thread_signals.py tests/test_mcp_server.py -k 'add_signal_drawer or tools_list or localai_chatgpt_thread_signals'`: `28 passed, 90 deselected in 16.02s`.
+- `O-0` ran `git diff --check` over the accepted repair files: passed.
+- Checkpoint H remains pending until the repaired runner is committed, pushed, deployed, and resumed against the existing WP-10 run directory without deleting artifacts.

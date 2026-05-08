@@ -272,6 +272,13 @@ def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _load_publish_checkpoint(path: Path) -> dict[str, str]:
     seen: dict[str, str] = {}
     for row in _load_jsonl_rows(path):
@@ -548,17 +555,7 @@ def _iter_conversations(source_dir: Path):
     if not files:
         raise FatalRemoteError(f"No conversations.json files found under {source_dir}")
     for source_file in files:
-        try:
-            data = json.loads(source_file.read_text(encoding="utf-8", errors="replace"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise FatalRemoteError(f"Could not load {source_file}: {exc}") from exc
-        if isinstance(data, dict):
-            data = [data]
-        if not isinstance(data, list):
-            raise FatalRemoteError(f"{source_file} is not a ChatGPT conversations list")
-        for conversation in data:
-            if isinstance(conversation, dict) and "mapping" in conversation:
-                yield source_file, conversation
+        yield source_file
 
 
 def _segment_key(segment: ChatGPTThreadSegment) -> str:
@@ -572,10 +569,10 @@ def _segment_key(segment: ChatGPTThreadSegment) -> str:
     )
 
 
-def _load_seen_segment_keys(checkpoint_path: Path) -> set[str]:
-    seen: set[str] = set()
+def _load_segment_checkpoint_statuses(checkpoint_path: Path) -> dict[str, str]:
+    statuses: dict[str, str] = {}
     if not checkpoint_path.exists():
-        return seen
+        return statuses
     with checkpoint_path.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             if not line.strip():
@@ -587,8 +584,16 @@ def _load_seen_segment_keys(checkpoint_path: Path) -> set[str]:
             key = row.get("segment_key")
             status = row.get("status")
             if isinstance(key, str) and status in {"classified", "invalid_output", "error"}:
-                seen.add(key)
-    return seen
+                statuses[key] = status
+    return statuses
+
+
+def _should_skip_segment(*, status: str | None, retry_errors: bool) -> bool:
+    if status in {"classified", "invalid_output"}:
+        return True
+    if status == "error":
+        return not retry_errors
+    return False
 
 
 def _build_prompt(segment: ChatGPTThreadSegment, source_file: Path) -> list[dict[str, str]]:
@@ -649,7 +654,9 @@ def run(
     checkpoint_path = run_dir / "segment_checkpoint.jsonl"
     extracted_path = run_dir / "segment_extractions.jsonl"
     invalid_path = run_dir / "invalid_outputs.jsonl"
-    seen = _load_seen_segment_keys(checkpoint_path)
+    source_checkpoint_path = run_dir / "source_checkpoint.jsonl"
+    source_error_path = run_dir / "source_file_errors.jsonl"
+    seen_statuses = _load_segment_checkpoint_statuses(checkpoint_path)
 
     localai_base = ensure_localai_base_url(args.localai_base_url)
     if provider is None:
@@ -666,91 +673,43 @@ def run(
     classified = 0
     invalid = 0
     errors = 0
+    source_file_errors = 0
+    source_files_total = 0
+    source_files_processed = 0
     started = time.time()
     stop = False
     publish_enabled = bool(getattr(args, "publish", False))
+    retry_errors = bool(getattr(args, "retry_errors", False))
+    provider_max_attempts = max(1, int(getattr(args, "provider_max_attempts", 2)))
 
-    for source_file, conversation in _iter_conversations(source_dir):
-        segments = build_chatgpt_thread_segments(conversation=conversation)
-        for segment in segments:
-            key = _segment_key(segment)
-            if key in seen:
-                skipped += 1
-                continue
-            prompt_messages = _build_prompt(segment, source_file)
-            base_record = {
-                "segment_key": key,
-                "logical_source_id": segment.logical_source_id,
-                "source_hash": segment.source_hash,
-                "conversation_id": segment.conversation_id,
-                "conversation_title": segment.title or "",
-                "subthread_id": segment.subthread_id,
-                "subthread_label": segment.subthread_label,
-                "segment_id": segment.segment_id,
-                "segment_index": segment.segment_index,
-                "message_start_index": segment.message_start_index,
-                "message_end_index": segment.message_end_index,
-                "char_start": segment.char_start,
-                "char_end": segment.char_end,
-                "source_path": str(source_file),
-                "extraction_version": EXTRACTION_VERSION,
-                "model": args.model,
-            }
-            status = "error"
-            try:
-                raw_text = provider.classify_segment(prompt_messages=prompt_messages)
-                parsed = _parse_segment_output(raw_text)
-                _append_jsonl(
-                    extracted_path,
-                    {
-                        **base_record,
-                        "status": "classified",
-                        "summary": parsed["summary"],
-                        "items": parsed["items"],
-                        "segment_excerpt": segment.content[:_MAX_SEGMENT_EXCERPT_CHARS],
-                    },
-                )
-                status = "classified"
-                classified += 1
-            except ValueError as exc:
-                status = "invalid_output"
-                invalid += 1
-                _append_jsonl(
-                    invalid_path,
-                    {
-                        **base_record,
-                        "status": "invalid_output",
-                        "error_code": str(exc),
-                        "raw_response_excerpt": (locals().get("raw_text") or "")[
-                            :_MAX_INVALID_EXCERPT_CHARS
-                        ],
-                    },
-                )
-            except Exception as exc:
-                status = "error"
-                errors += 1
-                _append_jsonl(
-                    invalid_path,
-                    {
-                        **base_record,
-                        "status": "error",
-                        "error_code": "provider_error",
-                        "error_detail": str(exc)[:_MAX_INVALID_EXCERPT_CHARS],
-                    },
-                )
-
-            processed += 1
-            seen.add(key)
+    for source_file in _iter_conversations(source_dir):
+        source_files_total += 1
+        try:
+            data = json.loads(source_file.read_text(encoding="utf-8", errors="replace"))
+            if isinstance(data, dict):
+                data = [data]
+            if not isinstance(data, list):
+                raise ValueError("not_conversations_list")
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            source_files_processed += 1
+            source_file_errors += 1
             elapsed = round(time.time() - started, 2)
-            _append_jsonl(
-                checkpoint_path,
-                {
-                    **base_record,
-                    "status": status,
-                    "processed": processed,
-                    "elapsed_seconds": elapsed,
-                },
-            )
+            detail = str(exc)
+            if isinstance(exc, json.JSONDecodeError):
+                code = "source_json_decode_error"
+            elif isinstance(exc, OSError):
+                code = "source_read_error"
+            else:
+                code = "source_shape_error"
+            source_row = {
+                "source_path": str(source_file),
+                "status": "error",
+                "error_code": code,
+                "error_detail": detail[:_MAX_INVALID_EXCERPT_CHARS],
+                "elapsed_seconds": elapsed,
+            }
+            _append_jsonl(source_error_path, source_row)
+            _append_jsonl(source_checkpoint_path, source_row)
             _write_progress(
                 progress_path,
                 {
@@ -760,12 +719,135 @@ def run(
                     "classified_segments": classified,
                     "invalid_segments": invalid,
                     "error_segments": errors,
+                    "source_files_total": source_files_total,
+                    "source_files_processed": source_files_processed,
+                    "source_file_error_count": source_file_errors,
                     "elapsed_seconds": elapsed,
-                    "last_segment_key": key,
+                    "last_source_path": str(source_file),
                 },
             )
-            if args.limit and processed >= args.limit:
-                stop = True
+            continue
+        source_files_processed += 1
+        _append_jsonl(
+            source_checkpoint_path,
+            {"source_path": str(source_file), "status": "loaded", "elapsed_seconds": round(time.time() - started, 2)},
+        )
+        for conversation in data:
+            if not (isinstance(conversation, dict) and "mapping" in conversation):
+                continue
+            segments = build_chatgpt_thread_segments(conversation=conversation)
+            for segment in segments:
+                key = _segment_key(segment)
+                if _should_skip_segment(status=seen_statuses.get(key), retry_errors=retry_errors):
+                    skipped += 1
+                    continue
+                prompt_messages = _build_prompt(segment, source_file)
+                base_record = {
+                    "segment_key": key,
+                    "logical_source_id": segment.logical_source_id,
+                    "source_hash": segment.source_hash,
+                    "conversation_id": segment.conversation_id,
+                    "conversation_title": segment.title or "",
+                    "subthread_id": segment.subthread_id,
+                    "subthread_label": segment.subthread_label,
+                    "segment_id": segment.segment_id,
+                    "segment_index": segment.segment_index,
+                    "message_start_index": segment.message_start_index,
+                    "message_end_index": segment.message_end_index,
+                    "char_start": segment.char_start,
+                    "char_end": segment.char_end,
+                    "source_path": str(source_file),
+                    "extraction_version": EXTRACTION_VERSION,
+                    "model": args.model,
+                }
+                status = "error"
+                try:
+                    last_exc: Exception | None = None
+                    raw_text = ""
+                    for attempt in range(1, provider_max_attempts + 1):
+                        try:
+                            raw_text = provider.classify_segment(prompt_messages=prompt_messages)
+                            last_exc = None
+                            break
+                        except Exception as exc:
+                            last_exc = exc
+                            if attempt >= provider_max_attempts:
+                                raise
+                            time.sleep(min(0.3 * attempt, 1.0))
+                    if last_exc is not None:
+                        raise last_exc
+                    parsed = _parse_segment_output(raw_text)
+                    _append_jsonl(
+                        extracted_path,
+                        {
+                            **base_record,
+                            "status": "classified",
+                            "summary": parsed["summary"],
+                            "items": parsed["items"],
+                            "segment_excerpt": segment.content[:_MAX_SEGMENT_EXCERPT_CHARS],
+                        },
+                    )
+                    status = "classified"
+                    classified += 1
+                except ValueError as exc:
+                    status = "invalid_output"
+                    invalid += 1
+                    _append_jsonl(
+                        invalid_path,
+                        {
+                            **base_record,
+                            "status": "invalid_output",
+                            "error_code": str(exc),
+                            "raw_response_excerpt": (locals().get("raw_text") or "")[
+                                :_MAX_INVALID_EXCERPT_CHARS
+                            ],
+                        },
+                    )
+                except Exception as exc:
+                    status = "error"
+                    errors += 1
+                    _append_jsonl(
+                        invalid_path,
+                        {
+                            **base_record,
+                            "status": "error",
+                            "error_code": "provider_error",
+                            "error_detail": str(exc)[:_MAX_INVALID_EXCERPT_CHARS],
+                        },
+                    )
+
+                processed += 1
+                seen_statuses[key] = status
+                elapsed = round(time.time() - started, 2)
+                _append_jsonl(
+                    checkpoint_path,
+                    {
+                        **base_record,
+                        "status": status,
+                        "processed": processed,
+                        "elapsed_seconds": elapsed,
+                    },
+                )
+                _write_progress(
+                    progress_path,
+                    {
+                        "status": "running",
+                        "processed_segments": processed,
+                        "skipped_segments": skipped,
+                        "classified_segments": classified,
+                        "invalid_segments": invalid,
+                        "error_segments": errors,
+                        "source_files_total": source_files_total,
+                        "source_files_processed": source_files_processed,
+                        "source_file_error_count": source_file_errors,
+                        "elapsed_seconds": elapsed,
+                        "last_segment_key": key,
+                    },
+                )
+                if args.limit and processed >= args.limit:
+                    stop = True
+                    break
+            if stop:
                 break
         if stop:
             break
@@ -779,6 +861,9 @@ def run(
             "classified_segments": classified,
             "invalid_segments": invalid,
             "error_segments": errors,
+            "source_files_total": source_files_total,
+            "source_files_processed": source_files_processed,
+            "source_file_error_count": source_file_errors,
             "elapsed_seconds": round(time.time() - started, 2),
         },
     )
@@ -813,6 +898,9 @@ def run(
                 "classified_segments": classified,
                 "invalid_segments": invalid,
                 "error_segments": errors,
+                "source_files_total": source_files_total,
+                "source_files_processed": source_files_processed,
+                "source_file_error_count": source_file_errors,
                 **recon_stats,
                 **(
                     {
@@ -868,6 +956,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--publish-limit", type=int, default=int(os.environ.get("LOCALAI_THREAD_SIGNAL_PUBLISH_LIMIT", "0")))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("LOCALAI_THREAD_SIGNAL_LIMIT", "0")))
     parser.add_argument("--localai-timeout", type=float, default=float(os.environ.get("LOCALAI_TIMEOUT", "180")))
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        default=_env_bool("LOCALAI_THREAD_SIGNAL_RETRY_ERRORS", False),
+        help="Retry segments whose latest checkpoint status is error.",
+    )
+    parser.add_argument(
+        "--provider-max-attempts",
+        type=int,
+        default=max(1, int(os.environ.get("LOCALAI_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS", "2"))),
+        help="Maximum LocalAI classify attempts per segment for transient provider failures.",
+    )
     return parser.parse_args(argv)
 
 

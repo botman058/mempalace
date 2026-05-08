@@ -71,6 +71,23 @@ def _read_jsonl(path: Path) -> list[dict]:
     return rows
 
 
+def _base_args(source_dir: Path, run_dir: Path, **overrides):
+    args = {
+        "source_dir": str(source_dir),
+        "run_dir": str(run_dir),
+        "localai_base_url": "http://snow-white-iii:8080/v1",
+        "localai_token": None,
+        "localai_token_file": None,
+        "model": "fake-model",
+        "localai_timeout": 1.0,
+        "limit": 0,
+        "retry_errors": False,
+        "provider_max_attempts": 2,
+    }
+    args.update(overrides)
+    return SimpleNamespace(**args)
+
+
 def test_long_oversized_conversation_drives_multiple_segment_calls_and_suffix(tmp_path):
     source_dir = tmp_path / "source"
     nested = source_dir / "a" / "conversations.json"
@@ -88,16 +105,7 @@ def test_long_oversized_conversation_drives_multiple_segment_calls_and_suffix(tm
     nested.write_text(json.dumps([convo]), encoding="utf-8")
     run_dir = tmp_path / "run"
     provider = _FakeProvider(['{"summary":"ok","items":[]}' for _ in range(8)])
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
-    )
+    args = _base_args(source_dir, run_dir)
 
     rc = run(args, provider=provider)
     assert rc == 0
@@ -118,16 +126,7 @@ def test_progress_and_checkpoint_update_after_each_segment(tmp_path):
     path.write_text(json.dumps([_conversation_from_messages(msgs, "conv-long")]), encoding="utf-8")
     run_dir = tmp_path / "run"
     provider = _FakeProvider(['{"summary":"ok","items":[]}' for _ in range(20)])
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=3,
-    )
+    args = _base_args(source_dir, run_dir, limit=3)
 
     run(args, provider=provider)
     progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
@@ -147,16 +146,7 @@ def test_rerun_skips_already_checkpointed_segments_without_duplicates(tmp_path):
         msgs.append(("assistant", f"assistant {i} " + ("b" * 340)))
     path.write_text(json.dumps([_conversation_from_messages(msgs, "conv-rerun")]), encoding="utf-8")
     run_dir = tmp_path / "run"
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=2,
-    )
+    args = _base_args(source_dir, run_dir, limit=2)
     run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}' for _ in range(10)]))
     first_checkpoint = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
     run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}' for _ in range(10)]))
@@ -174,16 +164,7 @@ def test_invalid_output_writes_invalid_record_and_failed_status(tmp_path):
         encoding="utf-8",
     )
     run_dir = tmp_path / "run"
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
-    )
+    args = _base_args(source_dir, run_dir)
     run(args, provider=_FakeProvider(["not json"]))
     invalid_rows = _read_jsonl(run_dir / "invalid_outputs.jsonl")
     checkpoint_rows = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
@@ -415,15 +396,9 @@ def test_publish_maps_reconciled_fields_to_add_signal_drawer_args(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -476,15 +451,9 @@ def test_publish_rerun_skips_success_checkpoint_without_second_call(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -523,15 +492,9 @@ def test_publish_noop_result_counts_as_success(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -589,15 +552,9 @@ def test_publish_limit_bounds_publish_attempts(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         publish_limit=1,
         wing="chatgpt_thread_signals",
@@ -638,15 +595,9 @@ def test_publish_failed_result_is_checkpointed_and_progress_failed(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -670,15 +621,9 @@ def test_run_without_publish_does_not_call_mcp(tmp_path):
         encoding="utf-8",
     )
     run_dir = tmp_path / "run"
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=False,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -716,15 +661,9 @@ def test_publish_string_only_fields_never_receive_dict_or_list(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by="localai_chatgpt_thread_signals",
@@ -765,15 +704,9 @@ def test_publish_metadata_string_fields_are_bounded_to_128(tmp_path):
     source_dir = tmp_path / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
     (source_dir / "conversations.json").write_text("[]", encoding="utf-8")
-    args = SimpleNamespace(
-        source_dir=str(source_dir),
-        run_dir=str(run_dir),
-        localai_base_url="http://snow-white-iii:8080/v1",
-        localai_token=None,
-        localai_token_file=None,
-        model="fake-model",
-        localai_timeout=1.0,
-        limit=0,
+    args = _base_args(
+        source_dir,
+        run_dir,
         publish=True,
         wing="chatgpt_thread_signals",
         added_by=long,
@@ -801,3 +734,103 @@ def test_publish_metadata_string_fields_are_bounded_to_128(tmp_path):
         assert isinstance(call[field], str)
         assert len(call[field]) <= 128
     assert len(call["content"]) == 5000
+
+
+class _FailThenSucceedProvider:
+    def __init__(self, fail_count: int) -> None:
+        self.fail_count = fail_count
+        self.calls = 0
+
+    def classify_segment(self, *, prompt_messages: list[dict[str, str]]) -> str:
+        self.calls += 1
+        if self.calls <= self.fail_count:
+            raise RuntimeError("connection reset by peer")
+        return '{"summary":"ok","items":[]}'
+
+
+def test_malformed_source_file_is_checkpointed_and_run_continues(tmp_path):
+    source_dir = tmp_path / "source"
+    good = source_dir / "a" / "conversations.json"
+    bad = source_dir / "b" / "conversations.json"
+    good.parent.mkdir(parents=True, exist_ok=True)
+    bad.parent.mkdir(parents=True, exist_ok=True)
+    good.write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-good")]),
+        encoding="utf-8",
+    )
+    bad.write_text('{"truncated": ', encoding="utf-8")
+    run_dir = tmp_path / "run"
+    args = _base_args(source_dir, run_dir)
+    rc = run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}']))
+    assert rc == 0
+    source_errors = _read_jsonl(run_dir / "source_file_errors.jsonl")
+    assert len(source_errors) == 1
+    assert source_errors[0]["error_code"] == "source_json_decode_error"
+    source_ckpt = _read_jsonl(run_dir / "source_checkpoint.jsonl")
+    statuses = {row["status"] for row in source_ckpt}
+    assert "loaded" in statuses
+    assert "error" in statuses
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["source_file_error_count"] == 1
+    assert progress["classified_segments"] == 1
+
+
+def test_retry_errors_retries_prior_error_without_reprocessing_classified(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "u"), ("assistant", "a")], "conv-r")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    # First run: force a durable checkpointed provider error.
+    run(_base_args(source_dir, run_dir, provider_max_attempts=1), provider=_FailThenSucceedProvider(fail_count=1))
+    first_ckpt = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
+    assert first_ckpt and first_ckpt[-1]["status"] == "error"
+
+    # Second run: retry-errors should re-attempt prior error and classify it.
+    provider = _FailThenSucceedProvider(fail_count=0)
+    run(_base_args(source_dir, run_dir, retry_errors=True, provider_max_attempts=2), provider=provider)
+    checkpoints = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
+    assert checkpoints[-1]["status"] == "classified"
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["processed_segments"] == 1
+    assert progress["classified_segments"] == 1
+    assert provider.calls == 1
+
+
+def test_retry_errors_does_not_duplicate_prior_classified_rows(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-classified")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    args = _base_args(source_dir, run_dir)
+    run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}']))
+    first = _read_jsonl(run_dir / "segment_extractions.jsonl")
+    run(_base_args(source_dir, run_dir, retry_errors=True), provider=_FakeProvider(['{"summary":"ok","items":[]}']))
+    second = _read_jsonl(run_dir / "segment_extractions.jsonl")
+    keys = [row["segment_key"] for row in second]
+    assert len(first) == 1
+    assert len(second) == 1
+    assert len(keys) == len(set(keys))
+
+
+def test_provider_retry_succeeds_after_transient_failure(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-transient")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    provider = _FailThenSucceedProvider(fail_count=1)
+    args = _base_args(source_dir, run_dir, provider_max_attempts=2)
+    run(args, provider=provider)
+    checkpoints = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
+    assert checkpoints[0]["status"] == "classified"
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert progress["error_segments"] == 0
+    assert progress["classified_segments"] == 1

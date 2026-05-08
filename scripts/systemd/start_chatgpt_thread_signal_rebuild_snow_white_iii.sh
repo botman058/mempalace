@@ -16,8 +16,10 @@ UNIT_BASE="${MEMPALACE_THREAD_SIGNAL_UNIT_BASE:-mempalace-localai-chatgpt-thread
 RUN_DIR_ARG=""
 LIMIT=""
 PUBLISH=0
+RETRY_ERRORS=0
 PUBLISH_LIMIT="${MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT:-0}"
 MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-300}"
+PROVIDER_MAX_ATTEMPTS="${MEMPALACE_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS:-2}"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 usage() {
@@ -31,7 +33,9 @@ Options:
   --run-dir PATH   reuse or inspect an existing run directory
   --limit N        process at most N segments
   --publish        publish reconciled signals back to MemPalace
+  --retry-errors   retry checkpointed segment rows with status=error
   --publish-limit N  publish at most N reconciled signals (default: no limit)
+  --provider-max-attempts N  LocalAI classify attempts per segment (default: 2)
   --model MODEL    LocalAI model to use
   --mcp-timeout N  MemPalace HTTP MCP timeout in seconds (default: 300)
 
@@ -54,8 +58,16 @@ while (($#)); do
       PUBLISH=1
       shift
       ;;
+    --retry-errors)
+      RETRY_ERRORS=1
+      shift
+      ;;
     --publish-limit)
       PUBLISH_LIMIT="${2:?--publish-limit requires a value}"
+      shift 2
+      ;;
+    --provider-max-attempts)
+      PROVIDER_MAX_ATTEMPTS="${2:?--provider-max-attempts requires a value}"
       shift 2
       ;;
     --model)
@@ -121,8 +133,10 @@ if [[ "$EUID" -ne 0 ]]; then
     MEMPALACE_THREAD_SIGNAL_UNIT="$UNIT" \
     MEMPALACE_THREAD_SIGNAL_LIMIT="$LIMIT" \
     MEMPALACE_THREAD_SIGNAL_PUBLISH="$PUBLISH" \
+    MEMPALACE_THREAD_SIGNAL_RETRY_ERRORS="$RETRY_ERRORS" \
     MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT="$PUBLISH_LIMIT" \
     MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT="$MCP_TIMEOUT" \
+    MEMPALACE_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS="$PROVIDER_MAX_ATTEMPTS" \
     "$SCRIPT_PATH"
 fi
 
@@ -158,8 +172,10 @@ fi
 
 LIMIT="${MEMPALACE_THREAD_SIGNAL_LIMIT:-$LIMIT}"
 PUBLISH="${MEMPALACE_THREAD_SIGNAL_PUBLISH:-$PUBLISH}"
+RETRY_ERRORS="${MEMPALACE_THREAD_SIGNAL_RETRY_ERRORS:-$RETRY_ERRORS}"
 PUBLISH_LIMIT="${MEMPALACE_THREAD_SIGNAL_PUBLISH_LIMIT:-$PUBLISH_LIMIT}"
 MCP_TIMEOUT="${MEMPALACE_THREAD_SIGNAL_MCP_TIMEOUT:-$MCP_TIMEOUT}"
+PROVIDER_MAX_ATTEMPTS="${MEMPALACE_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS:-$PROVIDER_MAX_ATTEMPTS}"
 
 if [[ ! "$PUBLISH_LIMIT" =~ ^[0-9]+$ ]]; then
   echo "invalid --publish-limit value: $PUBLISH_LIMIT" >&2
@@ -167,6 +183,10 @@ if [[ ! "$PUBLISH_LIMIT" =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! "$MCP_TIMEOUT" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   echo "invalid --mcp-timeout value: $MCP_TIMEOUT" >&2
+  exit 2
+fi
+if [[ ! "$PROVIDER_MAX_ATTEMPTS" =~ ^[0-9]+$ ]] || [[ "$PROVIDER_MAX_ATTEMPTS" -lt 1 ]]; then
+  echo "invalid --provider-max-attempts value: $PROVIDER_MAX_ATTEMPTS" >&2
   exit 2
 fi
 
@@ -184,7 +204,11 @@ cmd=(
   --mempalace-timeout "$MCP_TIMEOUT"
   --wing "$WING"
   --model "$MODEL"
+  --provider-max-attempts "$PROVIDER_MAX_ATTEMPTS"
 )
+if [[ "$RETRY_ERRORS" -eq 1 ]]; then
+  cmd+=(--retry-errors)
+fi
 if [[ "$PUBLISH" -eq 1 ]]; then
   cmd+=(--publish)
   if [[ "$PUBLISH_LIMIT" != "0" ]]; then
@@ -225,6 +249,8 @@ systemd-run \
   --setenv=LOCALAI_THREAD_SIGNAL_WING="$WING" \
   --setenv=LOCALAI_THREAD_SIGNAL_MODEL="$MODEL" \
   --setenv=LOCALAI_THREAD_SIGNAL_RUN_DIR="$RUN_DIR" \
+  --setenv=LOCALAI_THREAD_SIGNAL_RETRY_ERRORS="$RETRY_ERRORS" \
+  --setenv=LOCALAI_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS="$PROVIDER_MAX_ATTEMPTS" \
   "${cmd[@]}"
 
 cat <<EOF
@@ -238,6 +264,8 @@ Artifacts: $RUN_DIR/segment_extractions.jsonl
            $RUN_DIR/invalid_outputs.jsonl
            $RUN_DIR/reconciled_signals.jsonl
 Publish:   $RUN_DIR/publish_checkpoint.jsonl (only if --publish is used)
+Retry errors: $RETRY_ERRORS
+Provider max attempts: $PROVIDER_MAX_ATTEMPTS
 Publish limit: $PUBLISH_LIMIT (0 means no limit)
 MCP timeout: $MCP_TIMEOUT seconds
 Journal:   journalctl -fu $UNIT

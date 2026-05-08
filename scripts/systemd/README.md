@@ -185,6 +185,22 @@ embedding/index writes on the hosted palace can exceed a short client timeout.
 Override it with `--mcp-timeout N` if needed. Use `--publish-limit N` for
 bounded smoke runs; omit it for a full publish.
 
+If a prior run checkpointed transient LocalAI failures as `status: error`, use
+safe resume mode to retry only those segments:
+
+```bash
+scripts/systemd/start_chatgpt_thread_signal_rebuild_snow_white_iii.sh \
+  --run-dir /media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/<run_id> \
+  --retry-errors \
+  --provider-max-attempts 2
+```
+
+Default resume behavior still skips already checkpointed `classified` and
+`invalid_output` segments, so recovered work is not reclassified or duplicated.
+Malformed/truncated `conversations.json` files are now recorded into durable run
+artifacts (`source_file_errors.jsonl`, `source_checkpoint.jsonl`) and skipped so
+the rest of the rebuild can continue.
+
 The script only publishes when `--publish` is present. It does not delete or
 rewrite palace data, does not restart services, and refuses any path under
 `/media/u0/Extreme SSD`.
