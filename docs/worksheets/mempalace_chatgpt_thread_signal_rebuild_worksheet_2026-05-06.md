@@ -737,3 +737,13 @@ No drift recorded yet.
 - First resume progress evidence after restart: `processed_segments: 1`, `classified_segments: 1`, `error_segments: 0`, `invalid_segments: 0`, `skipped_segments: 195`, `source_files_processed: 1`, `source_file_error_count: 0`, and `status: running`.
 - Artifact preservation evidence after restart: existing `segment_checkpoint.jsonl`, `segment_extractions.jsonl`, and `invalid_outputs.jsonl` remain present; the new runner appended progress to the same checkpoint/extraction artifacts instead of deleting them.
 - Checkpoint H remains pending until the full repaired run completes and publishes the recovered `chatgpt_thread_signals` layer.
+
+### 2026-05-08 - WP-10 Resume Progress Refresh
+
+- Resume unit `mempalace-localai-chatgpt-thread-signals-20260508151924` remains `active/running` with `MainPID=2105450`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Current resume-attempt progress reports `processed_segments: 1037`, `classified_segments: 992`, `invalid_segments: 45`, `error_segments: 0`, `skipped_segments: 8185`, `source_files_processed: 9`, `source_file_error_count: 0`, and `status: running`.
+- Artifact counts are now `segment_checkpoint.jsonl: 17,414` rows, `segment_extractions.jsonl: 5,371` rows, and `invalid_outputs.jsonl: 12,042` rows.
+- Latest unique checkpoint status distribution is `classified: 5,372`, `invalid_output: 175`, and `error: 10,829` over `16,376` unique checkpointed segments.
+- Known segment denominator from the read-only source scan remains `21,668`, so first-pass checkpoint coverage remains `75.58%`; uncheckpointed segments remain `5,292`.
+- The repaired resume has reduced the prior provider-error backlog from `11,862` to `10,829` while adding no new provider-error rows in the current attempt.
+- Checkpoint H remains pending.
