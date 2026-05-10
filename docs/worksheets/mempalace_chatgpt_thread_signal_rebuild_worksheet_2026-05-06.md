@@ -747,3 +747,17 @@ No drift recorded yet.
 - Known segment denominator from the read-only source scan remains `21,668`, so first-pass checkpoint coverage remains `75.58%`; uncheckpointed segments remain `5,292`.
 - The repaired resume has reduced the prior provider-error backlog from `11,862` to `10,829` while adding no new provider-error rows in the current attempt.
 - Checkpoint H remains pending.
+
+### 2026-05-09 - LocalAI gpt-oss-20b 16k Test Evidence
+
+- `O-0` stopped transient resume unit `mempalace-localai-chatgpt-thread-signals-20260508151924` before LocalAI model testing; the preserved run directory was not deleted or rewritten.
+- A separate LocalAI alias `gpt-oss-20b-32k` was tested first from the old backup config and then disabled because startup saturated VRAM and produced repeated API resets. Disabled config path: `/srv/localai-stack/models/_disabled/gpt-oss-20b-32k.disabled_20260510T013844Z`.
+- A separate LocalAI alias `gpt-oss-20b-16k` was created with `context_size: 16384`, `gpu_layers: 35`, `cuda: true`, and model file `gpt-oss-20b-mxfp4.gguf`; the existing `gpt-oss-20b` alias was left intact.
+- Initial `gpt-oss-20b-16k` alias inherited the old backup template and emitted gpt-oss channel markup, so `O-0` replaced it with a minimal no-template alias while keeping the same model, 16k context, and 35 GPU layers.
+- LocalAI recovered healthy after restart and `/v1/models` listed `gpt-oss-20b-16k`.
+- Tiny JSON smoke against `gpt-oss-20b-16k` returned HTTP `200` after model load; cleaned alias no longer emitted channel markup.
+- Production-style no-write sample using an existing checkpointed error segment with `11,300` prompt chars completed in `21.52` seconds and parsed with `_parse_segment_output`, producing `8` items.
+- Longest current checkpointed-error prompt sample with `13,839` prompt chars completed in `17.59` seconds and parsed with `_parse_segment_output`, producing `8` items.
+- Exact production prompt sample with `11,250` prompt chars completed in `20.09` seconds and parsed with `_parse_segment_output`, producing `8` items.
+- Sample responses were written only under `/media/u0/OneDrive_Backup/tmp-mempalace/`; no palace data or WP-10 run artifacts were mutated by the tests.
+- Checkpoint H remains pending. The next live action would be resuming the preserved WP-10 run directory with `--model gpt-oss-20b-16k --retry-errors` if accepted.
