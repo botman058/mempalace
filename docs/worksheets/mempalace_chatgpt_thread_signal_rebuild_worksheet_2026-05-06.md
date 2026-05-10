@@ -761,3 +761,16 @@ No drift recorded yet.
 - Exact production prompt sample with `11,250` prompt chars completed in `20.09` seconds and parsed with `_parse_segment_output`, producing `8` items.
 - Sample responses were written only under `/media/u0/OneDrive_Backup/tmp-mempalace/`; no palace data or WP-10 run artifacts were mutated by the tests.
 - Checkpoint H remains pending. The next live action would be resuming the preserved WP-10 run directory with `--model gpt-oss-20b-16k --retry-errors` if accepted.
+
+### 2026-05-09 - WP-10 gpt-oss-20b 16k Resume Attempt and Fallback
+
+- `O-0` resumed the preserved WP-10 run directory with `--model gpt-oss-20b-16k --publish --mcp-timeout 300 --retry-errors --provider-max-attempts 3`.
+- Transient unit `mempalace-localai-chatgpt-thread-signals-20260510020032` started as service user `mempalace` with `CPUQuotaPerSecUSec=2s` and `MemoryMax=17179869184`.
+- The `gpt-oss-20b-16k` resume attempt produced two `provider_error` checkpoint rows with LocalAI HTTP `500` / `Unexpected error in RPC handling`, and no successful classified rows.
+- `O-0` stopped unit `mempalace-localai-chatgpt-thread-signals-20260510020032` to avoid walking more retry backlog into fresh provider-error rows.
+- A small `qwen3-vl-8b-instruct` LocalAI smoke returned HTTP `200`, proving the LocalAI service and known-good model path were still usable.
+- `O-0` resumed the preserved WP-10 run directory with `--model qwen3-vl-8b-instruct --publish --mcp-timeout 300 --retry-errors --provider-max-attempts 3`.
+- Fallback unit `mempalace-localai-chatgpt-thread-signals-20260510020609` started as service user `mempalace` with `CPUQuotaPerSecUSec=2s` and `MemoryMax=17179869184`.
+- First fallback progress evidence: `processed_segments: 1`, `classified_segments: 1`, `error_segments: 0`, `invalid_segments: 0`, `skipped_segments: 12749`, `source_files_processed: 15`, and `status: running`.
+- The fallback Qwen row classified the same segment key that the `gpt-oss-20b-16k` attempt had checkpointed as provider error, preserving append-only recovery semantics.
+- Checkpoint H remains pending.
