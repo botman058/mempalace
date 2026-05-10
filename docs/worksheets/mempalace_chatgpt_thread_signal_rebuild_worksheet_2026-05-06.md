@@ -774,3 +774,18 @@ No drift recorded yet.
 - First fallback progress evidence: `processed_segments: 1`, `classified_segments: 1`, `error_segments: 0`, `invalid_segments: 0`, `skipped_segments: 12749`, `source_files_processed: 15`, and `status: running`.
 - The fallback Qwen row classified the same segment key that the `gpt-oss-20b-16k` attempt had checkpointed as provider error, preserving append-only recovery semantics.
 - Checkpoint H remains pending.
+
+### 2026-05-10 - WP-10 Partial Extraction Preview
+
+- `O-0` performed a read-only preview of the preserved WP-10 run artifacts; no live unit, source data, palace data, or run artifact was deleted or rewritten.
+- Previewed artifact set: `/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals/20260506031028_thread_signal_rebuild`.
+- Preview sample size at the time of inspection: `7,344` classified segment extraction rows with `49,929` extracted items across `1,598` conversations.
+- All previewed extraction rows were produced by `qwen3-vl-8b-instruct`; the failed `gpt-oss-20b-16k` live attempt did not add successful extraction rows.
+- Top schema-aligned item counts: `fact: 19,977`, `task: 7,812`, `problem: 6,070`, `decision: 4,663`, `open_question: 3,847`, `preference: 3,254`, and `project: 2,496`.
+- Preview evidence shows useful durable signals in the intended categories, including concrete tasks, preferences, decisions, problems, projects, and factual notes with evidence snippets.
+- Quality risk: item `type` is not hard-enforced during thread extraction or reconciliation. Off-schema values such as `recommendation`, `solution`, `example`, `goal`, `risk`, `strategy`, `constraint`, and other small categories are present.
+- Quality risk: importance is inflated toward high values: `5: 24,639`, `4: 18,714`, `3: 6,325`, `2: 244`, and `1: 7`.
+- Quality risk: subthread labels are often poor UX labels, with common words such as `the`, `and`, `you`, and `for` appearing among the most frequent labels. Stable subthread identifiers remain usable, but labels should be regenerated or hidden behind better titles.
+- Expected overlap duplicates are visible in the preview, including repeated short facts/tasks across overlapping thread windows. This reinforces the need to run reconciliation and dedupe before final publication.
+- Operational risk: the active fallback unit was started with `--publish`, and `scripts/localai_chatgpt_thread_signals.py` performs reconciliation and publication at the end of the same process. Before WP-10 reaches completion, `O-0` should either restart the preserved run without `--publish` for review-first completion or land a canonicalization guard so off-schema item types cannot materialize as noisy final rooms.
+- Preview verdict: the extraction direction is broadly correct, but final publish should be gated on canonical item-type mapping, duplicate reconciliation review, and improved inspection of noisy/boilerplate open-question items.
