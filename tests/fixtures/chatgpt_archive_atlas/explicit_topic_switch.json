@@ -1,0 +1,97 @@
+{
+  "id": "atlas-topic-switch-01",
+  "title": "Explicit topic switch",
+  "create_time": 1746980000,
+  "current_node": "u4",
+  "mapping": {
+    "root": {
+      "parent": null,
+      "children": ["u1"],
+      "message": null
+    },
+    "u1": {
+      "parent": "root",
+      "children": ["a1"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "I want to tune my nginx reverse-proxy config first."
+          ]
+        }
+      }
+    },
+    "a1": {
+      "parent": "u1",
+      "children": ["u2", "u3"],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "Let's handle proxy headers, then we can switch."
+          ]
+        }
+      }
+    },
+    "u2": {
+      "parent": "a1",
+      "children": ["a2"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Explicit topic switch: let's move to legal review of a tenant agreement."
+          ]
+        }
+      }
+    },
+    "a2": {
+      "parent": "u2",
+      "children": ["u3"],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "I can help with Section 9 liabilities and data retention clauses."
+          ]
+        }
+      }
+    },
+    "u3": {
+      "parent": "a2",
+      "children": ["a3"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Great, also please summarize the exact phrase we used to switch."
+          ]
+        }
+      }
+    },
+    "a3": {
+      "parent": "u3",
+      "children": [],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "You said, \"Explicit topic switch: let's move to legal review.\""
+          ]
+        }
+      }
+    }
+  }
+}

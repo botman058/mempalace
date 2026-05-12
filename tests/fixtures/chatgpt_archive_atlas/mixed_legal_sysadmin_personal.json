@@ -1,0 +1,97 @@
+{
+  "id": "atlas-mixed-01",
+  "title": "Legal, sysadmin, and personal mixed thread",
+  "create_time": 1747000000,
+  "current_node": "u4",
+  "mapping": {
+    "root": {
+      "parent": null,
+      "children": ["u1"],
+      "message": null
+    },
+    "u1": {
+      "parent": "root",
+      "children": ["a1"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Please review this legal clause: 'The vendor shall indemnify and hold harmless the tenant' and whether it satisfies liability language in Section 12."
+          ]
+        }
+      }
+    },
+    "a1": {
+      "parent": "u1",
+      "children": ["u2"],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "That clause is broad; we can tighten carve-outs for negligence and GDPR obligations."
+          ]
+        }
+      }
+    },
+    "u2": {
+      "parent": "a1",
+      "children": ["a2"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Can you also help me restart ssh and inspect auth.log for failed logins?"
+          ]
+        }
+      }
+    },
+    "a2": {
+      "parent": "u2",
+      "children": ["u3"],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "Use `sudo systemctl restart ssh` and then check `tail -n 80 /var/log/auth.log`."
+          ]
+        }
+      }
+    },
+    "u3": {
+      "parent": "a2",
+      "children": ["a3"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "And before I forget, ask me if I want to bring my sister to her recital on Saturday."
+          ]
+        }
+      }
+    },
+    "a3": {
+      "parent": "u3",
+      "children": [],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "Sounds good — legal wording, command output, and weekend plans are all noted."
+          ]
+        }
+      }
+    }
+  }
+}

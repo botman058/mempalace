@@ -1,0 +1,2 @@
+{"id": "malformed-atlas", "title": "broken", "mapping": {"root": {"parent": null, "children": ["u1"], "message": null}, "u1":
+  {"parent": "root", "children": ["a1"], "message": {"author": {"role": "user"}, "content": {"parts": ["This line intentionally breaks JSON"]}}}

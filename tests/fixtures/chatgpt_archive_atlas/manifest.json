@@ -1,0 +1,44 @@
+{
+  "list_export": {
+    "filename": "list_export.json",
+    "top_level": "list",
+    "purpose": "chatgpt export as a JSON array",
+    "expected_records": 2
+  },
+  "single_dict_export": {
+    "filename": "single_dict_export.json",
+    "top_level": "dict",
+    "purpose": "chatgpt export as a single object",
+    "expected_records": 1
+  },
+  "malformed_source": {
+    "filename": "malformed_source.json",
+    "top_level": "malformed",
+    "purpose": "invalid JSON export for failure-mode tests",
+    "expected_records": 0
+  },
+  "duplicate_source_identity": {
+    "filename": "duplicate_source_identity.json",
+    "top_level": "list",
+    "purpose": "two rows with same conversation id",
+    "expected_records": 2
+  },
+  "explicit_topic_switch": {
+    "filename": "explicit_topic_switch.json",
+    "top_level": "dict",
+    "purpose": "conversation containing explicit topic switch marker",
+    "expected_records": 1
+  },
+  "long_first_user_message": {
+    "filename": "long_first_user_message.json",
+    "top_level": "dict",
+    "purpose": "conversation with a very long first user turn",
+    "expected_records": 1
+  },
+  "mixed_legal_sysadmin_personal": {
+    "filename": "mixed_legal_sysadmin_personal.json",
+    "top_level": "dict",
+    "purpose": "conversation covering legal + sysadmin + personal content",
+    "expected_records": 1
+  }
+}

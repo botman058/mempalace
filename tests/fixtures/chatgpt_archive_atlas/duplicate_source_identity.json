@@ -1,0 +1,84 @@
+[
+  {
+    "id": "atlas-dup-source-01",
+    "title": "First copy of duplicate source identity",
+    "create_time": 1746970000,
+    "current_node": "a1",
+    "mapping": {
+      "root": {
+        "parent": null,
+        "children": ["u1"],
+        "message": null
+      },
+      "u1": {
+        "parent": "root",
+        "children": ["a1"],
+        "message": {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "This should duplicate with another file."
+            ]
+          }
+        }
+      },
+      "a1": {
+        "parent": "u1",
+        "children": [],
+        "message": {
+          "author": {
+            "role": "assistant"
+          },
+          "content": {
+            "parts": [
+              "Noted, I will mark that as duplicate source."
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "conversation_id": "atlas-dup-source-01",
+    "title": "Second copy of duplicate source identity",
+    "create_time": 1746970100,
+    "current_node": "a1",
+    "mapping": {
+      "root": {
+        "parent": null,
+        "children": ["u1"],
+        "message": null
+      },
+      "u1": {
+        "parent": "root",
+        "children": ["a1"],
+        "message": {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "This is the same logical source, re-exported."
+            ]
+          }
+        }
+      },
+      "a1": {
+        "parent": "u1",
+        "children": [],
+        "message": {
+          "author": {
+            "role": "assistant"
+          },
+          "content": {
+            "parts": [
+              "I can keep the identity stable for dedupe checks."
+            ]
+          }
+        }
+      }
+    }
+  }
+]

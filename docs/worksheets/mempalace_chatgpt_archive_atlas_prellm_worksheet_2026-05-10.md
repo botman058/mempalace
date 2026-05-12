@@ -531,3 +531,41 @@ Each coherent package milestone requires:
 - Checkpoint A required evidence is present: worksheet exists on disk, branch/head/status are recorded, stopped-grind state is recorded, agent pool and package table include explicit leads/support, and the parallel activation plan is recorded.
 - Checkpoint A verdict: green.
 - Next allowed activation per worksheet: WP-01 and WP-02 in parallel.
+
+### 2026-05-11 - WP-01 / WP-02 Parallel Activation
+
+- `O-0` reread this worksheet before package activation.
+- Activated allowed parallel package set: WP-01 and WP-02.
+- WP-01 lead `L-1` was assigned to worker Mendel with model `gpt-5.5` and reasoning depth `high`.
+- WP-01 write scope was limited to `mempalace/chatgpt_archive_atlas_contract.py` and `tests/test_chatgpt_archive_atlas_contract.py`.
+- WP-01 was forbidden from editing runner/source parser/fixtures/docs/systemd files, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- WP-02 lead `T-1` was assigned to worker Noether with model `gpt-5.3-codex-spark` and reasoning depth `high`.
+- WP-02 write scope was limited to `tests/fixtures/chatgpt_archive_atlas/**` and `tests/test_chatgpt_archive_atlas_fixtures.py`.
+- WP-02 was forbidden from editing implementation modules, runner scripts, docs, systemd files, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+
+### 2026-05-11 - WP-01 / Checkpoint B Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-1` returned changed paths: `mempalace/chatgpt_archive_atlas_contract.py` and `tests/test_chatgpt_archive_atlas_contract.py`.
+- WP-01 delivered pure-Python contract builders/validators for `progress.json`, `artifacts_index.json`, `conversation_index.jsonl`, `thread_index.jsonl`, `lexical_sketches.jsonl`, thread embedding metadata rows, `topic_clusters.jsonl`, and `atlas_summary.md` manifest records.
+- WP-01 contract enforces JSON-safe deterministic rows, required keys, relative artifact paths, bounded statuses, valid run IDs, and forbidden LocalAI/MCP/Chroma/palace-write field keys.
+- `O-0` independently inspected the implementation and tests.
+- Worker-reported system `pytest` failure was due missing `chromadb`; project venv tests were used for acceptance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: `40 passed in 0.64s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/fixtures/chatgpt_archive_atlas`: passed.
+- Checkpoint B verdict: green.
+- Checkpoint B disposition: WP-03 and WP-11 are unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-02 Fixture Baseline Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `T-1` returned changed paths under `tests/fixtures/chatgpt_archive_atlas/**` and `tests/test_chatgpt_archive_atlas_fixtures.py`.
+- Fixture inventory now includes `list_export`, `single_dict_export`, `malformed_source`, `duplicate_source_identity`, `explicit_topic_switch`, `long_first_user_message`, and `mixed_legal_sysadmin_personal`.
+- Fixtures are small synthetic JSON files; no live ChatGPT source data was copied into the repo.
+- WP-02 tests verify fixture discoverability through `manifest.json`, top-level JSON shapes, malformed JSON behavior, duplicate logical IDs, explicit topic switch marker, long first user turn preservation, and mixed legal/sysadmin/personal domain markers.
+- `O-0` independently inspected representative fixtures and confirmed they are synthetic and bounded.
+- `O-0` ran `.venv/bin/pytest -q tests/test_chatgpt_archive_atlas_fixtures.py`: `14 passed in 0.40s`.
+- WP-02 verdict: green.
+- WP-02 exit: fixtures are available for WP-03 through WP-07.

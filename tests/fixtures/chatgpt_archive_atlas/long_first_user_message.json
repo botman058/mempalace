@@ -1,0 +1,69 @@
+{
+  "id": "atlas-long-first-01",
+  "title": "Long first user message",
+  "create_time": 1746990000,
+  "current_node": "a2",
+  "mapping": {
+    "root": {
+      "parent": null,
+      "children": ["u1"],
+      "message": null
+    },
+    "u1": {
+      "parent": "root",
+      "children": ["a1"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "I need a thorough comparison between running weekly sprints with three engineers using a Kanban board versus running strict calendar milestones in a software team where one engineer works full-time, one engineer is part-time, and one is contractor support, including communication rituals, expected velocity assumptions, handoff format, outage risk, and how to keep everyone aligned when the part-time schedule changes. Please evaluate onboarding costs, review rhythm, and what metrics we should keep for the first eight weeks."
+          ]
+        }
+      }
+    },
+    "a1": {
+      "parent": "u1",
+      "children": ["u2"],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "I can break that down by process, communication, and risk."
+          ]
+        }
+      }
+    },
+    "u2": {
+      "parent": "a1",
+      "children": ["a2"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Let's make it practical and include a one-page starter template."
+          ]
+        }
+      }
+    },
+    "a2": {
+      "parent": "u2",
+      "children": [],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "Template included. I will keep this concise."
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,100 @@
+[
+  {
+    "id": "atlas-list-tech-01",
+    "title": "Release checklist",
+    "create_time": 1746950000,
+    "update_time": 1746950100,
+    "current_node": "a1",
+    "mapping": {
+      "root": {
+        "parent": null,
+        "children": ["u1"],
+        "message": null
+      },
+      "u1": {
+        "parent": "root",
+        "children": ["a1"],
+        "message": {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "Plan the release checklist for the deployment."
+            ]
+          }
+        }
+      },
+      "a1": {
+        "parent": "u1",
+        "children": ["u2"],
+        "message": {
+          "author": {
+            "role": "assistant"
+          },
+          "content": {
+            "parts": [
+              "Run smoke tests, then apply schema migration and tag the release."
+            ]
+          }
+        }
+      },
+      "u2": {
+        "parent": "a1",
+        "children": [],
+        "message": {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "Can you include rollback details?"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "conversation_id": "atlas-list-personal-02",
+    "title": "Weekend planning",
+    "create_time": 1746950200,
+    "update_time": 1746950300,
+    "current_node": "a2",
+    "mapping": {
+      "root": {
+        "parent": null,
+        "children": ["u3"],
+        "message": null
+      },
+      "u3": {
+        "parent": "root",
+        "children": ["a2"],
+        "message": {
+          "author": {
+            "role": "user"
+          },
+          "content": {
+            "parts": [
+              "Can you help me plan this weekend itinerary?"
+            ]
+          }
+        }
+      },
+      "a2": {
+        "parent": "u3",
+        "children": [],
+        "message": {
+          "author": {
+            "role": "assistant"
+          },
+          "content": {
+            "parts": [
+              "Choose one outdoors activity, one indoors activity, then book transport."
+            ]
+          }
+        }
+      }
+    }
+  }
+]

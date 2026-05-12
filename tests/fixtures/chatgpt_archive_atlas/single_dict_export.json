@@ -1,0 +1,42 @@
+{
+  "conversation_id": "atlas-single-01",
+  "title": "Single export object",
+  "create_time": 1746961000,
+  "update_time": 1746961100,
+  "current_node": "a1",
+  "mapping": {
+    "root": {
+      "parent": null,
+      "children": ["u1"],
+      "message": null
+    },
+    "u1": {
+      "parent": "root",
+      "children": ["a1"],
+      "message": {
+        "author": {
+          "role": "user"
+        },
+        "content": {
+          "parts": [
+            "Write a short commit message for a small parser cleanup."
+          ]
+        }
+      }
+    },
+    "a1": {
+      "parent": "u1",
+      "children": [],
+      "message": {
+        "author": {
+          "role": "assistant"
+        },
+        "content": {
+          "parts": [
+            "Use 'chore: tidy parser test fixture for atlas fixtures'."
+          ]
+        }
+      }
+    }
+  }
+}
