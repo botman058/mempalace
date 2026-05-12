@@ -611,3 +611,36 @@ Each coherent package milestone requires:
 - `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
 - WP-11 verdict: green.
 - WP-11 exit: ops path is ready for later independent safety review; no live remote run was started.
+
+### 2026-05-11 - WP-04 Conversation Index Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `7536bb0`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-04 as the active source-lane package needed to close Checkpoint C.
+- WP-04 lead `L-2` remains worker Nietzsche with model `gpt-5.4` and reasoning depth `high`.
+- WP-04 implementation write scope for `L-2` is limited to `mempalace/chatgpt_archive_atlas_conversation.py`.
+- WP-04 test support `T-1` remains worker Noether with model `gpt-5.3-codex-spark` and reasoning depth `high`.
+- WP-04 test write scope for `T-1` is limited to `tests/test_chatgpt_archive_atlas_conversation.py`.
+- WP-04 source-parser support `H-1` was assigned to worker Halley with model `gpt-5.3-codex` and reasoning depth `medium` for read-only guidance.
+- WP-04 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- Shared WP-04 API contract was set as `build_chatgpt_conversation_index_rows(...)`, `build_chatgpt_conversation_index(...)`, and immutable `ChatGPTAtlasConversationIndexResult`.
+
+### 2026-05-11 - WP-04 Conversation Index Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `T-1` returned changed path: `tests/test_chatgpt_archive_atlas_conversation.py`.
+- `L-2` returned changed path: `mempalace/chatgpt_archive_atlas_conversation.py`.
+- `H-1` returned read-only guidance confirming selected-path semantics: valid `current_node` ancestry first, first-child fallback otherwise, user/assistant text only, and source identity requiring at least two selected messages.
+- WP-04 delivered immutable result rows and source-error passthrough for `build_chatgpt_conversation_index(...)`.
+- WP-04 conversation rows are emitted through `contract.build_conversation_index_row(...)` and preserve logical source id, conversation id/title, source path/hash/ordinal, create/update times, model/plugin metadata when present, selected-path message counts, char counts, first user excerpt, and deterministic top user prompt excerpts.
+- WP-04 tests cover dict/list exports, selected branch traversal, duplicate logical source ids, timestamp string preservation, long first user prompt truncation, model/plugin metadata, source error passthrough, row schema validation, and no-write safety contract.
+- `O-0` independently inspected the implementation, tests, and `H-1` acceptance guidance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: `56 passed in 1.11s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_conversation.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_conversation.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_conversation.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-04 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, and delete/remove surfaces; matches were limited to worksheet constraint text.
+- WP-04 verdict: green.
+- Checkpoint C verdict: green after WP-03 source loading and WP-04 conversation indexing.
+- Checkpoint C disposition: WP-05 and WP-06 are unlocked after this milestone is committed and pushed.
