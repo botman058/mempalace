@@ -729,3 +729,37 @@ Each coherent package milestone requires:
 - WP-07 verdict: green.
 - Checkpoint E verdict: green.
 - Checkpoint E disposition: WP-08 is unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-08 Embedding Cache Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `dc8c253`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-08 as the active semantic-lane package needed to close Checkpoint F.
+- WP-08 lead `L-4` was assigned to worker Banach with model `gpt-5.4` and reasoning depth `high`.
+- WP-08 implementation write scope for `L-4` is limited to `mempalace/chatgpt_archive_atlas_embedding_cache.py`.
+- WP-08 helper `H-4` was assigned to worker Dirac with model `gpt-5.3-codex` and reasoning depth `medium`.
+- WP-08 test write scope for `H-4` is limited to `tests/test_chatgpt_archive_atlas_embedding_cache.py`.
+- WP-08 verification support `V-1` was assigned to worker Jason with model `gpt-5.3-codex-spark` and reasoning depth `high` for read-only acceptance guidance.
+- WP-08 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- Shared WP-08 API contract was set as `materialize_chatgpt_thread_embedding_cache(...)`, `build_embedding_source_text(...)`, and immutable `ChatGPTAtlasEmbeddingCacheResult`.
+
+### 2026-05-11 - WP-08 Embedding Cache Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-4` returned changed path: `mempalace/chatgpt_archive_atlas_embedding_cache.py`.
+- `H-4` returned changed path: `tests/test_chatgpt_archive_atlas_embedding_cache.py`.
+- `V-1` returned read-only acceptance guidance for exact thread embedding metadata fields, idempotency/partial-cache risks, static drift scan risks, and targeted acceptance commands.
+- WP-08 delivered artifact-only `thread_embeddings.jsonl` and `thread_embedding_vectors.jsonl` materialization under a caller-supplied run directory, with injectable fake embedder support and real `mempalace.embedding` fallback for later live gates.
+- WP-08 metadata rows are emitted through `contract.build_thread_embedding_metadata_row(...)` and record embedding id, model, effective device, vector dimensions, source text SHA-256, source text chars, batch index, status, and safety contract.
+- WP-08 tests cover fake embedding materialization, metadata schema validation, effective device recording, vector dimensions, resume/idempotency, partial-cache resume, batch-size bounds, and deterministic source-text hash/embedding id behavior.
+- `O-0` independently inspected the implementation, tests, and `V-1` acceptance guidance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: `87 passed in 2.32s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py -k "thread_embedding_metadata_row_contract_has_no_vector_payload_or_remote_fields or embedding_and_cluster_statuses_are_bounded"`: `2 passed, 24 deselected in 0.30s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_embedding_cache.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-08 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, delete/remove surfaces, `requests`, `httpx`, and `openai`; matches were limited to the local variable name `requests` in the embedding cache implementation.
+- WP-08 verdict: green.
+- Checkpoint F verdict: green.
+- Checkpoint F disposition: WP-09 is unlocked after this milestone is committed and pushed.
