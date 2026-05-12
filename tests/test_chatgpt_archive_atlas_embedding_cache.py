@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+import mempalace.embedding as embedding_module
 from mempalace import chatgpt_archive_atlas_contract as contract
 
 _embedding_cache_module = pytest.importorskip(
@@ -60,6 +61,26 @@ class RecordingFakeEmbedder:
     @property
     def batch_sizes(self) -> list[int]:
         return [len(batch) for batch in self.calls]
+
+
+def _patch_missing_cache_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    guard_names = (
+        "_assert_local_onnx_model_cache_guard",
+        "_assert_local_onnx_model_cache_available",
+        "_assert_local_embedding_model_cache_available",
+        "_ensure_local_onnx_model_cache_guard",
+        "_ensure_local_onnx_model_cache_available",
+        "_require_local_onnx_model_cache",
+    )
+    matched_name = next((name for name in guard_names if hasattr(_embedding_cache_module, name)), None)
+    assert (
+        matched_name is not None
+    ), "embedding cache module must expose a local ONNX cache guard helper for fail-closed default embedding"
+
+    def _raise_missing_cache(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("local ONNX model cache is unavailable")
+
+    monkeypatch.setattr(_embedding_cache_module, matched_name, _raise_missing_cache)
 
 
 def test_public_api_dataclass_is_frozen_and_tuple_backed() -> None:
@@ -241,3 +262,64 @@ def test_source_text_and_hash_are_deterministic_and_change_with_source_text(tmp_
     meta_b = result_b.metadata_rows[0]
     assert meta_a["source_text_sha256"] != meta_b["source_text_sha256"]
     assert meta_a["embedding_id"] != meta_b["embedding_id"]
+
+
+def test_injected_embedding_function_bypasses_default_embedding_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rows = (
+        _make_lexical_row("thread-001", keyphrase="alpha keyphrase", excerpt="excerpt alpha"),
+    )
+    run_dir = tmp_path / "run"
+    embedder = RecordingFakeEmbedder()
+
+    def _unexpected_default_embedder_call(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("get_embedding_function should not be called when embedding_function is injected")
+
+    monkeypatch.setattr(embedding_module, "get_embedding_function", _unexpected_default_embedder_call)
+
+    result = materialize_chatgpt_thread_embedding_cache(
+        rows,
+        run_dir,
+        run_id="run-wp12-injected",
+        embedding_function=embedder,
+        effective_device="cuda",
+        batch_size=1,
+    )
+
+    assert result.embedded_count == 1
+    assert embedder.calls
+    assert result.metadata_path.exists()
+    assert result.vectors_path.exists()
+
+
+def test_default_embedding_path_fails_closed_when_local_onnx_cache_guard_reports_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rows = (
+        _make_lexical_row("thread-001", keyphrase="alpha keyphrase", excerpt="excerpt alpha"),
+    )
+    run_dir = tmp_path / "run-fail-closed"
+
+    _patch_missing_cache_guard(monkeypatch)
+
+    def _unexpected_default_embedder_call(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("get_embedding_function must not be called when local ONNX cache guard fails")
+
+    monkeypatch.setattr(embedding_module, "get_embedding_function", _unexpected_default_embedder_call)
+
+    with pytest.raises(RuntimeError, match="cache|ONNX|onnx|unavailable"):
+        materialize_chatgpt_thread_embedding_cache(
+            rows,
+            run_dir,
+            run_id="run-wp12-fail-closed",
+            embedding_function=None,
+            batch_size=1,
+        )
+
+    metadata_path = run_dir / "thread_embeddings.jsonl"
+    vectors_path = run_dir / "thread_embedding_vectors.jsonl"
+    assert not metadata_path.exists()
+    assert not vectors_path.exists()

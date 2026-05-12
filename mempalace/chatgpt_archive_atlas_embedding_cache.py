@@ -12,6 +12,15 @@ from . import chatgpt_archive_atlas_contract as contract
 _METADATA_FILENAME = "thread_embeddings.jsonl"
 _VECTORS_FILENAME = "thread_embedding_vectors.jsonl"
 _SOURCE_ERROR_SCHEMA = "chatgpt_archive_atlas.embedding_cache_error.v1"
+_CHROMA_ONNX_MODEL_NAME = "all-MiniLM-L6-v2"
+_CHROMA_ONNX_REQUIRED_FILES = (
+    "config.json",
+    "model.onnx",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+    "tokenizer.json",
+    "vocab.txt",
+)
 
 
 @dataclass(frozen=True)
@@ -156,6 +165,7 @@ def materialize_chatgpt_thread_embedding_cache(
     if pending:
         embedder = _resolve_embedder(
             embedding_function=embedding_function,
+            embedding_model=embedding_model,
             requested_device=requested_device,
         )
         for batch_index, start in enumerate(range(0, len(pending), batch_limit)):
@@ -289,8 +299,14 @@ def _resolve_effective_device(
     return _normalize_effective_device(effective_device, requested_device)
 
 
-def _resolve_embedder(*, embedding_function, requested_device: str | None):
+def _resolve_embedder(
+    *,
+    embedding_function,
+    embedding_model: str,
+    requested_device: str | None,
+):
     if embedding_function is None:
+        _ensure_local_embedding_model_cache_ready(embedding_model)
         from . import embedding
 
         return embedding.get_embedding_function(requested_device)
@@ -306,6 +322,38 @@ def _normalize_effective_device(
     if device is None:
         return "injected"
     return device
+
+
+def _ensure_local_embedding_model_cache_ready(embedding_model: str) -> Path:
+    if embedding_model != _CHROMA_ONNX_MODEL_NAME:
+        raise RuntimeError(
+            "embedding_function=None only supports the pre-warmed local Chroma ONNX model "
+            f"{_CHROMA_ONNX_MODEL_NAME!r}; inject an embedding function for "
+            f"{embedding_model!r}."
+        )
+
+    extracted_dir = _local_chroma_onnx_model_dir(embedding_model)
+    missing_files = [
+        filename
+        for filename in _CHROMA_ONNX_REQUIRED_FILES
+        if not (extracted_dir / filename).is_file()
+    ]
+    if missing_files:
+        missing = ", ".join(missing_files)
+        raise RuntimeError(
+            "Local embedding model cache is incomplete. Pre-warm the Chroma ONNX model "
+            f"{embedding_model!r} under {extracted_dir} with files: {missing}; "
+            "or inject an embedding_function."
+        )
+    return extracted_dir
+
+
+def _assert_local_embedding_model_cache_available(embedding_model: str) -> Path:
+    return _ensure_local_embedding_model_cache_ready(embedding_model)
+
+
+def _local_chroma_onnx_model_dir(embedding_model: str) -> Path:
+    return Path.home() / ".cache" / "chroma" / "onnx_models" / embedding_model / "onnx"
 
 
 def _covered_request_keys(

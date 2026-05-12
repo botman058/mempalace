@@ -76,19 +76,41 @@ refuse_extreme_ssd() {
   esac
 }
 
+if [[ -z "$RUN_ID" ]]; then
+  echo "run id must not be empty" >&2
+  exit 2
+fi
+if [[ "$RUN_ID" == "." || "$RUN_ID" == ".." || "$RUN_ID" == *"/"* || "$RUN_ID" == *"\\"* ]]; then
+  echo "run id must be a simple slug with no path separators: $RUN_ID" >&2
+  exit 2
+fi
+if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$ ]]; then
+  echo "run id must match ^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$: $RUN_ID" >&2
+  exit 2
+fi
+
 RUN_DIR="$RUN_ROOT/$RUN_ID"
 
 for path in "$ROOT" "$APP" "$VENV" "$SCRIPT" "$SOURCE_DIR" "$RUN_ROOT" "$RUN_DIR"; do
   refuse_extreme_ssd "$path"
 done
 
-if [[ -n "$LIMIT" ]] && [[ ! "$LIMIT" =~ ^[0-9]+$ ]]; then
-  echo "invalid --limit value: $LIMIT" >&2
+RUN_ROOT_RESOLVED="$(realpath -m "$RUN_ROOT")"
+RUN_DIR_RESOLVED="$(realpath -m "$RUN_DIR")"
+refuse_extreme_ssd "$RUN_ROOT_RESOLVED"
+refuse_extreme_ssd "$RUN_DIR_RESOLVED"
+if [[ "$RUN_DIR_RESOLVED" != "$RUN_ROOT_RESOLVED" && "$RUN_DIR_RESOLVED" != "$RUN_ROOT_RESOLVED/"* ]]; then
+  echo "run directory must be contained under run root" >&2
+  echo "run_root=$RUN_ROOT_RESOLVED" >&2
+  echo "run_dir=$RUN_DIR_RESOLVED" >&2
   exit 2
 fi
 
-if [[ -z "$RUN_ID" ]]; then
-  echo "run id must not be empty" >&2
+RUN_ROOT="$RUN_ROOT_RESOLVED"
+RUN_DIR="$RUN_DIR_RESOLVED"
+
+if [[ -n "$LIMIT" ]] && [[ ! "$LIMIT" =~ ^[0-9]+$ ]]; then
+  echo "invalid --limit value: $LIMIT" >&2
   exit 2
 fi
 
@@ -148,7 +170,7 @@ systemd-run \
   --property=WorkingDirectory="$APP" \
   --property=NoNewPrivileges=true \
   --property=ProtectSystem=strict \
-  --property=ReadWritePaths="$ROOT" \
+  --property=ReadWritePaths="$RUN_ROOT" \
   --property=MemoryMax=16G \
   --property=CPUQuota=200% \
   --property=Nice=10 \

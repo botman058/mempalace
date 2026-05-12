@@ -243,6 +243,32 @@ This wrapper is pre-LLM and artifact-only: no LocalAI dependency, no cloud
 LLM calls, no MCP write/publish flags. It does not delete files, does not
 restart services, and refuses any path under `/media/u0/Extreme SSD`.
 
+The runner writes only under the selected atlas run directory. It materializes
+phase artifacts progressively for inspection during a run:
+
+```text
+progress.json
+source_file_errors.jsonl
+conversation_index.jsonl
+thread_index.jsonl
+lexical_sketches.jsonl
+thread_embeddings.jsonl
+thread_embedding_vectors.jsonl
+topic_clusters.jsonl
+atlas_summary.md
+atlas_summary_manifest.json
+artifacts_index.json
+```
+
+`progress.json` is updated after each phase and records `failed` if the runner
+errors after the run directory is created. Embedding artifacts are owned by the
+embedding cache; the runner does not rewrite them after cache materialization.
+
+The default embedding path is local-only and fail-closed. It requires the
+Chroma `all-MiniLM-L6-v2` ONNX files to already be present in the service
+user's local cache before the default embedder is constructed. If the local
+cache is missing, the runner fails before any Chroma download path is invoked.
+
 ## MemPalace dashboard service
 
 The dashboard is a separate service and should be deployed only when it will not

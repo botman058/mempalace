@@ -829,3 +829,64 @@ Each coherent package milestone requires:
 - WP-10 verdict: green.
 - Checkpoint H verdict: green.
 - Checkpoint H disposition: WP-12 safety review is ready after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-12 Independent Safety Review Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `225e658`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-12 as the independent review package needed to close Checkpoint I.
+- WP-12 lead `R-1` was assigned to worker Darwin with model `gpt-5.5` and reasoning depth `high`.
+- WP-12 is read-only: `R-1` has no write scope and was forbidden from editing files, committing, or pushing.
+- WP-12 review scope includes all accepted atlas modules/tests plus the `snow-white-iii` systemd runner.
+
+### 2026-05-11 - WP-12 Independent Safety Review Result
+
+- `R-1` returned an explicit red verdict.
+- Red finding 1: default embedding fallback can indirectly use Chroma's ONNX embedding implementation, which may perform `httpx` download, write under `~/.cache/chroma`, and remove a bad archive outside the atlas run directory.
+- Red finding 2: `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh` accepts an unvalidated `--run-id`, derives `RUN_DIR="$RUN_ROOT/$RUN_ID"`, and privileged-creates it; a path traversal run id could escape the run root.
+- Amber finding 3: the transient unit grants `ReadWritePaths="$ROOT"` rather than the narrower atlas run boundary.
+- Amber finding 4: the accepted branch lacks the Python atlas runner targeted by the systemd wrapper, so the live orchestration write surface is not reviewable.
+- Positive checks: accepted atlas modules contain no direct LocalAI, OpenAI, HTTP client, MCP, palace publish, or Chroma collection-write calls; summary writer confines output under `run_dir`; embedding cache writes only its two JSONL artifacts under `run_dir` when using a safe injected embedder.
+- WP-12 verdict: red.
+- Checkpoint I remains blocked.
+- Repair gate opened before WP-13: fix embedding backend safety, run-id/path confinement, systemd write boundary, and implement a reviewable Python atlas runner; then rerun independent `R-1` review.
+
+### 2026-05-11 - WP-12 Repair Activation
+
+- `O-0` reread the red `R-1` review before assigning repairs.
+- Current local branch truth before repair activation: `codex/mempalace-http-mcp-closure` at `225e658`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Repair A: `L-4` worker Banach with model `gpt-5.4` and reasoning depth `high` was assigned to harden `mempalace/chatgpt_archive_atlas_embedding_cache.py` against implicit Chroma/httpx download/delete behavior.
+- Repair A tests: `H-4` worker Dirac with model `gpt-5.3-codex` and reasoning depth `medium` was assigned to `tests/test_chatgpt_archive_atlas_embedding_cache.py`.
+- Repair B: `L-5` worker Newton with model `gpt-5.3-codex` and reasoning depth `medium` was assigned to harden `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh` and implement `mempalace/chatgpt_archive_atlas_runner.py`.
+- Repair B tests: `V-1` worker Mencius with model `gpt-5.3-codex-spark` and reasoning depth `high` was assigned to `tests/test_chatgpt_archive_atlas_runner.py` and optionally `tests/test_chatgpt_archive_atlas_runner_cli.py`.
+- Repair workers were forbidden from editing docs, fixtures, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+
+### 2026-05-11 - WP-12 Repair Evidence Before Re-Review
+
+- `O-0` reread this worksheet before worker acceptance review.
+- Repair A `L-4` returned changed path: `mempalace/chatgpt_archive_atlas_embedding_cache.py`.
+- Repair A `H-4` returned changed path: `tests/test_chatgpt_archive_atlas_embedding_cache.py`.
+- Repair A added a fail-closed guard before default Chroma ONNX embedding construction: the runner accepts real default embeddings only when the local `all-MiniLM-L6-v2` ONNX cache is already present under `~/.cache/chroma/onnx_models/all-MiniLM-L6-v2/onnx`; otherwise it raises before calling `mempalace.embedding.get_embedding_function(...)`.
+- Injected embedding functions remain supported and bypass the default resolver for tests and future controlled callers.
+- Repair B `L-5` returned changed paths: `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh` and `mempalace/chatgpt_archive_atlas_runner.py`.
+- Repair B `V-1` returned changed path: `tests/test_chatgpt_archive_atlas_runner.py`.
+- Repair B validates `RUN_ID` before deriving `RUN_DIR`, rejects path separators and traversal slugs, resolves `RUN_ROOT`/`RUN_DIR`, enforces containment, keeps `/media/u0/Extreme SSD` refusal, and narrows transient `ReadWritePaths` to `$RUN_ROOT`.
+- Repair B added the reviewable Python atlas runner and then an addendum repair for the worksheet progress rule: phase artifacts are materialized progressively, `progress.json` is updated after each phase and on failure, and runner no longer rewrites embedding JSONL artifacts owned by the embedding cache.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: `21 passed in 1.14s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_summary.py`: `110 passed in 3.26s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_embedding_cache.py mempalace/chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/chatgpt_archive_atlas_embedding_cache.py mempalace/chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
+- `O-0` ran `git diff --check`: passed.
+- `O-0` statically scanned atlas modules/scripts/tests for LocalAI, MCP, publish, drawer, palace write, HTTP client, delete/remove, `/media/u0/Extreme SSD`, and broad `ReadWritePaths="$ROOT"` surfaces; matches were limited to forbidden-key contract/tests, synthetic lexical test strings, run-dir-local writer helpers, wrapper refusal text, and the local Chroma ONNX cache guard.
+- `R-1` Darwin was sent the repaired surface for independent read-only re-review.
+- `R-1` returned an explicit green verdict.
+- `R-1` confirmed all four prior red/amber findings are repaired: default embedding is fail-closed before Chroma ONNX construction unless the local model cache is pre-warmed; systemd run id/path traversal is guarded; `ReadWritePaths` is narrowed to `$RUN_ROOT`; and the Python atlas runner is present and reviewable.
+- `R-1` independently found no direct LocalAI, OpenAI/cloud HTTP client, MCP, publish, palace-write, Chroma collection write, or deletion API paths in the repaired runner or atlas modules.
+- `R-1` independently ran `pytest -q tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: `21 passed`.
+- `R-1` independently ran py_compile, `bash -n`, and `git diff --check`: passed.
+- WP-12 verdict: green.
+- Checkpoint I verdict: green.
+- Checkpoint I disposition: WP-13 bounded remote smoke is unlocked after this milestone is committed and pushed.
