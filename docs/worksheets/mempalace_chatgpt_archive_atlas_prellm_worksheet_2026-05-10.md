@@ -693,3 +693,39 @@ Each coherent package milestone requires:
 - `O-0` statically scanned WP-06 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, and delete/remove surfaces: no matches.
 - WP-06 verdict: green.
 - WP-06 disposition: WP-07 is unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-07 Lexical Sketch Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `ab553e5`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-07 as the active evidence-lane package needed to close Checkpoint E.
+- WP-07 lead `L-3` remains worker Euclid with model `gpt-5.4` and reasoning depth `high`.
+- WP-07 implementation write scope for `L-3` is limited to `mempalace/chatgpt_archive_atlas_lexical_sketch.py`.
+- WP-07 helper `H-3` remains worker Godel with model `gpt-5.3-codex` and reasoning depth `medium`.
+- WP-07 test write scope for `H-3` is limited to `tests/test_chatgpt_archive_atlas_lexical_sketch.py`.
+- WP-07 support `T-1` remains worker Noether with model `gpt-5.3-codex-spark` and reasoning depth `high` for read-only acceptance guidance.
+- WP-07 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- Shared WP-07 API contract was set as `build_chatgpt_lexical_sketch_rows(...)`, `build_chatgpt_lexical_sketches(...)`, and immutable `ChatGPTAtlasLexicalSketchResult`.
+
+### 2026-05-11 - WP-07 Lexical Sketch Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-3` returned changed path: `mempalace/chatgpt_archive_atlas_lexical_sketch.py`.
+- `H-3` returned changed path: `tests/test_chatgpt_archive_atlas_lexical_sketch.py`.
+- `T-1` returned read-only acceptance guidance requiring strict one lexical sketch row per thread row, deterministic row identity, row schema validation, and no service/write surfaces.
+- `O-0` rejected the first WP-07 return because source-record matching required non-empty `conversation_id` and keyed only on logical source id, conversation id, and source hash.
+- `L-3` corrected matching to include logical source id, optional conversation id, source hash, source relative path, and source ordinal.
+- `H-3` added regression coverage for missing top-level conversation id and duplicate logical-source identity mapping.
+- WP-07 delivered lexical sketch rows by reconstructing the selected-path transcript, slicing text by WP-05 thread char spans, applying the WP-06 lexical policy, and emitting rows through `contract.build_lexical_sketch_row(...)`.
+- WP-07 rows include required lexical evidence plus JSON-safe source/thread metadata, dates, project terms, and person/org candidates.
+- WP-07 tests cover one sketch row per thread row, mixed legal/sysadmin/personal evidence, synthetic domains/packages/models/project terms, stopword rejection, deterministic bounds, source-error passthrough, missing conversation id, and duplicate logical identity.
+- `O-0` independently inspected the implementation, tests, and `T-1` acceptance guidance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: `77 passed in 1.88s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_lexical_sketch.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-07 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, delete/remove surfaces, `requests`, `httpx`, and `openai`; matches were limited to synthetic test strings proving domain/package extraction.
+- WP-07 verdict: green.
+- Checkpoint E verdict: green.
+- Checkpoint E disposition: WP-08 is unlocked after this milestone is committed and pushed.
