@@ -47,6 +47,33 @@ Supports five chat formats automatically:
 - Markdown conversations
 - Plain text transcripts
 
+### Pre-LLM ChatGPT Archive Atlas
+
+For very large ChatGPT privacy exports, use the archive atlas runner before
+asking an LLM to classify or publish anything. The atlas is an artifact-only
+preprocessing pass: it builds conversation, thread, lexical, embedding, cluster,
+and Markdown review artifacts without writing drawers.
+
+On `snow-white-iii`, the canonical atlas output root is:
+
+```text
+/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas
+```
+
+The completed full-run reference is
+`atlas_full2_20260512T0412Z_2fc8ac5`, which produced `4,283` conversation rows,
+`4,746` thread rows, and `3,120` conservative topic-cluster rows. All `4,746`
+embedding rows recorded `effective_device=cuda`.
+
+Inspect the atlas before planning a later LLM mining pass:
+
+```bash
+less /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5/atlas_summary.md
+```
+
+The atlas does not call LocalAI or cloud LLMs and does not publish to the
+palace. Treat it as the topic-map input for the next worksheeted mining pass.
+
 ### General Extraction
 
 Auto-classifies conversation content into five memory types:

@@ -269,6 +269,21 @@ Chroma `all-MiniLM-L6-v2` ONNX files to already be present in the service
 user's local cache before the default embedder is constructed. If the local
 cache is missing, the runner fails before any Chroma download path is invoked.
 
+Completed full-run reference, 2026-05-12:
+
+```text
+Run ID:   atlas_full2_20260512T0412Z_2fc8ac5
+Run dir:  /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5
+Status:   complete
+Rows:     4,283 conversations; 4,746 threads; 3,120 topic clusters
+Device:   4,746/4,746 embedding rows recorded effective_device=cuda
+Runtime:  33min 42.420s CPU time; 4.0G memory peak
+```
+
+That run emitted all expected artifact files and passed schema validation. It
+remained pre-LLM and artifact-only: no LocalAI call, no cloud LLM call, no MCP
+publish, and no palace drawer mutation.
+
 ## MemPalace dashboard service
 
 The dashboard is a separate service and should be deployed only when it will not

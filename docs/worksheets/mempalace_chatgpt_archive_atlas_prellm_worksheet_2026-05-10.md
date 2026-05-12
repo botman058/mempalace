@@ -31,7 +31,7 @@ All subagents must be spawned with explicit model and reasoning depth. `O-0` mus
 
 ### Current hard gate
 
-Checkpoint A is the active gate. `WP-00` worksheet creation is the only mutation allowed before Checkpoint A is green. No atlas code, tests, runner, systemd wrapper, remote run, or documentation change may start before WP-00 closes.
+Checkpoint L is the active closure gate. `WP-15` worksheet/status and documentation truth updates are the only remaining mutations in this tranche. No atlas code, runner behavior, LocalAI/cloud call, MCP publish, palace write, artifact deletion, or service restart is allowed without a new worksheet gate.
 
 ---
 
@@ -1045,3 +1045,50 @@ Each coherent package milestone requires:
 - After the embedding phase, the run entered CPU-bound topic clustering. `snow-white-iii` then became unreachable over Tailscale: `tailscale ping --timeout=5s --c 1 snow-white-iii` returned no reply, `ssh -o BatchMode=yes -o ConnectTimeout=8 root@snow-white-iii 'echo ssh_ok'` timed out, and TCP port 22 timed out.
 - `O-0` stopped opening additional remote sessions after the connectivity loss to avoid adding load.
 - WP-14 verdict remains pending until `snow-white-iii` is reachable and the run state can be inspected.
+
+### 2026-05-12 - WP-14 Full Archive Atlas Run Green
+
+- `snow-white-iii` returned to the tailnet after the earlier connectivity loss.
+- Reachability check passed: `tailscale ping --timeout=5s --c 1 snow-white-iii` returned `pong from snow-white-iii (100.112.179.49) via 10.0.0.78:41641 in 1ms`.
+- Root SSH read-only status check passed: `ssh -o BatchMode=yes -o ConnectTimeout=8 root@snow-white-iii 'echo ssh_ok'` returned `ssh_ok`.
+- Full run unit `mempalace-chatgpt-archive-atlas-atlas_full2_20260512T0412Z_2fc8ac5.service` reported `ActiveState=inactive`, `SubState=dead`, `Result=success`, and `ExecMainStatus=0`.
+- Final `progress.json` reported `status: complete`, `phase: complete`, message `atlas artifact build complete`, `warnings: 2`, and `errors: 63`.
+- Final counts were `loaded_conversations: 4,283`, `conversation_rows: 4,283`, `thread_rows: 4,746`, `lexical_rows: 4,746`, `embedding_metadata_rows: 4,746`, `embedding_vector_rows: 4,746`, `topic_cluster_rows: 3,120`, and `source_errors: 63`.
+- Final artifact set contained all expected files: `progress.json`, `artifacts_index.json`, `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, `lexical_sketches.jsonl`, `thread_embeddings.jsonl`, `thread_embedding_vectors.jsonl`, `topic_clusters.jsonl`, `atlas_summary.md`, and `atlas_summary_manifest.json`.
+- Line counts were `63` source-file errors, `4,283` conversation rows, `4,746` thread rows, `4,746` lexical rows, `4,746` embedding metadata rows, `4,746` embedding vector rows, `3,120` topic-cluster rows, one artifact index, and one summary manifest.
+- Remote schema validation passed for progress, artifact index, conversation rows, thread rows, lexical rows, embedding metadata rows, topic-cluster rows, summary manifest, vector rows, and source-error rows.
+- `artifacts_index.json` contained `11` indexed artifacts.
+- All `4,746` embedding metadata rows recorded `effective_device: cuda`.
+- Journal scan for `cuda`, `cudnn`, `failed`, `error`, `warning`, and `onnxruntime` returned no matches for the green full unit.
+- The full unit reported `Consumed 33min 42.420s CPU time, 4.0G memory peak, 0B memory swap peak`.
+- The run directory is `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5`.
+- No LocalAI call, cloud LLM call, MCP publish, drawer mutation, palace write, artifact deletion, service restart, or `/media/u0/Extreme SSD` path was used for this checkpoint.
+- WP-14 verdict: green.
+- Checkpoint K verdict: green.
+- Checkpoint K disposition: WP-15 closure, documentation, commit, and push are unlocked.
+
+### 2026-05-12 - WP-15 Closure Activation
+
+- `O-0` reread this worksheet before WP-15 activation.
+- Activated WP-15 as the closure package after Checkpoint K green.
+- Current allowed mutation mode: worksheet/status mode.
+- Allowed write scope: this worksheet, `scripts/systemd/README.md`, `website/guide/mining.md`, and `CHANGELOG.md`.
+- Current dirty files remain out of scope and unstaged: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Support role `V-1` was assigned to independently validate the full-run evidence and return a green/amber/red closure verdict without editing files.
+- Support role `H-5` was assigned to review documentation wording and return concise wording suggestions without editing files.
+- WP-15 remains documentation/status only: no code change, LocalAI/cloud call, MCP publish, palace write, artifact deletion, service restart, or remote app promotion is allowed.
+
+### 2026-05-12 - WP-15 Closure Evidence
+
+- `V-1` independently returned verdict: green.
+- `V-1` verified the run directory contained the expected 11 artifacts and that `progress.json` reported `status: complete`, `phase: complete`, and `atlas artifact build complete`.
+- `V-1` verified counts: `loaded_conversations: 4,283`, `conversation_rows: 4,283`, `thread_rows: 4,746`, `lexical_rows: 4,746`, `embedding_metadata_rows: 4,746`, `embedding_vector_rows: 4,746`, `topic_cluster_rows: 3,120`, `source_errors: 63`, `warnings: 2`, and `errors: 63`.
+- `V-1` verified `artifacts_index.json` had `artifact_count: 11`, line counts matched progress counts, row schema checks had `bad=0`, and all embedding rows recorded `effective_device == "cuda"`.
+- `V-1` verified unit journal evidence: service completion success, `33min 42.420s CPU time`, `4.0G memory peak`, and `0B memory swap peak`.
+- `V-1` verified the unit journal scan for `cuda`, `cudnn`, `failed`, `error`, `warning`, and `onnxruntime` returned no matches. Broad artifact text still contains expected source-data `error` and `warning` summaries, but those are not unit failure signatures.
+- `H-5` returned documentation/status wording suggestions for this worksheet, `CHANGELOG.md`, `scripts/systemd/README.md`, and `website/guide/mining.md`.
+- `O-0` integrated WP-15 docs/status updates into this worksheet, `CHANGELOG.md`, `scripts/systemd/README.md`, and `website/guide/mining.md`.
+- `O-0` ran `git diff --check -- docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md scripts/systemd/README.md website/guide/mining.md CHANGELOG.md`: passed.
+- No unit tests were rerun for WP-15 because the accepted changes are documentation/status only; code tests for the accepted runner repair remain recorded in WP-14 Repair E.
+- Dirty-file scope remains preserved: `.agents/plugins/marketplace.json` is modified out of scope and `docs/reference/` is untracked out of scope.
+- WP-15 commit/push is the remaining closure action after staging only the accepted documentation/status files.
