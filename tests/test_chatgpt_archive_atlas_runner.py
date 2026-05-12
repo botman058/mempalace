@@ -179,6 +179,13 @@ def _line_has_run_id_path_guard(line: str) -> bool:
   return False
 
 
+def _script_cmd_block(text: str) -> list[str]:
+  lines = text.splitlines()
+  start = next(i for i, line in enumerate(lines) if line.strip() == "cmd=(")
+  end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == ")")
+  return [line.strip() for line in lines[start + 1 : end]]
+
+
 def test_runner_uses_canonical_defaults_and_run_root():
   text = _script_text()
   assert "/media/u0/OneDrive_Backup/mempalace" in text
@@ -238,6 +245,16 @@ def test_systemd_wrapper_uses_narrow_readwrite_paths():
   text = _script_text()
   assert '--property=ReadWritePaths="$RUN_ROOT"' in text or '--property=ReadWritePaths="$RUN_DIR"' in text
   assert '--property=ReadWritePaths="$ROOT"' not in text
+
+
+def test_systemd_wrapper_invokes_runner_as_module_not_file():
+  text = _script_text()
+  cmd_block = _script_cmd_block(text)
+  assert any(part == "-m" for part in cmd_block)
+  assert any("mempalace.chatgpt_archive_atlas_runner" in part for part in cmd_block)
+  assert not any(part == '$SCRIPT' for part in cmd_block)
+  assert not any(part == "$SCRIPT" for part in cmd_block)
+  assert not any(part == '"$SCRIPT"' for part in cmd_block)
 
 
 def test_runner_target_path_exists():

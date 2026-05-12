@@ -907,3 +907,36 @@ Each coherent package milestone requires:
 - Activated WP-13 as the live smoke package after Checkpoint I green.
 - WP-13 lead remains `L-5`; live operations must run on `snow-white-iii`, as service user `mempalace`, with CPU cap `200%`, memory cap `16G`, and run artifacts under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<run_id>/`.
 - WP-13 is bounded smoke only. No full archive run, LocalAI call, cloud LLM call, MCP publish, drawer mutation, palace write, deletion, service restart, or `/media/u0/Extreme SSD` path is allowed in WP-13.
+
+### 2026-05-11 - WP-13 First Smoke Attempt Result
+
+- `O-0` confirmed `u0@snow-white-iii` can stage under `/media/u0/OneDrive_Backup/tmp-mempalace` but cannot inspect/promote the live app tree and has no passwordless sudo.
+- Direct `mempalace@snow-white-iii` remains unavailable because the service account has a nologin shell.
+- Narrow root access was used only for app promotion and transient systemd control; the runner itself was launched through the wrapper as service user `mempalace`.
+- A clean `git archive` of committed `HEAD` `51b77c1` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260512T034245Z-51b77c1/app` on `snow-white-iii`.
+- Staged wrapper verification passed: `bash -n` for the atlas runner wrapper and promotion wrapper; `mempalace/chatgpt_archive_atlas_runner.py` existed in the staged tree.
+- The staged app was promoted with `promote_snow_white_iii_app_update.sh`; promotion reported no file deletion, no service restart, and no palace data touch.
+- Live compile check as `mempalace` passed for `mempalace/chatgpt_archive_atlas_runner.py` and `mempalace/chatgpt_archive_atlas_embedding_cache.py`.
+- Local ONNX cache check as `mempalace` found the required `all-MiniLM-L6-v2` files under `/media/u0/OneDrive_Backup/mempalace/.cache/chroma/onnx_models/all-MiniLM-L6-v2/onnx`.
+- Active service check before smoke showed only `mempalace-dashboard.service` and `mempalace-http.service`.
+- Bounded smoke unit `mempalace-chatgpt-archive-atlas-atlas_smoke_20260512T0345Z_51b77c1` was submitted with `--limit 25`.
+- The first smoke failed before artifact materialization. Journal evidence: `ImportError: attempted relative import with no known parent package` from direct file execution of `mempalace/chatgpt_archive_atlas_runner.py`.
+- The failed attempt created only an empty diagnostic run directory under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_smoke_20260512T0345Z_51b77c1`; no files were deleted and no palace data was touched.
+- `python -m mempalace.chatgpt_archive_atlas_runner --help` worked as `mempalace` with `PYTHONPATH=/media/u0/OneDrive_Backup/mempalace/app`.
+- WP-13 verdict: red for first smoke attempt; repair assigned before retry.
+- Repair C: `L-5` Newton was assigned to make the wrapper invoke the runner package-safely.
+- Repair C tests: `V-1` Mencius was assigned to add wrapper command coverage proving package-safe module invocation.
+
+### 2026-05-11 - WP-13 Repair C Evidence
+
+- `L-5` returned changed path: `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`.
+- `V-1` returned changed path: `tests/test_chatgpt_archive_atlas_runner.py`.
+- Repair C changed the transient unit command from direct file execution to package-safe module invocation with `python -m mempalace.chatgpt_archive_atlas_runner`.
+- Repair C retained existing script existence checks, run-id/path guards, `ReadWritePaths="$RUN_ROOT"`, service user `mempalace`, `CPUQuota=200%`, `MemoryMax=16G`, and no LocalAI/MCP/publish surface.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: `22 passed in 1.12s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_summary.py`: `111 passed in 3.23s`.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `git diff --check`: passed.
+- Repair C verdict: green.

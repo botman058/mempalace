@@ -152,7 +152,8 @@ install -d -o mempalace -g mempalace -m 0750 "$RUN_DIR"
 
 cmd=(
   "$VENV/bin/python"
-  "$SCRIPT"
+  -m
+  mempalace.chatgpt_archive_atlas_runner
   --source-dir "$SOURCE_DIR"
   --run-root "$RUN_ROOT"
   --run-id "$RUN_ID"
