@@ -763,3 +763,39 @@ Each coherent package milestone requires:
 - WP-08 verdict: green.
 - Checkpoint F verdict: green.
 - Checkpoint F disposition: WP-09 is unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-09 Conservative Topic Clustering Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `8d9b7e7`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-09 as the active semantic-lane package needed to close Checkpoint G.
+- WP-09 lead `L-4` remains worker Banach with model `gpt-5.4` and reasoning depth `high`.
+- WP-09 implementation write scope for `L-4` is limited to `mempalace/chatgpt_archive_atlas_topic_cluster.py`.
+- WP-09 helper `H-4` remains worker Dirac with model `gpt-5.3-codex` and reasoning depth `medium`.
+- WP-09 test write scope for `H-4` is limited to `tests/test_chatgpt_archive_atlas_topic_cluster.py`.
+- WP-09 support `T-1` was assigned to worker Ohm with model `gpt-5.3-codex-spark` and reasoning depth `high` for read-only acceptance guidance.
+- WP-09 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- Shared WP-09 API contract was set as `build_chatgpt_topic_cluster_rows(...)`, `build_chatgpt_topic_clusters(...)`, and immutable `ChatGPTAtlasTopicClusterResult`.
+
+### 2026-05-11 - WP-09 Conservative Topic Clustering Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-4` returned changed path: `mempalace/chatgpt_archive_atlas_topic_cluster.py`.
+- `H-4` returned changed path: `tests/test_chatgpt_archive_atlas_topic_cluster.py`.
+- `T-1` returned read-only acceptance guidance requiring conservative split invariants, candidate/mixed/noise cases, row contract checks, order independence, and no service/write surfaces.
+- `O-0` rejected the first WP-09 return because vector-row validation required a `status` field not required by the accepted clustering input tests, and `warnings` were dicts instead of strings.
+- `L-4` corrected vector input normalization and string warning output.
+- WP-09 delivered deterministic conservative clustering from lexical rows plus vector rows, requiring both vector similarity and lexical overlap to merge, with candidate/mixed/noise statuses and stable cluster ids.
+- WP-09 tests cover deterministic fake vectors, conservative non-merge cases, coherent candidate merge, noise handling, divergent evidence/no broad collapse, stable representative thread refs, and inspectable result summary fields.
+- `O-0` independently inspected the implementation, tests, and `T-1` acceptance guidance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py`: `95 passed in 2.57s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py -k "topic_clusters_jsonl_row_contract or embedding_and_cluster_statuses_are_bounded"`: `2 passed, 24 deselected in 0.30s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_topic_cluster.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_topic_cluster.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_topic_cluster.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-09 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, delete/remove surfaces, `requests`, `httpx`, `openai`, and subprocess: no matches.
+- `O-0` ran an owner-side order-independence probe with shuffled lexical/vector rows: `order_independence_ok 2 [['thread-001', 'thread-002'], ['thread-003']]`.
+- WP-09 verdict: green.
+- Checkpoint G verdict: green.
+- Checkpoint G disposition: WP-10 and WP-12 are unlocked after this milestone is committed and pushed.
