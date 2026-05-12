@@ -644,3 +644,52 @@ Each coherent package milestone requires:
 - WP-04 verdict: green.
 - Checkpoint C verdict: green after WP-03 source loading and WP-04 conversation indexing.
 - Checkpoint C disposition: WP-05 and WP-06 are unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-05 / WP-06 Parallel Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `87e8444`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated allowed parallel package set after Checkpoint C: WP-05 and WP-06.
+- WP-05 lead `L-2` remains worker Nietzsche with model `gpt-5.4` and reasoning depth `high`.
+- WP-05 implementation write scope for `L-2` is limited to `mempalace/chatgpt_archive_atlas_thread.py`.
+- WP-05 test support `T-1` remains worker Noether with model `gpt-5.3-codex-spark` and reasoning depth `high`.
+- WP-05 test write scope for `T-1` is limited to `tests/test_chatgpt_archive_atlas_thread.py`.
+- WP-05 thread-helper support `H-2` was assigned to worker Pasteur with model `gpt-5.3-codex` and reasoning depth `medium` for read-only guidance.
+- WP-06 lead `L-3` was assigned to worker Euclid with model `gpt-5.4` and reasoning depth `high`.
+- WP-06 implementation write scope for `L-3` is limited to `mempalace/chatgpt_archive_atlas_lexical_policy.py`.
+- WP-06 helper `H-3` was assigned to worker Godel with model `gpt-5.3-codex` and reasoning depth `medium`.
+- WP-06 test write scope for `H-3` is limited to `tests/test_chatgpt_archive_atlas_lexical_policy.py`.
+- WP-05/WP-06 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+
+### 2026-05-11 - WP-05 Thread Index Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-2` returned changed path: `mempalace/chatgpt_archive_atlas_thread.py`.
+- `T-1` returned changed path: `tests/test_chatgpt_archive_atlas_thread.py`.
+- `H-2` returned read-only guidance confirming safe reuse of selected-path extraction and warning not to treat prior weak subthread labels as final taxonomy.
+- WP-05 delivered deterministic thread index rows with stable thread ids, thread indexes, selected-path message spans, transcript char spans, user/assistant counts, full-span char counts, title hints, representative excerpts, transition reasons, and source-error passthrough.
+- WP-05 tests cover single full-path thread emission, explicit topic switch splitting, mixed legal/sysadmin/personal splitting, long first user prompt coverage, no dropped suffix, stable ids, row schema validation, safety contract, and source-error passthrough.
+- `O-0` independently inspected the implementation, tests, and `H-2` acceptance guidance.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_thread.py`: `7 passed in 0.43s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_thread.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_thread.py`: passed.
+- `O-0` statically scanned WP-05 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, and delete/remove surfaces: no matches.
+- WP-05 verdict: green.
+- Checkpoint D verdict: green.
+
+### 2026-05-11 - WP-06 Lexical Evidence Policy Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-3` returned changed path: `mempalace/chatgpt_archive_atlas_lexical_policy.py`.
+- `H-3` returned changed path: `tests/test_chatgpt_archive_atlas_lexical_policy.py`.
+- WP-06 delivered deterministic pure-Python lexical policy extraction for top terms, keyphrases, domains, paths, commands, package names, model names, legal citations, capitalized phrases, and rejected noise terms.
+- WP-06 tests cover stopword/noise rejection, repeated project/domain term preservation, commands, paths, URL domains, package names, model names, legal citations, capitalized phrases, deterministic bounds, JSON-safe dataclass output, and public API shape.
+- `O-0` independently inspected the implementation and tests.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py`: `68 passed in 1.64s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_thread.py mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_thread.py mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_thread.py mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-06 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, and delete/remove surfaces: no matches.
+- WP-06 verdict: green.
+- WP-06 disposition: WP-07 is unlocked after this milestone is committed and pushed.
