@@ -890,3 +890,20 @@ Each coherent package milestone requires:
 - WP-12 verdict: green.
 - Checkpoint I verdict: green.
 - Checkpoint I disposition: WP-13 bounded remote smoke is unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - Checkpoint I Milestone Commit
+
+- `O-0` staged only accepted WP-12 repair files: `docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`, `mempalace/chatgpt_archive_atlas_embedding_cache.py`, `mempalace/chatgpt_archive_atlas_runner.py`, `scripts/systemd/README.md`, `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`, `tests/test_chatgpt_archive_atlas_embedding_cache.py`, and `tests/test_chatgpt_archive_atlas_runner.py`.
+- Out-of-scope dirty files remained unstaged: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- `O-0` ran `git diff --cached --check`: passed.
+- `git commit -m "Resolve atlas safety review findings"` created `bff9f10`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `bff9f10` to the fork branch.
+
+### 2026-05-11 - WP-13 Bounded Remote Smoke Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `bff9f10`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json`, untracked `docs/reference/`, and this worksheet status update until its own status commit.
+- Activated WP-13 as the live smoke package after Checkpoint I green.
+- WP-13 lead remains `L-5`; live operations must run on `snow-white-iii`, as service user `mempalace`, with CPU cap `200%`, memory cap `16G`, and run artifacts under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<run_id>/`.
+- WP-13 is bounded smoke only. No full archive run, LocalAI call, cloud LLM call, MCP publish, drawer mutation, palace write, deletion, service restart, or `/media/u0/Extreme SSD` path is allowed in WP-13.
