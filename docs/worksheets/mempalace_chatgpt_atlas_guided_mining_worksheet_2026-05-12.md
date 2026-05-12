@@ -544,6 +544,71 @@ Each coherent package milestone requires:
 
 ---
 
+## checkpoint ledger
+
+| Checkpoint | Status | Evidence | Next gate |
+|---|---|---|---|
+| A - Worksheet Baseline | green | Worksheet saved at `docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`; branch/head/status, atlas run, old diagnostic run, dirty scope, and corrected model-role assignments recorded. | WP-01 |
+| B - Atlas-Guided Contract | active | Not started; contract work is unlocked after Checkpoint A. | WP-02/WP-04 design skeleton after green verdict |
+| C - Atlas Bridge | blocked | Waiting on WP-01/WP-02. | WP-03 after green verdict |
+| D - Candidate Coverage | blocked | Waiting on WP-03. | WP-04/WP-05 after green verdict |
+| E - Prompt/Parser | blocked | Waiting on WP-04. | WP-05 after green verdict |
+| F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
+| G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
+| H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
+| I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
+| J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
+| K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
+| L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
+| M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
+| N - Closure | blocked | Waiting on final docs/devlog/tests/run evidence and commit/push. | Tranche closed |
+
+---
+
+## package status ledger
+
+| Package | Status | Owner/lead | Notes |
+|---|---|---|---|
+| WP-00 | complete | `O-0` | Worksheet and baseline freeze are complete; Checkpoint A is green. |
+| WP-01 | unlocked | `L-1` | Artifact contract is the active next package; no implementation package may bypass it. |
+| WP-02 | blocked | `L-2` | Requires Checkpoint B green. |
+| WP-03 | blocked | `L-2` | Requires Checkpoint C green. |
+| WP-04 | blocked | `L-3` | Requires Checkpoint B/C/D sequencing as recorded in package table. |
+| WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
+| WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
+| WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
+| WP-08 | blocked | `T-1` | Requires WP-02 through WP-07 evidence. |
+| WP-09 | blocked | `R-1` | Independent safety review only after cross-package verification. |
+| WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
+| WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
+| WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
+| WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
+| WP-14 | blocked | `O-0` | Closure docs/devlog/commit/push after publish smoke or explicit no-publish closure. |
+
+---
+
+## drift ledger
+
+| Date | Status | Drift item | Disposition |
+|---|---|---|---|
+| 2026-05-12 | closed | Initial WP-00 worksheet draft omitted explicit checkpoint/package/drift/decision ledger sections. | Recovered in worksheet/status mode before the second WP-00 evidence commit; no implementation package was activated and no code was touched. |
+| 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
+| 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
+
+---
+
+## decision ledger
+
+| Date | Decision | Rationale | Consequence |
+|---|---|---|---|
+| 2026-05-12 | Use `atlas_full2_20260512T0412Z_2fc8ac5` as canonical atlas input. | It is the completed pre-LLM atlas run with recorded thread/topic artifacts and no drawer publication. | WP-02/WP-03 consume atlas artifacts instead of old broad LocalAI classifications. |
+| 2026-05-12 | First atlas-guided extraction is no-publish. | Output quality must be inspected before palace mutation. | WP-10/WP-11 produce durable artifacts only; publish remains blocked. |
+| 2026-05-12 | Any later publish targets `chatgpt_atlas_signals`. | Existing `chatgpt`, `chatgpt_signals`, and partial `chatgpt_thread_signals` must remain protected. | Publish smoke cannot write to old wings. |
+| 2026-05-12 | `gpt-5.3-codex` and `gpt-5.3-codex-spark` are helpers, not leads. | User explicitly rejected low/medium-depth lead assignment for architecture ownership. | Lead roles use `gpt-5.5 high` or `gpt-5.4 high`; bounded helpers use smaller models. |
+| 2026-05-12 | Checkpoint B is the active hard gate. | Artifact contracts must precede runner/prompt/live work. | WP-01 is the only unlocked implementation package after WP-00. |
+
+---
+
 ## execution log
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
@@ -556,3 +621,7 @@ Each coherent package milestone requires:
 - Checkpoint A required evidence is present: worksheet exists on disk, branch/head/status are recorded, completed atlas run id is recorded, diagnostic old-run path is recorded, dirty-file scope is recorded, and corrected lead/helper model assignments are recorded.
 - Checkpoint A verdict: green.
 - Checkpoint A disposition: WP-01 artifact contract work is unlocked.
+- `git commit -m "Add atlas-guided mining worksheet"` created `d71df9d` with only this worksheet staged.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `d71df9d` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+- `O-0` added explicit checkpoint, package status, drift, and decision ledgers after user correction before committing the second WP-00 evidence update.
