@@ -972,3 +972,23 @@ Each coherent package milestone requires:
 - `O-0` ran `.venv/bin/python -m ruff check tests/test_chatgpt_archive_atlas_runner.py`: passed.
 - `O-0` ran `git diff --check`: passed.
 - Repair D verdict: green.
+
+### 2026-05-11 - WP-13 Bounded Remote Smoke Green
+
+- `git commit -m "Set atlas runner CUDA library path"` created `9cb781f`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `9cb781f` to the fork branch.
+- A clean `git archive` of committed `HEAD` `9cb781f` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260512T035553Z-9cb781f/app` on `snow-white-iii`.
+- The staged wrapper passed `bash -n`, showed venv-local `LD_LIBRARY_PATH` handling, and was promoted with no file deletion, no service restart, and no palace data touch.
+- Bounded smoke unit `mempalace-chatgpt-archive-atlas-atlas_smoke3_20260512T0357Z_9cb781f` was submitted with `--limit 25`.
+- Runtime controls while active showed `User=mempalace`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Progressive materialization was observed while running: `progress.json`, `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, and `lexical_sketches.jsonl` existed before embedding completion.
+- The smoke completed successfully with `status: complete`.
+- Final artifact set contained all expected files: `progress.json`, `artifacts_index.json`, `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, `lexical_sketches.jsonl`, `thread_embeddings.jsonl`, `thread_embedding_vectors.jsonl`, `topic_clusters.jsonl`, `atlas_summary.md`, and `atlas_summary_manifest.json`.
+- Remote schema validation passed for progress, artifact index, conversation rows, thread rows, lexical rows, embedding metadata rows, topic cluster rows, summary manifest, vector rows, and source-error rows.
+- Final counts were `loaded_conversations: 25`, `conversation_rows: 25`, `thread_rows: 26`, `lexical_rows: 26`, `embedding_metadata_rows: 26`, `embedding_vector_rows: 26`, `topic_cluster_rows: 24`, and `source_errors: 63`.
+- All `26` embedding metadata rows recorded `effective_device: cuda`.
+- Journal scan for `cuda`, `cudnn`, `failed`, `error`, `warning`, and `onnxruntime` returned no matches for the green smoke unit.
+- The green smoke unit reported `Consumed 1min 35.888s CPU time, 3.8G memory peak, 0B memory swap peak`.
+- WP-13 verdict: green.
+- Checkpoint J verdict: green.
+- Checkpoint J disposition: WP-14 full archive atlas run is unlocked after this milestone is committed and pushed.
