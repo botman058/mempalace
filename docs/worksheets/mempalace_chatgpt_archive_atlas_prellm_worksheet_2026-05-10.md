@@ -1031,3 +1031,17 @@ Each coherent package milestone requires:
 - `O-0` ran `.venv/bin/python -m ruff check mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: passed.
 - `O-0` ran `git diff --check`: passed.
 - Repair E verdict: green.
+
+### 2026-05-12 - WP-14 Second Full Run Attempt Status
+
+- `git commit -m "Skip malformed atlas domain candidates"` created `2fc8ac5`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `2fc8ac5` to the fork branch.
+- A clean `git archive` of committed `HEAD` `2fc8ac5` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260512T041123Z-2fc8ac5/app` on `snow-white-iii`.
+- The staged wrapper passed `bash -n` and was promoted with no file deletion, no service restart, and no palace data touch.
+- Full run unit `mempalace-chatgpt-archive-atlas-atlas_full2_20260512T0412Z_2fc8ac5` was submitted without `--limit`.
+- Runtime controls while active showed `User=mempalace`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Last confirmed progress before connectivity loss: `loaded_conversations: 4,283`, `conversation_rows: 4,283`, `thread_rows: 4,746`, `lexical_rows: 4,746`, `embedding_metadata_rows: 4,746`, `embedding_vector_rows: 4,746`, `source_errors: 63`, phase `thread_embeddings`, status `running`.
+- Last confirmed materialized artifacts before connectivity loss: `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, `lexical_sketches.jsonl`, `thread_embeddings.jsonl`, and `thread_embedding_vectors.jsonl`.
+- After the embedding phase, the run entered CPU-bound topic clustering. `snow-white-iii` then became unreachable over Tailscale: `tailscale ping --timeout=5s --c 1 snow-white-iii` returned no reply, `ssh -o BatchMode=yes -o ConnectTimeout=8 root@snow-white-iii 'echo ssh_ok'` timed out, and TCP port 22 timed out.
+- `O-0` stopped opening additional remote sessions after the connectivity loss to avoid adding load.
+- WP-14 verdict remains pending until `snow-white-iii` is reachable and the run state can be inspected.
