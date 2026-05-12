@@ -992,3 +992,15 @@ Each coherent package milestone requires:
 - WP-13 verdict: green.
 - Checkpoint J verdict: green.
 - Checkpoint J disposition: WP-14 full archive atlas run is unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-14 Full Archive Atlas Run Activation
+
+- `git commit -m "Record atlas smoke verification"` created `4df455b`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `4df455b` to the fork branch.
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `4df455b`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json`, untracked `docs/reference/`, and this worksheet status update until its own status commit.
+- Activated WP-14 as the full live package after Checkpoint J green.
+- WP-14 full run must use the already promoted `9cb781f` app code on `snow-white-iii` unless a new committed app promotion is required.
+- WP-14 full run must use `start_chatgpt_archive_atlas_snow_white_iii.sh` without `--limit`, run as service user `mempalace`, keep `CPUQuota=200%`, `MemoryMax=16G`, and write only under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<run_id>/`.
+- WP-14 remains pre-LLM and artifact-only: no LocalAI call, cloud LLM call, MCP publish, drawer mutation, palace write, deletion, service restart, or `/media/u0/Extreme SSD` path is allowed.
