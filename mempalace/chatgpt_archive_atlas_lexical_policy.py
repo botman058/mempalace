@@ -581,11 +581,20 @@ def _extract_domain_counts(text: str) -> Counter[str]:
 
 def _normalize_domain(value: str) -> str | None:
     candidate = value.strip(".,);]}>\"'")
-    parsed = urlsplit(candidate if "://" in candidate else f"https://{candidate}")
+    if not candidate:
+        return None
+    try:
+        parsed = urlsplit(candidate if "://" in candidate else f"https://{candidate}")
+    except ValueError:
+        return None
     host = parsed.netloc or parsed.path
+    if not host or "[" in host or "]" in host:
+        return None
     host = host.split("@", 1)[-1].split(":", 1)[0].strip(".").lower()
     if host.startswith("www."):
         host = host[4:]
+    if not host or "[" in host or "]" in host:
+        return None
     if "." not in host:
         return None
     suffix = host.rsplit(".", 1)[-1]

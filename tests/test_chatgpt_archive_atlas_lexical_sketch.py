@@ -379,3 +379,49 @@ def test_build_chatgpt_lexical_sketches_passes_source_errors(tmp_path: Path) -> 
         row["source_relative_path"] for row in loaded.source_errors
     ]
     _assert_valid_lexical_rows(result.rows)
+
+
+def test_lexical_sketch_rows_skip_malformed_ipv6_domain_candidates(tmp_path: Path) -> None:
+    conversation: dict[str, Any] = {
+        "id": "atlas-lexical-ipv6-01",
+        "title": "Lexical IPv6 resilience",
+        "create_time": "2026-05-01T00:00:00Z",
+        "update_time": "2026-05-01T00:01:00Z",
+        "current_node": "a1",
+        "mapping": {
+            "root": {"parent": None, "children": ["u1"], "message": None},
+            "u1": {
+                "parent": "root",
+                "children": ["a1"],
+                "message": {
+                    "author": {"role": "user"},
+                    "content": {
+                        "parts": [
+                            "Invalid host http://[::1:8080 should be skipped, but "
+                            "https://docs.python.org and openai.com should remain."
+                        ]
+                    },
+                },
+            },
+            "a1": {
+                "parent": "u1",
+                "children": [],
+                "message": {"author": {"role": "assistant"}, "content": {"parts": ["ok"]}},
+            },
+        },
+    }
+    source_conversation, _ = _write_single_conversation(tmp_path, conversation)
+
+    rows = build_chatgpt_lexical_sketch_rows(
+        conversations=(source_conversation,),
+        run_id="run-wp14-ipv6",
+        max_terms=20,
+        max_items_per_kind=20,
+    )
+
+    _assert_valid_lexical_rows(rows)
+    assert len(rows) == 1
+    domains = {item for row in rows for item in row["domains"]}
+    assert "docs.python.org" in domains
+    assert "openai.com" in domains
+    assert not any("::1" in item for item in domains)

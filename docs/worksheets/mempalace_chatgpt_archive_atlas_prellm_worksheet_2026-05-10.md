@@ -1004,3 +1004,30 @@ Each coherent package milestone requires:
 - WP-14 full run must use the already promoted `9cb781f` app code on `snow-white-iii` unless a new committed app promotion is required.
 - WP-14 full run must use `start_chatgpt_archive_atlas_snow_white_iii.sh` without `--limit`, run as service user `mempalace`, keep `CPUQuota=200%`, `MemoryMax=16G`, and write only under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<run_id>/`.
 - WP-14 remains pre-LLM and artifact-only: no LocalAI call, cloud LLM call, MCP publish, drawer mutation, palace write, deletion, service restart, or `/media/u0/Extreme SSD` path is allowed.
+
+### 2026-05-12 - WP-14 First Full Run Attempt Result
+
+- No atlas unit was active before the full run start.
+- Full run unit `mempalace-chatgpt-archive-atlas-atlas_full_20260512T0400Z_9cb781f` was submitted without `--limit`.
+- Runtime controls while active showed `User=mempalace`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Progressive materialization worked through `source_file_errors.jsonl`, `conversation_index.jsonl`, and `thread_index.jsonl`.
+- The run loaded `4,283` conversations and emitted `4,746` thread rows before failing.
+- The run failed safely during lexical sketching with `ValueError: Invalid IPv6 URL` from `_normalize_domain(...)` calling `urlsplit(...)` on a malformed source-domain candidate.
+- Failure `progress.json` was written under the run directory with `status: failed` and message `atlas artifact build failed: Invalid IPv6 URL`.
+- Failed run directory `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full_20260512T0400Z_9cb781f` was preserved as diagnostic evidence; no files were deleted and no palace data was touched.
+- WP-14 first attempt verdict: red; repair assigned before retry.
+- Repair E: `L-3` Euclid was assigned to make lexical domain extraction skip malformed URL/domain candidates instead of crashing.
+- Repair E tests: `V-1` Mencius was assigned to cover malformed IPv6 candidate handling in lexical policy/sketch tests.
+
+### 2026-05-12 - WP-14 Repair E Evidence
+
+- `L-3` returned changed path: `mempalace/chatgpt_archive_atlas_lexical_policy.py`.
+- `V-1` returned changed paths: `tests/test_chatgpt_archive_atlas_lexical_policy.py` and `tests/test_chatgpt_archive_atlas_lexical_sketch.py`.
+- Repair E makes `_normalize_domain(...)` return `None` for empty candidates, catch `ValueError` from `urlsplit(...)`, and reject malformed bracketed host forms before suffix normalization.
+- Regression tests prove malformed invalid IPv6-looking candidates are skipped while valid domains such as `docs.python.org` and `openai.com` are still extracted.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: `16 passed in 0.80s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_summary.py`: `116 passed in 3.24s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check mempalace/chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py`: passed.
+- `O-0` ran `git diff --check`: passed.
+- Repair E verdict: green.

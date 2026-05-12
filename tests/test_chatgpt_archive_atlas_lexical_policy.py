@@ -123,3 +123,14 @@ def test_dataclass_contents_are_json_safe():
         "capitalized_phrases",
         "noise_terms_rejected",
     }
+
+
+def test_extract_lexical_evidence_skips_malformed_ipv6_url_candidates():
+    text = (
+        "Malformed candidate: http://[::1:8080 should not crash parsing. "
+        "Valid evidence appears at https://docs.python.org and openai.com."
+    )
+    evidence = policy.extract_lexical_evidence(text)
+    assert "docs.python.org" in evidence.domains
+    assert "openai.com" in evidence.domains
+    assert not any("::1" in item for item in evidence.domains)
