@@ -11,6 +11,7 @@ RUN_ID="${MEMPALACE_CHATGPT_ARCHIVE_ATLAS_RUN_ID:-atlas_$(date -u +%Y%m%d%H%M%S)
 UNIT_BASE="${MEMPALACE_CHATGPT_ARCHIVE_ATLAS_UNIT_BASE:-mempalace-chatgpt-archive-atlas}"
 UNIT="${MEMPALACE_CHATGPT_ARCHIVE_ATLAS_UNIT:-}"
 LIMIT="${MEMPALACE_CHATGPT_ARCHIVE_ATLAS_LIMIT:-}"
+ATLAS_LD_LIBRARY_PATH="${MEMPALACE_CHATGPT_ARCHIVE_ATLAS_LD_LIBRARY_PATH:-}"
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 usage() {
@@ -130,6 +131,7 @@ if [[ "$EUID" -ne 0 ]]; then
     MEMPALACE_CHATGPT_ARCHIVE_ATLAS_UNIT_BASE="$UNIT_BASE" \
     MEMPALACE_CHATGPT_ARCHIVE_ATLAS_UNIT="$UNIT" \
     MEMPALACE_CHATGPT_ARCHIVE_ATLAS_LIMIT="$LIMIT" \
+    MEMPALACE_CHATGPT_ARCHIVE_ATLAS_LD_LIBRARY_PATH="$ATLAS_LD_LIBRARY_PATH" \
     "$SCRIPT_PATH"
 fi
 
@@ -144,6 +146,49 @@ if [[ ! -x "$VENV/bin/python" ]]; then
 fi
 if [[ ! -d "$SOURCE_DIR" ]]; then
   echo "missing ChatGPT source directory: $SOURCE_DIR" >&2
+  exit 1
+fi
+
+if [[ -z "$ATLAS_LD_LIBRARY_PATH" ]]; then
+  site_lib="$("$VENV/bin/python" - <<'PY'
+import site
+paths = site.getsitepackages()
+print(paths[0] if paths else "")
+PY
+)"
+
+  cuda_dirs=()
+  if [[ -n "$site_lib" ]]; then
+    for dir in \
+      "$site_lib"/nvidia/cublas/lib \
+      "$site_lib"/nvidia/cuda_cupti/lib \
+      "$site_lib"/nvidia/cuda_nvrtc/lib \
+      "$site_lib"/nvidia/cuda_runtime/lib \
+      "$site_lib"/nvidia/cudnn/lib \
+      "$site_lib"/nvidia/cufft/lib \
+      "$site_lib"/nvidia/curand/lib \
+      "$site_lib"/nvidia/cusolver/lib \
+      "$site_lib"/nvidia/cusparse/lib \
+      "$site_lib"/nvidia/nccl/lib \
+      "$site_lib"/nvidia/nvjitlink/lib \
+      "$site_lib"/nvidia/nvtx/lib; do
+      [[ -d "$dir" ]] && cuda_dirs+=("$dir")
+    done
+  fi
+
+  if ((${#cuda_dirs[@]})); then
+    IFS=:
+    ATLAS_LD_LIBRARY_PATH="${cuda_dirs[*]}"
+    unset IFS
+  else
+    echo "missing CUDA/cuDNN runtime libraries under venv site-packages nvidia/*/lib" >&2
+    echo "refusing atlas smoke start without LD_LIBRARY_PATH (WP-13 requires CUDA embedding proof)" >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "$ATLAS_LD_LIBRARY_PATH" ]]; then
+  echo "computed empty LD_LIBRARY_PATH for atlas runner; refusing to start" >&2
   exit 1
 fi
 
@@ -181,6 +226,7 @@ systemd-run \
   --setenv=MEMPALACE_ROOT="$ROOT" \
   --setenv=MEMPALACE_APP="$APP" \
   --setenv=MEMPALACE_VENV="$VENV" \
+  --setenv=LD_LIBRARY_PATH="$ATLAS_LD_LIBRARY_PATH" \
   --setenv=MEMPALACE_EMBEDDING_DEVICE=cuda \
   --setenv=MEMPALACE_CHATGPT_ARCHIVE_ATLAS_RUN_ROOT="$RUN_ROOT" \
   --setenv=MEMPALACE_CHATGPT_ARCHIVE_ATLAS_RUN_ID="$RUN_ID" \

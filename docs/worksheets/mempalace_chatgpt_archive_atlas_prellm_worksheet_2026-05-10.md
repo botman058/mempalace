@@ -940,3 +940,35 @@ Each coherent package milestone requires:
 - `O-0` ran `.venv/bin/python -m ruff check tests/test_chatgpt_archive_atlas_runner.py`: passed.
 - `O-0` ran `git diff --check`: passed.
 - Repair C verdict: green.
+
+### 2026-05-11 - WP-13 Second Smoke Attempt Result
+
+- `git commit -m "Run atlas runner as module"` created `ea73fff`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `ea73fff` to the fork branch.
+- A clean `git archive` of committed `HEAD` `ea73fff` was staged under `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260512T034703Z-ea73fff/app` on `snow-white-iii`.
+- The staged wrapper was verified to use `python -m mempalace.chatgpt_archive_atlas_runner` and promoted with no file deletion, no service restart, and no palace data touch.
+- Bounded smoke unit `mempalace-chatgpt-archive-atlas-atlas_smoke2_20260512T0348Z_ea73fff` was submitted with `--limit 25`.
+- Runtime controls while active showed `User=mempalace`, `CPUQuotaPerSecUSec=2s`, and `MemoryMax=17179869184`.
+- Progressive materialization worked: `progress.json`, `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, and `lexical_sketches.jsonl` were visible while the unit was still running.
+- The smoke completed and emitted all expected artifacts: `progress.json`, `artifacts_index.json`, `source_file_errors.jsonl`, `conversation_index.jsonl`, `thread_index.jsonl`, `lexical_sketches.jsonl`, `thread_embeddings.jsonl`, `thread_embedding_vectors.jsonl`, `topic_clusters.jsonl`, `atlas_summary.md`, and `atlas_summary_manifest.json`.
+- Final counts were `loaded_conversations: 25`, `conversation_rows: 25`, `thread_rows: 26`, `lexical_rows: 26`, `embedding_metadata_rows: 26`, `embedding_vector_rows: 26`, `topic_cluster_rows: 24`, `source_errors: 63`, and `warnings: 2`.
+- Journal showed ONNX Runtime failed to load `CUDAExecutionProvider` because `libcudnn.so.9` was not on the transient unit library path, even though embedding metadata recorded `effective_device: cuda`.
+- `O-0` marked this second smoke attempt amber diagnostic, not Checkpoint J green, because the recorded effective device could be misleading and the full run could burn CPU.
+- A direct remote probe as `mempalace` succeeded when `LD_LIBRARY_PATH` included the venv-local NVIDIA library dirs.
+- Repair D: `L-5` Newton was assigned to add venv-local CUDA/cuDNN `LD_LIBRARY_PATH` discovery to the atlas wrapper.
+- Repair D tests: `V-1` Mencius was assigned to cover CUDA library path handling and non-root sudo re-exec ordering.
+
+### 2026-05-11 - WP-13 Repair D Evidence
+
+- `L-5` returned changed path: `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`.
+- `V-1` returned changed path: `tests/test_chatgpt_archive_atlas_runner.py`.
+- Repair D computes venv-local NVIDIA library directories using `$VENV/bin/python` and `site.getsitepackages()`, includes `nvidia/cudnn/lib` and related CUDA runtime directories, fails closed if none are found, and passes the joined path into the transient unit as `LD_LIBRARY_PATH`.
+- Repair D keeps non-root sudo re-exec before live-tree checks and CUDA discovery, preserving operator invocation from `u0` while performing privileged live path checks after elevation.
+- Repair D retained module invocation, `User=mempalace`, `Group=mempalace`, `CPUQuota=200%`, `MemoryMax=16G`, `ReadWritePaths="$RUN_ROOT"`, and no LocalAI/MCP/publish surface.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_embedding_cache.py`: `25 passed in 1.17s`.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_summary.py`: `114 passed in 3.28s`.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `.venv/bin/python -m ruff check tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `git diff --check`: passed.
+- Repair D verdict: green.

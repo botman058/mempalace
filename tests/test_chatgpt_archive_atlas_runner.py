@@ -16,6 +16,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "systemd" / "start_chatgpt_archive_atlas_snow_white_iii.sh"
 RUNNER_PATH = REPO_ROOT / "mempalace" / "chatgpt_archive_atlas_runner.py"
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "chatgpt_archive_atlas"
+CUDA_LIBRARY_PATH_SUFFIXES = (
+  "nvidia/cublas/lib",
+  "nvidia/cuda_cupti/lib",
+  "nvidia/cuda_nvrtc/lib",
+  "nvidia/cuda_runtime/lib",
+  "nvidia/cudnn/lib",
+)
 
 
 def _script_text() -> str:
@@ -186,6 +193,57 @@ def _script_cmd_block(text: str) -> list[str]:
   return [line.strip() for line in lines[start + 1 : end]]
 
 
+def _systemd_run_args(text: str) -> list[str]:
+  lines = text.splitlines()
+  start = next(i for i, line in enumerate(lines) if line.strip() == "systemd-run \\")
+  args: list[str] = []
+  for line in lines[start + 1 :]:
+    stripped = line.strip()
+    if not stripped:
+      break
+    if stripped.startswith("--"):
+      args.append(stripped)
+    elif stripped.startswith("${cmd") or stripped.startswith("--unit="):
+      args.append(stripped)
+    else:
+      break
+  return args
+
+
+def _first_matching_index(lines: list[str], predicate) -> int:
+  for index, line in enumerate(lines):
+    if predicate(line):
+      return index
+  return -1
+
+
+def _extract_cuda_path_block(lines: list[str], start_idx: int) -> list[str]:
+  if start_idx < 0:
+    return []
+  depth = 0
+  block = []
+  for line in lines[start_idx:]:
+    block.append(line)
+    stripped = line.strip()
+    if stripped.startswith("if") and "cuda_dirs" in line:
+      depth += 1
+    elif stripped == "fi" and depth:
+      depth -= 1
+      if depth == 0:
+        break
+  return block
+
+
+def _find_cuda_guard_line_index(lines: list[str]) -> int:
+  return next(
+    i
+    for i, line in enumerate(lines)
+    if line.strip().startswith("if")
+    and "cuda_dirs" in line
+    and ("${#cuda_dirs[@]}" in line or "${#cuda_dirs}" in line)
+  )
+
+
 def test_runner_uses_canonical_defaults_and_run_root():
   text = _script_text()
   assert "/media/u0/OneDrive_Backup/mempalace" in text
@@ -255,6 +313,83 @@ def test_systemd_wrapper_invokes_runner_as_module_not_file():
   assert not any(part == '$SCRIPT' for part in cmd_block)
   assert not any(part == "$SCRIPT" for part in cmd_block)
   assert not any(part == '"$SCRIPT"' for part in cmd_block)
+
+
+def test_systemd_wrapper_sets_cuda_library_paths_for_transient_run():
+  text = _script_text()
+  lines = text.splitlines()
+  assert "site.getsitepackages()" in text
+  assert "site_lib=" in text
+  assert "cuda_dirs=()" in text
+  assert "$VENV/bin/python" in text
+  assert any("for dir in" in line for line in lines)
+
+  systemd_args = _systemd_run_args(text)
+  assert any(
+    part.startswith("--setenv=LD_LIBRARY_PATH=") or "LD_LIBRARY_PATH" in part
+    for part in systemd_args
+  )
+  for required in CUDA_LIBRARY_PATH_SUFFIXES:
+    assert any(required in line for line in lines)
+  assert any(
+    line.strip().startswith("if")
+    and "cuda_dirs" in line
+    and ("${#cuda_dirs[@]}" in line or "${#cuda_dirs}" in line)
+    for line in lines
+  )
+  assert any(
+    'export LD_LIBRARY_PATH="${cuda_dirs[*]}"' in line
+    or "LD_LIBRARY_PATH" in line and "cuda_dirs" in line
+    for line in lines
+  )
+
+
+def test_systemd_wrapper_fails_closed_when_cuda_dirs_not_present_or_empty():
+  text = _script_text()
+  lines = text.splitlines()
+  start = _find_cuda_guard_line_index(lines)
+  cuda_block = _extract_cuda_path_block(lines, start)
+  assert any(line.strip().startswith("else") for line in cuda_block), "missing else guard for empty cuda dir set"
+  end_idx = next(i for i, line in enumerate(cuda_block) if line.strip() == "else")
+  guard_block = cuda_block[end_idx + 1:]
+  guard_text = "\n".join(guard_block).lower()
+  assert "echo" in guard_text, "missing clear guard/telemetry when no cuda dirs found"
+  assert ("exit" in guard_text or "unset ld_library_path" in guard_text), (
+    "missing non-ambiguous fail-closed behavior when no cuda dirs are found"
+  )
+
+
+def test_systemd_wrapper_sudo_reexec_precedes_privileged_checks_and_cuda_discovery():
+  text = _script_text()
+  lines = text.splitlines()
+
+  reexec_index = _first_matching_index(
+    lines,
+    lambda line: line.strip().startswith('if [[ "$EUID" -ne 0 ]]'),
+  )
+  assert reexec_index >= 0
+
+  live_checks = [
+    'if [[ ! -f "$SCRIPT" ]]',
+    'if [[ ! -x "$VENV/bin/python" ]]',
+    'if [[ ! -d "$SOURCE_DIR" ]]',
+    'site_lib="$("$VENV/bin/python"',
+    'if [[ -z "$ATLAS_LD_LIBRARY_PATH" ]]; then',
+    "for dir in \\",
+    'if ((${#cuda_dirs[@]})); then',
+  ]
+
+  first_privileged_or_cuda_index = min(
+    idx
+    for idx in (
+      _first_matching_index(lines, lambda line, needle=needle: needle in line) for needle in live_checks
+    )
+    if idx >= 0
+  )
+  assert first_privileged_or_cuda_index > reexec_index
+
+  cuda_guard_index = _find_cuda_guard_line_index(lines)
+  assert cuda_guard_index > reexec_index
 
 
 def test_runner_target_path_exists():
