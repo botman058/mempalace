@@ -799,3 +799,33 @@ Each coherent package milestone requires:
 - WP-09 verdict: green.
 - Checkpoint G verdict: green.
 - Checkpoint G disposition: WP-10 and WP-12 are unlocked after this milestone is committed and pushed.
+
+### 2026-05-11 - WP-10 Markdown Atlas Summary Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `73ea3ba`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated WP-10 as the active report-lane package needed to close Checkpoint H.
+- WP-10 lead `L-3` remains worker Euclid with model `gpt-5.4` and reasoning depth `high`.
+- WP-10 implementation write scope for `L-3` is limited to `mempalace/chatgpt_archive_atlas_summary.py`.
+- WP-10 docs/test helper `H-5` was assigned to worker Chandrasekhar with model `gpt-5.4-mini` and reasoning depth `medium`.
+- WP-10 test write scope for `H-5` is limited to `tests/test_chatgpt_archive_atlas_summary.py`.
+- WP-10 workers were forbidden from editing docs, fixtures, runner, dashboard, MCP, LocalAI, Chroma, palace data paths, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- Shared WP-10 API contract was set as `build_chatgpt_atlas_summary(...)`, optional `write_chatgpt_atlas_summary(...)`, and immutable `ChatGPTAtlasSummaryResult`.
+
+### 2026-05-11 - WP-10 Markdown Atlas Summary Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-3` returned changed path: `mempalace/chatgpt_archive_atlas_summary.py`.
+- `H-5` returned changed path: `tests/test_chatgpt_archive_atlas_summary.py`.
+- WP-10 delivered deterministic Markdown atlas summary generation, manifest generation through `contract.build_atlas_summary_manifest(...)`, and a confined writer that writes only below the supplied run directory.
+- WP-10 tests cover dataclass API shape, manifest validation, candidate wings/rooms, cluster sizes, evidence titles, top terms, representative excerpts, mixed/noisy clusters, source/error summaries, deterministic ordering, and writer confinement.
+- `O-0` independently inspected the implementation and tests.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_contract.py tests/test_chatgpt_archive_atlas_fixtures.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py tests/test_chatgpt_archive_atlas_conversation.py tests/test_chatgpt_archive_atlas_thread.py tests/test_chatgpt_archive_atlas_lexical_policy.py tests/test_chatgpt_archive_atlas_lexical_sketch.py tests/test_chatgpt_archive_atlas_embedding_cache.py tests/test_chatgpt_archive_atlas_topic_cluster.py tests/test_chatgpt_archive_atlas_summary.py`: `99 passed in 2.70s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_summary.py tests/test_chatgpt_archive_atlas_summary.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_summary.py tests/test_chatgpt_archive_atlas_summary.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_archive_atlas_summary.py tests/test_chatgpt_archive_atlas_summary.py docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md`: passed.
+- `O-0` statically scanned WP-10 code/tests for LocalAI, MCP, publish, drawer, palace write, Chroma, `/media/u0/Extreme SSD`, delete/remove surfaces, `requests`, `httpx`, `openai`, and subprocess: no matches.
+- WP-10 verdict: green.
+- Checkpoint H verdict: green.
+- Checkpoint H disposition: WP-12 safety review is ready after this milestone is committed and pushed.
