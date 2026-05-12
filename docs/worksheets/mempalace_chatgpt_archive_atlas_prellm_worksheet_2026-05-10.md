@@ -516,3 +516,18 @@ Each coherent package milestone requires:
 - Clustering bias is conservative split.
 - No LLM, LocalAI, MCP write, drawer publish, semantic copy, or cloud API call is used in this tranche.
 - Later LLM-guided mining will be planned in a separate worksheet after atlas review.
+
+---
+
+## execution log
+
+### 2026-05-11 - WP-00 / Checkpoint A Green
+
+- `O-0` reread this worksheet before activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `d6cac16`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Live guard check on `snow-white-iii`: `mempalace-localai-chatgpt-thread-signals-20260510020609.service` remains `inactive/dead`.
+- Live guard check on preserved stopped-grind run directory: `publish_checkpoint.jsonl` is absent, so no stopped-grind publication was observed.
+- Checkpoint A required evidence is present: worksheet exists on disk, branch/head/status are recorded, stopped-grind state is recorded, agent pool and package table include explicit leads/support, and the parallel activation plan is recorded.
+- Checkpoint A verdict: green.
+- Next allowed activation per worksheet: WP-01 and WP-02 in parallel.
