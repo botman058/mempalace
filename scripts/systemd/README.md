@@ -205,6 +205,44 @@ The script only publishes when `--publish` is present. It does not delete or
 rewrite palace data, does not restart services, and refuses any path under
 `/media/u0/Extreme SSD`.
 
+## ChatGPT archive atlas runner (pre-LLM, artifact-only)
+
+This wrapper runs the pre-LLM ChatGPT archive atlas pass on `snow-white-iii`
+as the `mempalace` service user with bounded resources:
+
+```text
+MemoryMax=16G
+CPUQuota=200%
+```
+
+Canonical defaults:
+
+```text
+ROOT      /media/u0/OneDrive_Backup/mempalace
+SOURCE    /media/u0/OneDrive_Backup/mempalace/sources/chatgpt
+RUN ROOT  /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas
+APP       /media/u0/OneDrive_Backup/mempalace/app
+```
+
+Start a bounded smoke run:
+
+```bash
+scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh --limit 50
+```
+
+Start a full run with explicit run id:
+
+```bash
+scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh \
+  --run-id atlas_full_20260510 \
+  --run-root /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas \
+  --source-dir /media/u0/OneDrive_Backup/mempalace/sources/chatgpt
+```
+
+This wrapper is pre-LLM and artifact-only: no LocalAI dependency, no cloud
+LLM calls, no MCP write/publish flags. It does not delete files, does not
+restart services, and refuses any path under `/media/u0/Extreme SSD`.
+
 ## MemPalace dashboard service
 
 The dashboard is a separate service and should be deployed only when it will not

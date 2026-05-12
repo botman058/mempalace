@@ -569,3 +569,45 @@ Each coherent package milestone requires:
 - `O-0` ran `.venv/bin/pytest -q tests/test_chatgpt_archive_atlas_fixtures.py`: `14 passed in 0.40s`.
 - WP-02 verdict: green.
 - WP-02 exit: fixtures are available for WP-03 through WP-07.
+
+### 2026-05-11 - WP-03 / WP-11 Parallel Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current local branch truth before activation: `codex/mempalace-http-mcp-closure` at `b5f8255`.
+- Current dirty files remain out of scope: modified `.agents/plugins/marketplace.json` and untracked `docs/reference/`.
+- Activated allowed parallel package set after Checkpoint B: WP-03 and WP-11.
+- WP-03 lead `L-2` was assigned to worker Nietzsche with model `gpt-5.4` and reasoning depth `high`.
+- WP-03 write scope was limited to `mempalace/chatgpt_archive_atlas_source.py` and `tests/test_chatgpt_archive_atlas_source.py`.
+- WP-03 was forbidden from editing contract, runner, fixture, docs, systemd, `.agents/plugins/marketplace.json`, or `docs/reference/`.
+- WP-11 lead `L-5` was assigned to worker Pascal with model `gpt-5.3-codex` and reasoning depth `medium`.
+- WP-11 write scope was limited to `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`, `scripts/systemd/README.md`, and `tests/test_chatgpt_archive_atlas_runner.py`.
+- WP-11 was forbidden from editing atlas algorithm modules, fixtures, dashboard, MCP, `docs/reference/`, or this worksheet.
+
+### 2026-05-11 - WP-03 Source Inventory Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-2` returned changed paths: `mempalace/chatgpt_archive_atlas_source.py` and `tests/test_chatgpt_archive_atlas_source.py`.
+- WP-03 delivered sorted `conversations.json` discovery, UTF-8 `errors=replace` loading, deterministic file-level `sha256:` source hashes, safe source-relative paths, source ordinals, top-level shape metadata, and JSON-safe source error rows.
+- WP-03 records malformed JSON, wrong top-level shapes, invalid conversation items, and outside-root paths as source errors instead of crashing or deleting source files.
+- WP-03 preserves duplicate logical-source identities as distinct loaded records with distinct source ordinals.
+- `O-0` independently inspected the implementation and tests.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py`: `12 passed in 0.65s`.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py`: passed.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
+- WP-03 verdict: green.
+- Checkpoint C remains partial: source loading is green, but WP-04 conversation index must close before Checkpoint C is fully green.
+
+### 2026-05-11 - WP-11 Snow-White Runner Evidence
+
+- `O-0` reread this worksheet before worker acceptance review.
+- `L-5` returned changed paths: `scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`, `scripts/systemd/README.md`, and `tests/test_chatgpt_archive_atlas_runner.py`.
+- WP-11 delivered an artifact-only `systemd-run` wrapper for `snow-white-iii` with canonical defaults under `/media/u0/OneDrive_Backup/mempalace`, source dir `$ROOT/sources/chatgpt`, run root `$ROOT/data/chatgpt_archive_atlas`, and app path `$ROOT/app`.
+- The wrapper runs as `User=mempalace` / `Group=mempalace`, sets `CPUQuota=200%`, `MemoryMax=16G`, and `MEMPALACE_EMBEDDING_DEVICE=cuda`, and refuses `/media/u0/Extreme SSD` paths.
+- The wrapper supports `--limit`, `--run-id`, `--run-root`, and `--source-dir`.
+- `O-0` rejected the first WP-11 return because default `UNIT` was computed before `--run-id` parsing; `L-5` corrected the issue by deriving the default unit after parsing unless `MEMPALACE_CHATGPT_ARCHIVE_ATLAS_UNIT` is explicitly set.
+- `O-0` statically scanned the runner and tests for forbidden LocalAI/MCP/publish surfaces. The only matches were negative/help/test text documenting that those surfaces are absent.
+- `O-0` ran `.venv/bin/python -m pytest -q tests/test_chatgpt_archive_atlas_source.py tests/test_chatgpt_archive_atlas_runner.py`: `12 passed in 0.65s`.
+- `O-0` ran `bash -n scripts/systemd/start_chatgpt_archive_atlas_snow_white_iii.sh`: passed.
+- WP-11 verdict: green.
+- WP-11 exit: ops path is ready for later independent safety review; no live remote run was started.
