@@ -1091,4 +1091,7 @@ Each coherent package milestone requires:
 - `O-0` ran `git diff --check -- docs/worksheets/mempalace_chatgpt_archive_atlas_prellm_worksheet_2026-05-10.md scripts/systemd/README.md website/guide/mining.md CHANGELOG.md`: passed.
 - No unit tests were rerun for WP-15 because the accepted changes are documentation/status only; code tests for the accepted runner repair remain recorded in WP-14 Repair E.
 - Dirty-file scope remains preserved: `.agents/plugins/marketplace.json` is modified out of scope and `docs/reference/` is untracked out of scope.
-- WP-15 commit/push is the remaining closure action after staging only the accepted documentation/status files.
+- `git commit -m "Record archive atlas full run closure"` created `8c88048` with exactly the accepted WP-15 documentation/status files staged: this worksheet, `CHANGELOG.md`, `scripts/systemd/README.md`, and `website/guide/mining.md`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `8c88048` to the fork branch.
+- Checkpoint L verdict: green.
+- Checkpoint L disposition: ChatGPT archive atlas pre-LLM tranche closed.
