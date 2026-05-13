@@ -10,26 +10,33 @@ import os
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from mempalace import chatgpt_archive_atlas_contract as atlas_contract
+from mempalace import chatgpt_atlas_guided_contract as guided_contract
+from mempalace import chatgpt_atlas_guided_prompt as guided_prompt
 from mempalace.chatgpt_thread_segments import ChatGPTThreadSegment, build_chatgpt_thread_segments
 
 DEFAULT_SOURCE_DIR = "/media/u0/OneDrive_Backup/mempalace/sources/chatgpt"
 DEFAULT_RUN_DIR = "/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals"
+DEFAULT_ATLAS_GUIDED_RUN_DIR = "/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals"
 DEFAULT_MEMPALACE_URL = "http://100.112.179.49:8765"
 DEFAULT_MEMPALACE_TOKEN_FILE = "/media/u0/OneDrive_Backup/mempalace/secrets/http_token"
 DEFAULT_LOCALAI_BASE_URL = "http://snow-white-iii:8080/v1"
 DEFAULT_LOCALAI_TOKEN_FILE = "/media/u0/OneDrive_Backup/mempalace/secrets/localai_token"
 DEFAULT_MODEL = "qwen3-vl-8b-instruct"
 EXTRACTION_VERSION = "localai_chatgpt_thread_signals_v1"
+ATLAS_GUIDED_EXTRACTION_VERSION = "atlas_guided_chatgpt_thread_signals_v1"
 _MAX_EVIDENCE_CHARS = 280
 _MAX_INVALID_EXCERPT_CHARS = 500
 _MAX_SEGMENT_EXCERPT_CHARS = 320
 _MAX_RECON_EVIDENCE = 3
 _MAX_MCP_METADATA_CHARS = 128
+_ATLAS_GUIDED_PHASE_ORDER = ("load_inputs", "extract", "finalize")
 _PROVIDER_BLOCKLIST = (
     "api.openai.com",
     "anthropic.com",
@@ -225,6 +232,35 @@ def _text_digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _atlas_run_id_from_dir(run_dir: Path) -> str:
+    raw = re.sub(r"[^A-Za-z0-9_.-]+", "_", run_dir.name).strip("._-")
+    if not raw:
+        raw = f"atlas_guided_{_text_digest(str(run_dir.resolve()))}"
+    if not re.match(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$", raw):
+        raw = f"atlas_guided_{_text_digest(raw)}"
+    return raw[:96]
+
+
+def _default_atlas_guided_run_dir(atlas_run_dir_value: str | None) -> Path:
+    raw_source = str(atlas_run_dir_value or "").strip()
+    if raw_source:
+        expanded = Path(raw_source).expanduser()
+        slug_source = expanded.name or raw_source
+        digest_source = str(expanded)
+    else:
+        slug_source = "atlas_guided"
+        digest_source = DEFAULT_ATLAS_GUIDED_RUN_DIR
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", slug_source).strip("._-")
+    if not slug:
+        slug = "atlas_guided"
+    child_name = f"{slug}_{_text_digest(digest_source)}"
+    return Path(DEFAULT_ATLAS_GUIDED_RUN_DIR) / child_name
+
+
 def _normalize_room(value: Any) -> str:
     if not isinstance(value, str):
         return ""
@@ -269,6 +305,38 @@ def _load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
                 continue
             if isinstance(row, dict):
                 rows.append(row)
+    return rows
+
+
+def _load_strict_jsonl_object_rows(
+    path: Path,
+    *,
+    label: str,
+    required: bool,
+) -> list[dict[str, Any]]:
+    if not path.exists():
+        if required:
+            raise FatalRemoteError(f"{label} is required: {path}")
+        return []
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise FatalRemoteError(
+                        f"{label} has invalid JSONL row at {path}:{line_number}: {exc}"
+                    ) from exc
+                if not isinstance(row, dict):
+                    raise FatalRemoteError(
+                        f"{label} row at {path}:{line_number} must be a JSON object"
+                    )
+                rows.append(row)
+    except OSError as exc:
+        raise FatalRemoteError(f"{label} is not readable: {path}: {exc}") from exc
     return rows
 
 
@@ -550,6 +618,695 @@ def _reconciled_stats_from_existing(run_dir: Path) -> dict[str, int]:
     }
 
 
+def _load_required_json(path: Path, label: str) -> dict[str, Any]:
+    if not path.exists():
+        raise FatalRemoteError(f"{label} is required: {path}")
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FatalRemoteError(f"{label} is not valid JSON: {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise FatalRemoteError(f"{label} must be a JSON object: {path}")
+    return raw
+
+
+def _load_required_jsonl(path: Path, label: str) -> list[dict[str, Any]]:
+    return _load_strict_jsonl_object_rows(path, label=label, required=True)
+
+
+def _load_optional_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FatalRemoteError(f"Optional JSON artifact is invalid: {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise FatalRemoteError(f"Optional JSON artifact must be a JSON object: {path}")
+    return raw
+
+
+def _load_optional_jsonl(path: Path) -> list[dict[str, Any]]:
+    return _load_strict_jsonl_object_rows(path, label="Optional JSONL artifact", required=False)
+
+
+def _normalize_guided_row_for_run(
+    row: dict[str, Any],
+    *,
+    schema_name: str,
+    run_id: str,
+) -> dict[str, Any]:
+    copied = dict(row)
+    copied["run_id"] = run_id
+    return guided_contract.validate_row(schema_name, copied)
+
+
+def _write_jsonl_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+
+
+def _load_atlas_guided_inputs(
+    *,
+    run_id: str,
+    atlas_run_dir: Path,
+    candidate_records_path: Path | None,
+) -> dict[str, Any]:
+    candidate_path = candidate_records_path or (
+        atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["candidate_bridge_records"]
+    )
+    lookup_path = atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_thread_candidates"]
+    coverage_path = atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_candidate_coverage"]
+    thread_index_path = atlas_run_dir / "thread_index.jsonl"
+
+    raw_candidate_rows = _load_required_jsonl(candidate_path, "atlas candidate bridge records")
+    raw_lookup_rows = _load_required_jsonl(lookup_path, "atlas thread candidate lookup")
+    raw_thread_rows = _load_optional_jsonl(thread_index_path)
+    raw_coverage = _load_optional_json(coverage_path)
+
+    candidate_rows: list[dict[str, Any]] = []
+    lookup_rows: list[dict[str, Any]] = []
+    thread_rows: list[dict[str, Any]] = []
+    seen_atlas_run_ids: set[str] = set()
+
+    for row in raw_candidate_rows:
+        validated = guided_contract.validate_row(guided_contract.CANDIDATE_BRIDGE_RECORD_SCHEMA, row)
+        seen_atlas_run_ids.add(str(validated["atlas_run_id"]))
+        candidate_rows.append(
+            _normalize_guided_row_for_run(
+                validated,
+                schema_name=guided_contract.CANDIDATE_BRIDGE_RECORD_SCHEMA,
+                run_id=run_id,
+            )
+        )
+
+    for row in raw_lookup_rows:
+        validated = guided_contract.validate_row(guided_contract.THREAD_CANDIDATE_LOOKUP_SCHEMA, row)
+        seen_atlas_run_ids.add(str(validated["atlas_run_id"]))
+        lookup_rows.append(
+            _normalize_guided_row_for_run(
+                validated,
+                schema_name=guided_contract.THREAD_CANDIDATE_LOOKUP_SCHEMA,
+                run_id=run_id,
+            )
+        )
+
+    for row in raw_thread_rows:
+        validated = atlas_contract.validate_row(atlas_contract.THREAD_INDEX_SCHEMA, row)
+        seen_atlas_run_ids.add(str(validated["run_id"]))
+        thread_rows.append(validated)
+
+    if not seen_atlas_run_ids:
+        raise FatalRemoteError(f"Could not resolve atlas_run_id from {atlas_run_dir}")
+    if len(seen_atlas_run_ids) != 1:
+        raise FatalRemoteError(
+            f"Atlas-guided inputs must share one atlas_run_id, got {sorted(seen_atlas_run_ids)}"
+        )
+    atlas_run_id = next(iter(seen_atlas_run_ids))
+
+    if raw_coverage is not None:
+        validated_coverage = guided_contract.validate_row(
+            guided_contract.CANDIDATE_COVERAGE_REPORT_SCHEMA,
+            raw_coverage,
+        )
+        if str(validated_coverage["atlas_run_id"]) != atlas_run_id:
+            raise FatalRemoteError("atlas candidate coverage report atlas_run_id does not match inputs")
+        coverage_row = _normalize_guided_row_for_run(
+            validated_coverage,
+            schema_name=guided_contract.CANDIDATE_COVERAGE_REPORT_SCHEMA,
+            run_id=run_id,
+        )
+    else:
+        lookup_statuses = [str(row.get("lookup_status") or "") for row in lookup_rows]
+        mapped_threads = sum(1 for status in lookup_statuses if status == "mapped")
+        mixed_threads = sum(1 for status in lookup_statuses if status == "mixed")
+        noise_threads = sum(1 for status in lookup_statuses if status == "noise")
+        unmapped_threads = sum(1 for status in lookup_statuses if status == "unmapped")
+        coverage_row = guided_contract.build_candidate_coverage_report(
+            run_id=run_id,
+            atlas_run_id=atlas_run_id,
+            status="needs_review" if mixed_threads or noise_threads or unmapped_threads else "complete",
+            total_threads=len(lookup_rows),
+            mapped_threads=mapped_threads,
+            mixed_threads=mixed_threads,
+            noise_threads=noise_threads,
+            unmapped_threads=unmapped_threads,
+            candidate_count=len(
+                {str(row["candidate_id"]) for row in candidate_rows if row.get("candidate_id")}
+            ),
+            cluster_count=len({str(row["atlas_cluster_id"]) for row in candidate_rows}),
+            duplicate_thread_refs=[],
+            missing_thread_refs=[],
+            counts={"lookup_rows": len(lookup_rows), "candidate_bridge_records": len(candidate_rows)},
+        )
+
+    lookup_by_thread_id: dict[str, dict[str, Any]] = {}
+    for row in lookup_rows:
+        lookup_by_thread_id[str(row["thread_id"])] = row
+
+    thread_rows_by_logical_source: dict[str, list[dict[str, Any]]] = {}
+    for index, row in enumerate(thread_rows, start=1):
+        thread_rows_by_logical_source.setdefault(str(row["logical_source_id"]), []).append(
+            {
+                "thread_id": str(row["thread_id"]),
+                "logical_source_id": str(row["logical_source_id"]),
+                "conversation_id": row.get("conversation_id"),
+                "source_hash": str(row["source_hash"]),
+                "thread_index": int(row["thread_index"]),
+                "message_start_index": int(row["message_start_index"]),
+                "message_end_index": int(row["message_end_index"]),
+                "char_start": int(row["char_start"]),
+                "char_end": int(row["char_end"]),
+                "source_thread_ref": f"thread_index.jsonl#{index}",
+            }
+        )
+    for rows in thread_rows_by_logical_source.values():
+        rows.sort(
+            key=lambda row: (
+                row["message_start_index"],
+                row["char_start"],
+                row["thread_index"],
+                row["thread_id"],
+            )
+        )
+
+    return {
+        "atlas_run_id": atlas_run_id,
+        "candidate_rows": candidate_rows,
+        "lookup_rows": lookup_rows,
+        "lookup_by_thread_id": lookup_by_thread_id,
+        "coverage_row": coverage_row,
+        "thread_rows_by_logical_source": thread_rows_by_logical_source,
+    }
+
+
+def _overlap_size(start_a: int, end_a: int, start_b: int, end_b: int) -> int:
+    return max(0, min(end_a, end_b) - max(start_a, start_b) + 1)
+
+
+def _select_thread_lookup_for_segment(
+    *,
+    segment: ChatGPTThreadSegment,
+    atlas_inputs: dict[str, Any],
+    run_id: str,
+) -> tuple[dict[str, Any], str | None]:
+    candidate_threads = list(
+        atlas_inputs["thread_rows_by_logical_source"].get(segment.logical_source_id, [])
+    )
+    matching_threads = [
+        row
+        for row in candidate_threads
+        if row["source_hash"] == segment.source_hash
+        and (
+            row["conversation_id"] is None
+            or segment.conversation_id is None
+            or row["conversation_id"] == segment.conversation_id
+        )
+    ]
+    if matching_threads:
+        candidate_threads = matching_threads
+
+    if not candidate_threads and len(atlas_inputs["lookup_rows"]) == 1:
+        only_row = atlas_inputs["lookup_rows"][0]
+        return only_row, str(only_row["thread_id"])
+
+    best_thread: dict[str, Any] | None = None
+    best_score: tuple[int, int, int, int] | None = None
+    for row in candidate_threads:
+        message_overlap = _overlap_size(
+            segment.message_start_index,
+            segment.message_end_index,
+            row["message_start_index"],
+            row["message_end_index"],
+        )
+        char_overlap = _overlap_size(
+            segment.char_start,
+            max(segment.char_end - 1, segment.char_start),
+            row["char_start"],
+            max(row["char_end"] - 1, row["char_start"]),
+        )
+        exact_identity = int(
+            row["source_hash"] == segment.source_hash
+            and (
+                row["conversation_id"] is None
+                or segment.conversation_id is None
+                or row["conversation_id"] == segment.conversation_id
+            )
+        )
+        score = (message_overlap, char_overlap, exact_identity, -row["thread_index"])
+        if best_score is None or score > best_score:
+            best_score = score
+            best_thread = row
+
+    if best_thread is not None and (
+        best_score is not None and (best_score[0] > 0 or best_score[1] > 0 or len(candidate_threads) == 1)
+    ):
+        lookup_row = atlas_inputs["lookup_by_thread_id"].get(best_thread["thread_id"])
+        if lookup_row is None:
+            return (
+                guided_contract.build_thread_candidate_record(
+                    run_id=run_id,
+                    atlas_run_id=str(atlas_inputs["atlas_run_id"]),
+                    thread_id=best_thread["thread_id"],
+                    lookup_status="unmapped",
+                    candidate_ids=[],
+                    candidate_keys=[],
+                    cluster_ids=[],
+                    primary_candidate_id=None,
+                    primary_candidate_key=None,
+                    reason_codes=["lookup_row_missing"],
+                    source_thread_ref=best_thread["source_thread_ref"],
+                ),
+                best_thread["thread_id"],
+            )
+        return lookup_row, best_thread["thread_id"]
+
+    synthetic_thread_id = f"{segment.logical_source_id}:atlas_unmapped:{segment.segment_id}"
+    return (
+        guided_contract.build_thread_candidate_record(
+            run_id=run_id,
+            atlas_run_id=str(atlas_inputs["atlas_run_id"]),
+            thread_id=synthetic_thread_id,
+            lookup_status="unmapped",
+            candidate_ids=[],
+            candidate_keys=[],
+            cluster_ids=[],
+            primary_candidate_id=None,
+            primary_candidate_key=None,
+            reason_codes=["atlas_thread_match_missing"],
+            source_thread_ref=None,
+        ),
+        None,
+    )
+
+
+def _atlas_counts_snapshot(
+    *,
+    candidate_rows: list[dict[str, Any]],
+    lookup_rows: list[dict[str, Any]],
+    extraction_rows: list[dict[str, Any]],
+    invalid_rows: list[dict[str, Any]],
+    coverage_rows: int,
+    source_file_errors: int,
+    processed_this_run: int,
+    skipped_this_run: int,
+    mapped_segments: int,
+    synthetic_unmapped_segments: int,
+    source_files_total: int,
+    source_files_processed: int,
+) -> dict[str, int]:
+    counts: dict[str, int] = {
+        "candidate_bridge_records": len(candidate_rows),
+        "atlas_thread_candidates": len(lookup_rows),
+        "atlas_candidate_coverage": coverage_rows,
+        "extraction_records": len(extraction_rows),
+        "invalid_outputs": len(invalid_rows),
+        "source_file_errors": source_file_errors,
+        "segments_processed_this_run": processed_this_run,
+        "segments_processed_total": len(extraction_rows),
+        "segments_skipped_this_run": skipped_this_run,
+        "mapped_segments": mapped_segments,
+        "synthetic_unmapped_segments": synthetic_unmapped_segments,
+        "source_files_total": source_files_total,
+        "source_files_processed": source_files_processed,
+        "accepted_records": 0,
+        "null_signal_records": 0,
+        "invalid_output_records": 0,
+        "provider_error_records": 0,
+        "reconciled_signals": 0,
+        "publish_checkpoint": 0,
+    }
+    for row in extraction_rows:
+        status = str(row.get("extraction_status") or "")
+        if status == "accepted":
+            counts["accepted_records"] += 1
+        elif status == "null_signal":
+            counts["null_signal_records"] += 1
+        if status == "invalid_output":
+            counts["invalid_output_records"] += 1
+        elif status == "provider_error":
+            counts["provider_error_records"] += 1
+    return counts
+
+
+def _atlas_artifact_counts(counts: dict[str, int]) -> dict[str, int]:
+    return {
+        "progress": 1,
+        "candidate_bridge_records": counts["candidate_bridge_records"],
+        "atlas_thread_candidates": counts["atlas_thread_candidates"],
+        "atlas_candidate_coverage": counts["atlas_candidate_coverage"],
+        "extraction_records": counts["extraction_records"],
+        "invalid_outputs": counts["invalid_outputs"],
+        "reconciled_signals": counts.get("reconciled_signals", 0),
+        "publish_checkpoint": counts.get("publish_checkpoint", 0),
+        "artifacts_index": 1,
+    }
+
+
+def _write_atlas_progress(
+    *,
+    path: Path,
+    run_id: str,
+    atlas_run_id: str,
+    status: str,
+    current_phase: str,
+    phase_status: str,
+    counts: dict[str, int],
+    errors: int,
+    warnings: int,
+    started_at: str,
+    message: str,
+) -> dict[str, Any]:
+    row = guided_contract.build_progress(
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        status=status,
+        current_phase=current_phase,
+        phase_status=phase_status,
+        phase_order=_ATLAS_GUIDED_PHASE_ORDER,
+        counts=counts,
+        errors=errors,
+        warnings=warnings,
+        started_at=started_at,
+        updated_at=_utc_now_iso(),
+        message=message,
+    )
+    _write_progress(path, row)
+    return row
+
+
+def _write_atlas_artifacts_index(
+    *,
+    path: Path,
+    run_id: str,
+    atlas_run_id: str,
+    counts: dict[str, int],
+) -> dict[str, Any]:
+    row = guided_contract.build_artifacts_index(
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        artifacts=guided_contract.canonical_artifact_records(
+            counts=_atlas_artifact_counts(counts)
+        ),
+    )
+    _write_progress(path, row)
+    return row
+
+
+def _ensure_atlas_publish_checkpoint(
+    *,
+    path: Path,
+    run_id: str,
+    atlas_run_id: str,
+) -> int:
+    rows = _load_jsonl_rows(path)
+    checkpoint_id = "atlas_guided_no_publish_default"
+    for row in rows:
+        if row.get("checkpoint_id") == checkpoint_id:
+            return len(rows)
+    _append_jsonl(
+        path,
+        guided_contract.build_publish_checkpoint(
+            run_id=run_id,
+            atlas_run_id=atlas_run_id,
+            checkpoint_id=checkpoint_id,
+            status="disabled",
+            publish_enabled=False,
+            publish_gate_open=False,
+            target_wing=None,
+            record_count=0,
+            notes="WP-05 atlas-guided extraction mode is no-publish.",
+        ),
+    )
+    return len(rows) + 1
+
+
+def _atlas_provider_error_record(
+    *,
+    lookup_row: dict[str, Any],
+    segment: ChatGPTThreadSegment,
+    error_code: str,
+    error_detail: str,
+) -> dict[str, Any]:
+    error_basis = "|".join([str(lookup_row["thread_id"]), segment.segment_id, error_code])
+    return guided_contract.build_extraction_record(
+        run_id=str(lookup_row["run_id"]),
+        atlas_run_id=str(lookup_row["atlas_run_id"]),
+        extraction_id=f"atlas_provider_error_{_text_digest(error_basis)}",
+        thread_id=str(lookup_row["thread_id"]),
+        segment_id=segment.segment_id,
+        extraction_status="provider_error",
+        candidate_id=None,
+        candidate_key=None,
+        signal_type="provider_error",
+        title=None,
+        summary=f"Atlas-guided provider error: {error_code}",
+        source_excerpt=segment.content[: guided_prompt.PARSED_SOURCE_EXCERPT_MAX_CHARS],
+        confidence=0.0,
+        provenance={
+            "error_code": error_code,
+            "error_detail": error_detail[:_MAX_INVALID_EXCERPT_CHARS],
+            "logical_source_id": segment.logical_source_id,
+            "conversation_id": segment.conversation_id,
+            "subthread_id": segment.subthread_id,
+            "segment_excerpt": segment.content[: guided_prompt.PROVENANCE_SEGMENT_EXCERPT_MAX_CHARS],
+        },
+    )
+
+
+def _atlas_write_state(
+    *,
+    progress_path: Path,
+    artifacts_index_path: Path,
+    run_id: str,
+    atlas_run_id: str,
+    atlas_inputs: dict[str, Any],
+    extraction_rows: list[dict[str, Any]],
+    invalid_rows: list[dict[str, Any]],
+    source_file_errors: int,
+    processed_this_run: int,
+    skipped_this_run: int,
+    mapped_segments: int,
+    synthetic_unmapped_segments: int,
+    source_files_total: int,
+    source_files_processed: int,
+    publish_checkpoint_count: int,
+    errors: int,
+    warnings: int,
+    started_at: str,
+    status: str,
+    current_phase: str,
+    phase_status: str,
+    message: str,
+) -> dict[str, int]:
+    counts = _atlas_counts_snapshot(
+        candidate_rows=atlas_inputs["candidate_rows"],
+        lookup_rows=atlas_inputs["lookup_rows"],
+        extraction_rows=extraction_rows,
+        invalid_rows=invalid_rows,
+        coverage_rows=1,
+        source_file_errors=source_file_errors,
+        processed_this_run=processed_this_run,
+        skipped_this_run=skipped_this_run,
+        mapped_segments=mapped_segments,
+        synthetic_unmapped_segments=synthetic_unmapped_segments,
+        source_files_total=source_files_total,
+        source_files_processed=source_files_processed,
+    )
+    counts["publish_checkpoint"] = publish_checkpoint_count
+    _write_atlas_progress(
+        path=progress_path,
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        status=status,
+        current_phase=current_phase,
+        phase_status=phase_status,
+        counts=counts,
+        errors=errors + source_file_errors,
+        warnings=warnings,
+        started_at=started_at,
+        message=message,
+    )
+    _write_atlas_artifacts_index(
+        path=artifacts_index_path,
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        counts=counts,
+    )
+    return counts
+
+
+def _load_conversation_payload(source_file: Path) -> list[Any]:
+    data = json.loads(source_file.read_text(encoding="utf-8", errors="replace"))
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        raise ValueError("not_conversations_list")
+    return data
+
+
+def _atlas_segment_base_record(
+    *,
+    segment: ChatGPTThreadSegment,
+    source_file: Path,
+    lookup_row: dict[str, Any],
+    model: str,
+) -> dict[str, Any]:
+    return {
+        "segment_key": _segment_key(segment),
+        "logical_source_id": segment.logical_source_id,
+        "source_hash": segment.source_hash,
+        "conversation_id": segment.conversation_id,
+        "conversation_title": segment.title or "",
+        "subthread_id": segment.subthread_id,
+        "subthread_label": segment.subthread_label,
+        "segment_id": segment.segment_id,
+        "segment_index": segment.segment_index,
+        "message_start_index": segment.message_start_index,
+        "message_end_index": segment.message_end_index,
+        "char_start": segment.char_start,
+        "char_end": segment.char_end,
+        "source_path": str(source_file),
+        "atlas_thread_id": lookup_row["thread_id"],
+        "atlas_lookup_status": lookup_row["lookup_status"],
+        "atlas_source_thread_ref": lookup_row.get("source_thread_ref"),
+        "extraction_version": ATLAS_GUIDED_EXTRACTION_VERSION,
+        "model": model,
+    }
+
+
+def _append_atlas_record(
+    path: Path,
+    record: dict[str, Any],
+    *,
+    bucket: list[dict[str, Any]],
+    segment: ChatGPTThreadSegment,
+    source_file: Path,
+    model: str,
+    extra_fields: dict[str, Any] | None = None,
+) -> None:
+    payload = dict(record)
+    payload["model"] = model
+    payload["extraction_version"] = ATLAS_GUIDED_EXTRACTION_VERSION
+    payload["logical_source_id"] = segment.logical_source_id
+    payload["source_hash"] = segment.source_hash
+    payload["conversation_id"] = segment.conversation_id
+    payload["conversation_title"] = segment.title or ""
+    payload["subthread_id"] = segment.subthread_id
+    payload["subthread_label"] = segment.subthread_label
+    payload["segment_index"] = segment.segment_index
+    payload["message_start_index"] = segment.message_start_index
+    payload["message_end_index"] = segment.message_end_index
+    payload["char_start"] = segment.char_start
+    payload["char_end"] = segment.char_end
+    payload["source_path"] = str(source_file)
+    if extra_fields:
+        payload.update(extra_fields)
+    _append_jsonl(path, payload)
+    bucket.append(payload)
+
+
+def _process_atlas_segment(
+    *,
+    segment: ChatGPTThreadSegment,
+    source_file: Path,
+    lookup_row: dict[str, Any],
+    candidate_rows: list[dict[str, Any]],
+    provider: SegmentProvider,
+    provider_max_attempts: int,
+    model: str,
+    extraction_path: Path,
+    invalid_path: Path,
+    extraction_rows: list[dict[str, Any]],
+    invalid_rows: list[dict[str, Any]],
+) -> tuple[str, int, int]:
+    invalid_warning = 0
+    provider_error = 0
+    status = "error"
+    raw_text = ""
+    try:
+        last_exc: Exception | None = None
+        for attempt in range(1, provider_max_attempts + 1):
+            try:
+                raw_text = provider.classify_segment(
+                    prompt_messages=guided_prompt.build_chatgpt_atlas_guided_prompt_messages(
+                        segment.content,
+                        lookup_row,
+                        candidate_rows,
+                    )
+                )
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= provider_max_attempts:
+                    raise
+                time.sleep(min(0.3 * attempt, 1.0))
+        if last_exc is not None:
+            raise last_exc
+
+        parsed = guided_prompt.parse_chatgpt_atlas_guided_response(
+            segment.content,
+            segment_id=segment.segment_id,
+            thread_candidate_lookup_row=lookup_row,
+            candidate_bridge_rows=candidate_rows,
+            response_text=raw_text,
+        )
+        if parsed.error_code is not None:
+            status = "invalid_output"
+            invalid_warning = 1
+        else:
+            status = "classified"
+        for row in parsed.records:
+            _append_atlas_record(
+                extraction_path,
+                row,
+                bucket=extraction_rows,
+                segment=segment,
+                source_file=source_file,
+                model=model,
+            )
+            if parsed.error_code is not None:
+                _append_atlas_record(
+                    invalid_path,
+                    row,
+                    bucket=invalid_rows,
+                    segment=segment,
+                    source_file=source_file,
+                    model=model,
+                    extra_fields={"status": "invalid_output", "error_code": parsed.error_code},
+                )
+    except Exception as exc:
+        status = "error"
+        provider_error = 1
+        error_record = _atlas_provider_error_record(
+            lookup_row=lookup_row,
+            segment=segment,
+            error_code="provider_error",
+            error_detail=str(exc),
+        )
+        _append_atlas_record(
+            extraction_path,
+            error_record,
+            bucket=extraction_rows,
+            segment=segment,
+            source_file=source_file,
+            model=model,
+        )
+        _append_atlas_record(
+            invalid_path,
+            error_record,
+            bucket=invalid_rows,
+            segment=segment,
+            source_file=source_file,
+            model=model,
+            extra_fields={"status": "error", "error_code": "provider_error"},
+        )
+    return status, invalid_warning, provider_error
+
+
 def _iter_conversations(source_dir: Path):
     files = sorted(source_dir.rglob("conversations.json"))
     if not files:
@@ -642,7 +1399,7 @@ def _build_prompt(segment: ChatGPTThreadSegment, source_file: Path) -> list[dict
     ]
 
 
-def run(
+def _run_legacy(
     args: argparse.Namespace,
     *,
     provider: SegmentProvider | None = None,
@@ -920,12 +1677,322 @@ def run(
     return 0
 
 
+def _run_atlas_guided(
+    args: argparse.Namespace,
+    *,
+    provider: SegmentProvider | None = None,
+) -> int:
+    if getattr(args, "publish", False):
+        raise FatalRemoteError("Atlas-guided mode is no-publish in WP-05; refusing --publish")
+    atlas_run_dir_value = str(getattr(args, "atlas_run_dir", "") or "").strip()
+    if not atlas_run_dir_value:
+        raise FatalRemoteError("--atlas-run-dir is required with --atlas-guided")
+
+    source_dir = Path(args.source_dir)
+    run_dir = Path(args.run_dir)
+    atlas_run_dir = Path(atlas_run_dir_value)
+    candidate_records_path = None
+    if getattr(args, "candidate_records", None):
+        candidate_records_path = Path(str(args.candidate_records))
+
+    run_id = _atlas_run_id_from_dir(run_dir)
+    progress_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["progress"]
+    artifacts_index_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["artifacts_index"]
+    candidate_bridge_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["candidate_bridge_records"]
+    lookup_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_thread_candidates"]
+    coverage_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_candidate_coverage"]
+    extraction_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"]
+    invalid_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["invalid_outputs"]
+    publish_checkpoint_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["publish_checkpoint"]
+    checkpoint_path = run_dir / "segment_checkpoint.jsonl"
+    source_checkpoint_path = run_dir / "source_checkpoint.jsonl"
+    source_error_path = run_dir / "source_file_errors.jsonl"
+
+    atlas_inputs = _load_atlas_guided_inputs(
+        run_id=run_id,
+        atlas_run_dir=atlas_run_dir,
+        candidate_records_path=candidate_records_path,
+    )
+
+    localai_base = ensure_localai_base_url(args.localai_base_url)
+    if provider is None:
+        token = read_token(args.localai_token, args.localai_token_file, "LocalAI")
+        provider = HttpSegmentProvider(
+            base_url=localai_base,
+            token=token,
+            model=args.model,
+            timeout=args.localai_timeout,
+        )
+
+    atlas_run_id = str(atlas_inputs["atlas_run_id"])
+    _write_jsonl_rows(candidate_bridge_path, atlas_inputs["candidate_rows"])
+    _write_jsonl_rows(lookup_path, atlas_inputs["lookup_rows"])
+    _write_progress(coverage_path, atlas_inputs["coverage_row"])
+
+    seen_statuses = _load_segment_checkpoint_statuses(checkpoint_path)
+    extraction_rows = _load_jsonl_rows(extraction_path)
+    invalid_rows = _load_jsonl_rows(invalid_path)
+    source_file_errors = len(_load_jsonl_rows(source_error_path))
+    publish_checkpoint_count = _ensure_atlas_publish_checkpoint(
+        path=publish_checkpoint_path,
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+    )
+
+    retry_errors = bool(getattr(args, "retry_errors", False))
+    provider_max_attempts = max(1, int(getattr(args, "provider_max_attempts", 2)))
+    started_at = _utc_now_iso()
+    processed_this_run = 0
+    skipped_this_run = 0
+    mapped_segments = 0
+    synthetic_unmapped_segments = 0
+    warnings = 0
+    errors = sum(1 for row in invalid_rows if row.get("extraction_status") == "provider_error")
+    source_files_total = 0
+    source_files_processed = 0
+    stop = False
+
+    counts = _atlas_write_state(
+        progress_path=progress_path,
+        artifacts_index_path=artifacts_index_path,
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        atlas_inputs=atlas_inputs,
+        extraction_rows=extraction_rows,
+        invalid_rows=invalid_rows,
+        source_file_errors=source_file_errors,
+        processed_this_run=processed_this_run,
+        skipped_this_run=skipped_this_run,
+        mapped_segments=mapped_segments,
+        synthetic_unmapped_segments=synthetic_unmapped_segments,
+        source_files_total=source_files_total,
+        source_files_processed=source_files_processed,
+        publish_checkpoint_count=publish_checkpoint_count,
+        errors=errors,
+        warnings=warnings,
+        started_at=started_at,
+        status="running",
+        current_phase="load_inputs",
+        phase_status="complete",
+        message="Loaded atlas-guided bridge, lookup, coverage, and thread index inputs.",
+    )
+
+    for source_file in _iter_conversations(source_dir):
+        source_files_total += 1
+        try:
+            data = _load_conversation_payload(source_file)
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            source_files_processed += 1
+            source_file_errors += 1
+            error_code = "source_shape_error"
+            if isinstance(exc, json.JSONDecodeError):
+                error_code = "source_json_decode_error"
+            elif isinstance(exc, OSError):
+                error_code = "source_read_error"
+            source_row = {
+                "source_path": str(source_file),
+                "status": "error",
+                "error_code": error_code,
+                "error_detail": str(exc)[:_MAX_INVALID_EXCERPT_CHARS],
+            }
+            _append_jsonl(source_error_path, source_row)
+            _append_jsonl(source_checkpoint_path, source_row)
+            counts = _atlas_write_state(
+                progress_path=progress_path,
+                artifacts_index_path=artifacts_index_path,
+                run_id=run_id,
+                atlas_run_id=atlas_run_id,
+                atlas_inputs=atlas_inputs,
+                extraction_rows=extraction_rows,
+                invalid_rows=invalid_rows,
+                source_file_errors=source_file_errors,
+                processed_this_run=processed_this_run,
+                skipped_this_run=skipped_this_run,
+                mapped_segments=mapped_segments,
+                synthetic_unmapped_segments=synthetic_unmapped_segments,
+                source_files_total=source_files_total,
+                source_files_processed=source_files_processed,
+                publish_checkpoint_count=publish_checkpoint_count,
+                errors=errors,
+                warnings=warnings,
+                started_at=started_at,
+                status="running",
+                current_phase="extract",
+                phase_status="running",
+                message=f"Skipped unreadable source file {source_file}.",
+            )
+            continue
+
+        source_files_processed += 1
+        _append_jsonl(source_checkpoint_path, {"source_path": str(source_file), "status": "loaded"})
+        for conversation in data:
+            if not (isinstance(conversation, dict) and "mapping" in conversation):
+                continue
+            segments = build_chatgpt_thread_segments(conversation=conversation)
+            for segment in segments:
+                key = _segment_key(segment)
+                if _should_skip_segment(status=seen_statuses.get(key), retry_errors=retry_errors):
+                    skipped_this_run += 1
+                    continue
+
+                lookup_row, matched_thread_id = _select_thread_lookup_for_segment(
+                    segment=segment,
+                    atlas_inputs=atlas_inputs,
+                    run_id=run_id,
+                )
+                if matched_thread_id is None:
+                    synthetic_unmapped_segments += 1
+                    warnings += 1
+                else:
+                    mapped_segments += 1
+
+                base_record = _atlas_segment_base_record(
+                    segment=segment,
+                    source_file=source_file,
+                    lookup_row=lookup_row,
+                    model=args.model,
+                )
+                status, invalid_warning, provider_error = _process_atlas_segment(
+                    segment=segment,
+                    source_file=source_file,
+                    lookup_row=lookup_row,
+                    candidate_rows=atlas_inputs["candidate_rows"],
+                    provider=provider,
+                    provider_max_attempts=provider_max_attempts,
+                    model=args.model,
+                    extraction_path=extraction_path,
+                    invalid_path=invalid_path,
+                    extraction_rows=extraction_rows,
+                    invalid_rows=invalid_rows,
+                )
+                warnings += invalid_warning
+                errors += provider_error
+
+                processed_this_run += 1
+                seen_statuses[key] = status
+                _append_jsonl(
+                    checkpoint_path,
+                    {
+                        **base_record,
+                        "status": status,
+                        "processed_this_run": processed_this_run,
+                    },
+                )
+                counts = _atlas_write_state(
+                    progress_path=progress_path,
+                    artifacts_index_path=artifacts_index_path,
+                    run_id=run_id,
+                    atlas_run_id=atlas_run_id,
+                    atlas_inputs=atlas_inputs,
+                    extraction_rows=extraction_rows,
+                    invalid_rows=invalid_rows,
+                    source_file_errors=source_file_errors,
+                    processed_this_run=processed_this_run,
+                    skipped_this_run=skipped_this_run,
+                    mapped_segments=mapped_segments,
+                    synthetic_unmapped_segments=synthetic_unmapped_segments,
+                    source_files_total=source_files_total,
+                    source_files_processed=source_files_processed,
+                    publish_checkpoint_count=publish_checkpoint_count,
+                    errors=errors,
+                    warnings=warnings,
+                    started_at=started_at,
+                    status="running",
+                    current_phase="extract",
+                    phase_status="running",
+                    message=f"Processed atlas-guided segment {segment.segment_id}.",
+                )
+                if args.limit and processed_this_run >= args.limit:
+                    stop = True
+                    break
+            if stop:
+                break
+        if stop:
+            break
+
+    counts = _atlas_write_state(
+        progress_path=progress_path,
+        artifacts_index_path=artifacts_index_path,
+        run_id=run_id,
+        atlas_run_id=atlas_run_id,
+        atlas_inputs=atlas_inputs,
+        extraction_rows=extraction_rows,
+        invalid_rows=invalid_rows,
+        source_file_errors=source_file_errors,
+        processed_this_run=processed_this_run,
+        skipped_this_run=skipped_this_run,
+        mapped_segments=mapped_segments,
+        synthetic_unmapped_segments=synthetic_unmapped_segments,
+        source_files_total=source_files_total,
+        source_files_processed=source_files_processed,
+        publish_checkpoint_count=publish_checkpoint_count,
+        errors=errors,
+        warnings=warnings,
+        started_at=started_at,
+        status="complete",
+        current_phase="finalize",
+        phase_status="complete",
+        message="Atlas-guided extraction artifacts are complete for this invocation.",
+    )
+    print(
+        json.dumps(
+            {
+                "status": "complete",
+                "run_id": run_id,
+                "atlas_run_id": atlas_run_id,
+                "processed_segments": processed_this_run,
+                "skipped_segments": skipped_this_run,
+                "accepted_records": counts["accepted_records"],
+                "null_signal_records": counts["null_signal_records"],
+                "invalid_output_records": counts["invalid_output_records"],
+                "provider_error_records": counts["provider_error_records"],
+                "source_file_error_count": source_file_errors,
+                "warnings": warnings,
+                "no_publish": True,
+                "publish_enabled": False,
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
+    return 0
+
+
+def run(
+    args: argparse.Namespace,
+    *,
+    provider: SegmentProvider | None = None,
+    mcp_caller: MCPCaller | None = None,
+) -> int:
+    if getattr(args, "atlas_guided", False):
+        return _run_atlas_guided(args, provider=provider)
+    return _run_legacy(args, provider=provider, mcp_caller=mcp_caller)
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    explicit_run_dir = any(arg == "--run-dir" or arg.startswith("--run-dir=") for arg in argv)
+    run_dir_from_env = "LOCALAI_THREAD_SIGNAL_RUN_DIR" in os.environ
     parser = argparse.ArgumentParser(
         description="Extract thread-aware ChatGPT segment signals with LocalAI and durable checkpoints."
     )
     parser.add_argument("--source-dir", default=os.environ.get("CHATGPT_SOURCE_DIR", DEFAULT_SOURCE_DIR))
     parser.add_argument("--run-dir", default=os.environ.get("LOCALAI_THREAD_SIGNAL_RUN_DIR", DEFAULT_RUN_DIR))
+    parser.add_argument(
+        "--atlas-guided",
+        action="store_true",
+        default=_env_bool("LOCALAI_THREAD_SIGNAL_ATLAS_GUIDED", False),
+        help="Run atlas-guided no-publish extraction using precomputed atlas bridge and coverage artifacts.",
+    )
+    parser.add_argument(
+        "--atlas-run-dir",
+        default=os.environ.get("CHATGPT_ATLAS_RUN_DIR"),
+        help="Directory containing atlas-guided candidate bridge, thread lookup, coverage, and thread_index artifacts.",
+    )
+    parser.add_argument(
+        "--candidate-records",
+        default=os.environ.get("CHATGPT_ATLAS_CANDIDATE_RECORDS"),
+        help="Optional path override for candidate_bridge_records.jsonl.",
+    )
     parser.add_argument(
         "--model",
         default=os.environ.get("LOCALAI_MODEL")
@@ -968,7 +2035,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=max(1, int(os.environ.get("LOCALAI_THREAD_SIGNAL_PROVIDER_MAX_ATTEMPTS", "2"))),
         help="Maximum LocalAI classify attempts per segment for transient provider failures.",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.atlas_guided and not explicit_run_dir and not run_dir_from_env:
+        args.run_dir = str(_default_atlas_guided_run_dir(args.atlas_run_dir))
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -6,7 +6,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts.localai_chatgpt_thread_signals import ensure_localai_base_url, reconcile_segment_extractions, run
+from scripts.localai_chatgpt_thread_signals import (
+    DEFAULT_ATLAS_GUIDED_RUN_DIR,
+    FatalRemoteError,
+    ensure_localai_base_url,
+    parse_args,
+    reconcile_segment_extractions,
+    run,
+)
+from mempalace import chatgpt_atlas_guided_contract as guided_contract
 
 
 def _conversation_from_messages(messages: list[tuple[str, str]], conversation_id: str = "conv-1") -> dict:
@@ -83,9 +91,69 @@ def _base_args(source_dir: Path, run_dir: Path, **overrides):
         "limit": 0,
         "retry_errors": False,
         "provider_max_attempts": 2,
+        "atlas_guided": False,
+        "atlas_run_dir": None,
+        "candidate_records": None,
+        "publish": False,
+        "publish_limit": 0,
+        "wing": "chatgpt_thread_signals",
+        "added_by": "localai_chatgpt_thread_signals",
+        "mempalace_url": "http://localhost:8765",
+        "mempalace_token": None,
+        "mempalace_token_file": None,
+        "mempalace_timeout": 5.0,
     }
     args.update(overrides)
     return SimpleNamespace(**args)
+
+
+_ATLAS_TEST_RUN_ID = "atlas_full2_20260512T0412Z_2fc8ac5"
+_ATLAS_TEST_CANDIDATE_ID = "cand_devops__postgres_latency"
+_ATLAS_TEST_CANDIDATE_KEY = "devops:postgres_latency"
+
+
+def _write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row) + "\n")
+
+
+def _atlas_artifact_rows(conversation_id: str, thread_id: str | None = None) -> tuple[dict, dict]:
+    effective_thread_id = thread_id or f"chatgpt:{conversation_id}"
+    return (
+        guided_contract.build_thread_candidate_record(
+            run_id=_ATLAS_TEST_RUN_ID,
+            atlas_run_id=_ATLAS_TEST_RUN_ID,
+            thread_id=effective_thread_id,
+            lookup_status="mapped",
+            candidate_ids=[_ATLAS_TEST_CANDIDATE_ID],
+            candidate_keys=[_ATLAS_TEST_CANDIDATE_KEY],
+            cluster_ids=["cluster-001"],
+            primary_candidate_id=_ATLAS_TEST_CANDIDATE_ID,
+            primary_candidate_key=_ATLAS_TEST_CANDIDATE_KEY,
+            reason_codes=["candidate_cluster_member"],
+            source_thread_ref="atlas_thread_candidates.jsonl#1",
+        ),
+        guided_contract.build_candidate_bridge_record(
+            run_id=_ATLAS_TEST_RUN_ID,
+            atlas_run_id=_ATLAS_TEST_RUN_ID,
+            candidate_id=_ATLAS_TEST_CANDIDATE_ID,
+            candidate_key=_ATLAS_TEST_CANDIDATE_KEY,
+            bridge_status="candidate",
+            atlas_cluster_id="cluster-001",
+            atlas_cluster_status="candidate",
+            topic_label="Ops readiness",
+            label="Postgres latency",
+            definition="Signals related to postgres latency and ops stability.",
+            thread_ids=[effective_thread_id],
+            top_terms=[{"term": "postgres", "count": 6}],
+            evidence_titles=["thread export"],
+            representative_thread_ids=[effective_thread_id],
+            representative_excerpts=["Latency spike observed."],
+            mixed_reasons=[],
+        ),
+    )
 
 
 def test_long_oversized_conversation_drives_multiple_segment_calls_and_suffix(tmp_path):
@@ -637,6 +705,294 @@ def test_run_without_publish_does_not_call_mcp(tmp_path):
     assert len(mcp.calls) == 0
     progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
     assert "publish_success" not in progress
+
+
+def _write_atlas_guided_input_artifacts(
+    atlas_run_dir: Path, *, conversation_id: str
+) -> None:
+    lookup_row, bridge_row = _atlas_artifact_rows(conversation_id=conversation_id)
+    _write_jsonl(
+        atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_thread_candidates"],
+        [lookup_row],
+    )
+    _write_jsonl(
+        atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["candidate_bridge_records"],
+        [bridge_row],
+    )
+
+
+def _atlas_guided_payload(
+    *,
+    signal_status: str = "accepted",
+    candidate_id: str | None = _ATLAS_TEST_CANDIDATE_ID,
+    candidate_key: str | None = _ATLAS_TEST_CANDIDATE_KEY,
+    error_code: str | None = None,
+) -> str:
+    if error_code is not None:
+        return error_code
+    record: dict[str, object] = {
+        "signals": [
+            {
+                "signal_status": signal_status,
+                "signal_type": "task",
+                "title": "Track query latency",
+                "summary": "A durable planning or ops signal was extracted.",
+                "source_excerpt": "Reduce index contention and improve planner stats.",
+                "confidence": 0.91,
+                "candidate_id": candidate_id,
+                "candidate_key": candidate_key,
+                "canonical_wing": "devops",
+                "canonical_room": "postgres_latency",
+            }
+        ]
+    }
+    if signal_status == "null_signal":
+        for key in ("candidate_id", "candidate_key", "canonical_wing", "canonical_room"):
+            record["signals"][0][key] = None
+    return json.dumps(record)
+
+
+def _atlas_multisegment_conversation(conversation_id: str) -> dict:
+    oversized = "atlas multi segment " + ("X" * 13_500)
+    return _conversation_from_messages([("user", oversized), ("assistant", "ack")], conversation_id)
+
+
+def test_atlas_guided_no_publish_writes_contract_progress_and_extraction_records(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_atlas_multisegment_conversation("conv-atlas-guided")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-guided")
+    args = _base_args(
+        source_dir,
+        run_dir,
+        atlas_guided=True,
+        atlas_run_dir=str(atlas_run_dir),
+        candidate_records=str(
+            atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["candidate_bridge_records"]
+        ),
+        publish=False,
+        limit=2,
+    )
+    provider = _FakeProvider(
+        [
+            _atlas_guided_payload(signal_status="accepted"),
+            "not json",
+            _atlas_guided_payload(signal_status="accepted"),
+        ]
+    )
+    mcp = _FakeMCPCaller()
+    run(args, provider=provider, mcp_caller=mcp)
+    assert len(mcp.calls) == 0
+    assert len(provider.calls) == 2
+
+    progress = json.loads((run_dir / "progress.json").read_text(encoding="utf-8"))
+    assert guided_contract.validate_row(guided_contract.RUN_PROGRESS_SCHEMA, progress) == progress
+
+    extraction_records = _read_jsonl(
+        run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"]
+    )
+    checkpoints = _read_jsonl(run_dir / "segment_checkpoint.jsonl")
+    invalid_outputs = _read_jsonl(run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["invalid_outputs"])
+    assert len(extraction_records) == 2
+    assert len(checkpoints) == 2
+    assert any(row["extraction_status"] == "invalid_output" for row in extraction_records)
+    assert len(invalid_outputs) == 1
+    for row in extraction_records:
+        guided_contract.validate_row(guided_contract.EXTRACTION_RECORD_SCHEMA, row)
+
+
+def test_atlas_guided_unknown_candidate_produces_durable_invalid_output(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-unknown")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-unknown")
+    args = _base_args(
+        source_dir,
+        run_dir,
+        atlas_guided=True,
+        atlas_run_dir=str(atlas_run_dir),
+    )
+    run(
+        args,
+        provider=_FakeProvider(
+            [
+                _atlas_guided_payload(
+                    signal_status="accepted",
+                    candidate_id="cand_unknown__ops",
+                    candidate_key="ops:unknown",
+                )
+            ]
+        ),
+    )
+    invalid_rows = _read_jsonl(run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["invalid_outputs"])
+    extraction_rows = _read_jsonl(run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"])
+    assert invalid_rows or extraction_rows
+    if invalid_rows:
+        assert invalid_rows[0]["status"] == "invalid_output" or invalid_rows[0].get("extraction_status") == "invalid_output"
+        assert (
+            invalid_rows[0].get("error_code") == "unknown_candidate_id"
+            or invalid_rows[0].get("provenance", {}).get("error_code") == "unknown_candidate_id"
+        )
+    if extraction_rows:
+        invalid = [row for row in extraction_rows if row["extraction_status"] == "invalid_output"]
+        assert invalid
+        for row in invalid:
+            assert row["provenance"]["error_code"] == "unknown_candidate_id"
+
+
+def test_atlas_guided_resume_skips_already_completed_segments(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-resume")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-resume")
+    args = _base_args(
+        source_dir,
+        run_dir,
+        atlas_guided=True,
+        atlas_run_dir=str(atlas_run_dir),
+    )
+    first = _FakeProvider([_atlas_guided_payload(signal_status="accepted")])
+    run(args, provider=first)
+    before = _read_jsonl(run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"])
+    assert len(before) == 1
+
+    second = _FakeProvider([_atlas_guided_payload(signal_status="accepted")])
+    run(args, provider=second)
+    after = _read_jsonl(run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"])
+    assert len(after) == 1
+    assert second.calls == []
+
+
+def test_atlas_guided_requires_atlas_run_and_candidate_artifacts(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-missing")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    args = _base_args(
+        source_dir,
+        run_dir,
+        atlas_guided=True,
+        atlas_run_dir=str(atlas_run_dir),
+        candidate_records=str(atlas_run_dir / "missing_candidate_bridge_records.jsonl"),
+    )
+    provider = _FakeProvider([_atlas_guided_payload()])
+    with pytest.raises(Exception):
+        run(args, provider=provider)
+    assert provider.calls == []
+
+
+def test_atlas_guided_required_jsonl_is_strict_before_provider_calls(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-bad-jsonl")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-bad-jsonl")
+    (
+        atlas_run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_thread_candidates"]
+    ).write_text('{"truncated":\n', encoding="utf-8")
+    provider = _FakeProvider([_atlas_guided_payload(signal_status="accepted")])
+
+    with pytest.raises(FatalRemoteError, match="atlas thread candidate lookup has invalid JSONL row"):
+        run(
+            _base_args(
+                source_dir,
+                run_dir,
+                atlas_guided=True,
+                atlas_run_dir=str(atlas_run_dir),
+            ),
+            provider=provider,
+        )
+
+    assert provider.calls == []
+
+
+def test_atlas_guided_thread_index_non_object_row_is_strict_before_provider_calls(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-bad-thread-index")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-bad-thread-index")
+    (atlas_run_dir / "thread_index.jsonl").write_text("[]\n", encoding="utf-8")
+    provider = _FakeProvider([_atlas_guided_payload(signal_status="accepted")])
+
+    with pytest.raises(FatalRemoteError, match="Optional JSONL artifact row .* must be a JSON object"):
+        run(
+            _base_args(
+                source_dir,
+                run_dir,
+                atlas_guided=True,
+                atlas_run_dir=str(atlas_run_dir),
+            ),
+            provider=provider,
+        )
+
+    assert provider.calls == []
+
+
+def test_non_atlas_mode_retains_legacy_segment_extractions_output(tmp_path):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-legacy")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    args = _base_args(source_dir, run_dir)
+    run(args, provider=_FakeProvider(['{"summary":"ok","items":[]}']))
+    assert (run_dir / "segment_extractions.jsonl").exists()
+    assert not (run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"]).exists()
+
+
+def test_parse_args_atlas_guided_default_run_dir_uses_deterministic_child(monkeypatch):
+    monkeypatch.delenv("LOCALAI_THREAD_SIGNAL_RUN_DIR", raising=False)
+    monkeypatch.delenv("CHATGPT_ATLAS_RUN_DIR", raising=False)
+    monkeypatch.delenv("LOCALAI_THREAD_SIGNAL_ATLAS_GUIDED", raising=False)
+    atlas_run_dir = "/tmp/atlas runs/WP-05 candidate set"
+
+    args = parse_args(["--atlas-guided", "--atlas-run-dir", atlas_run_dir])
+    parsed_run_dir = Path(args.run_dir)
+
+    assert parsed_run_dir.parent == Path(DEFAULT_ATLAS_GUIDED_RUN_DIR)
+    assert parsed_run_dir != Path(DEFAULT_ATLAS_GUIDED_RUN_DIR)
+    assert parsed_run_dir.name
+
+    explicit = parse_args(
+        [
+            "--atlas-guided",
+            "--atlas-run-dir",
+            atlas_run_dir,
+            "--run-dir",
+            "/tmp/custom-atlas-guided-run",
+        ]
+    )
+    assert explicit.run_dir == "/tmp/custom-atlas-guided-run"
 
 
 def test_publish_string_only_fields_never_receive_dict_or_list(tmp_path):

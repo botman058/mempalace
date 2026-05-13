@@ -553,7 +553,7 @@ Each coherent package milestone requires:
 | C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
 | D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
 | E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
-| F - Extraction And Reconciliation | active | WP-05 extraction-mode work activated after WP-04 milestone commit `ee6dbac` was pushed; reconciliation remains blocked until WP-05 evidence exists. | WP-06 after WP-05 evidence; WP-07/WP-08 after green verdict |
+| F - Extraction And Reconciliation | active | WP-05 extraction-mode work is green after `L-3`, `L-3R`, `L-3R2`, O-0 checks, and `V-1` no-edit verification; reconciliation remains blocked until WP-06 evidence exists. | WP-06 and WP-07 after WP-05 milestone commit/push; Checkpoint F green only after WP-06 reconciliation evidence |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
 | I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
@@ -574,9 +574,9 @@ Each coherent package milestone requires:
 | WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
 | WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
 | WP-04 | complete | `L-3` / `L-3R` | Atlas-guided LocalAI prompt/parser contract accepted at Checkpoint E after repair and independent green verification. |
-| WP-05 | active | `L-3` | Atlas-guided no-publish extraction mode activated after WP-04 milestone commit/push. |
-| WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
-| WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
+| WP-05 | complete | `L-3` / `L-3R2` | Atlas-guided no-publish extraction mode accepted after repair and independent green verification. |
+| WP-06 | unlocked | `L-4` | Candidate-aware reconciliation may be activated after the WP-05 milestone commit/push. |
+| WP-07 | unlocked | `L-5` | Snow-white wrapper may be activated after the WP-05 milestone commit/push, within the recorded ops wrapper scope. |
 | WP-08 | blocked | `T-1` | Requires WP-02 through WP-07 evidence. |
 | WP-09 | blocked | `R-1` | Independent safety review only after cross-package verification. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
@@ -597,6 +597,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | `V-1` found WP-01 amber blockers: candidate bridge rows force canonical room identity for `noise` rows, tests do not cover mixed/noise bridge semantics, and publish checkpoint cannot represent explicit future `chatgpt_atlas_signals` gate. | Repaired by `L-1R2`; follow-up `V-1` verification returned green and Checkpoint B is green. |
 | 2026-05-12 | closed | `V-1` found a WP-04 amber blocker: model outputs containing `localai_base_url` or related control keys could still be accepted. | Repaired by `L-3R` with recursive forbidden-key rejection and regression tests; `V-1R2` returned green. |
 | 2026-05-12 | closed | `V-1R` initially returned environment-amber because it used ambient `pytest`/`ruff` instead of the repo venv. | Replaced with `V-1R2` using explicit `.venv/bin/...` commands; no functional blocker remained. |
+| 2026-05-12 | closed | O-0 review found WP-05 amber risks: required atlas JSONL inputs could be silently tolerated through the generic reader, and implicit atlas-guided runs wrote directly to the run-root instead of a `<run_id>` child. | Repaired by `L-3R2`; strict atlas input loading now fails before provider calls, checkpoint readers remain tolerant, and implicit atlas run dirs use a deterministic child under the canonical root. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
 
@@ -613,6 +614,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | Checkpoint B is the active hard gate. | Artifact contracts must precede runner/prompt/live work. | WP-01 is the only unlocked implementation package after WP-00. |
 | 2026-05-12 | Defer WP-04 design skeleton until WP-02/WP-03 bridge shape is accepted. | The worksheet allowed WP-04 design skeleton after WP-01 only if write scopes do not overlap; the prompt/parser contract depends on exact bridge/coverage record semantics. | Activate WP-02 next; keep WP-04 blocked until bridge evidence is available. |
 | 2026-05-12 | WP-04 parser rejects forbidden control keys by JSON key, not by scanning free-text values. | The model may legitimately mention LocalAI, MCP, URLs, or paths in grounded text; the unsafe path is structured control/config output that could steer tools or writes. | Reject `localai*`, `chroma*`, `mcp*`, `network*`, `provider*`, `vector*`, `tool*`, `publish*`, `palace*`, `drawer*`, `write*`, URL/path/root-style keys anywhere in model JSON. |
+| 2026-05-12 | Implicit atlas-guided extraction runs use a deterministic child under the canonical atlas-guided run root. | The worksheet requires artifacts under `/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals/<run_id>/`, while resumability requires stable paths rather than timestamp-only run directories. | `--atlas-guided` without explicit `--run-dir` derives a child from `--atlas-run-dir`; explicit run dirs remain operator-owned. |
 
 ---
 
@@ -738,6 +740,25 @@ Each coherent package milestone requires:
 - WP-06 through WP-14 remain blocked.
 - WP-05 write scope is limited to the thread-signal extraction runner, atlas-guided artifact plumbing, and focused tests needed for `--atlas-guided`, `--atlas-run-dir`, `--candidate-records`, no-publish defaults, progressive artifacts, retry/idempotency, and resume behavior.
 - WP-05 must not call LocalAI in tests, publish drawers, mutate existing `chatgpt`, `chatgpt_signals`, or `chatgpt_thread_signals`, or touch `.agents/plugins/marketplace.json` or `docs/reference/`.
+- `H-2` completed a read-only implementation brief identifying the segment-to-atlas thread lookup risk and recommended deterministic mapping policy.
+- `L-3` implemented atlas-guided extraction mode in `scripts/localai_chatgpt_thread_signals.py`.
+- `T-1` implemented fake-provider and resume/idempotency coverage in `tests/test_localai_chatgpt_thread_signals.py`.
+- `L-3R` repaired the first O-0 amber blocker by removing a test-only fake-provider output drain from production code and restoring the strict `--candidate-records` contract as a candidate-bridge override.
+- `O-0` ran `.venv/bin/pytest --noconftest -q tests/test_localai_chatgpt_thread_signals.py`: passed, `27 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_localai_chatgpt_thread_signals.py`: passed, `27 passed`.
+- `O-0` ran `.venv/bin/ruff check scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py`: passed.
+- `O-0` ran `git diff --check -- scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py`: passed.
+- `O-0` review found a second amber blocker: required atlas JSONL inputs used tolerant loading and implicit atlas-guided runs could write directly to the run-root.
+- `L-3R2` repaired strict atlas-input loading, moved atlas input loading before provider setup, preserved tolerant checkpoint/resume loading, and made implicit atlas-guided run dirs land under the canonical root with a deterministic child.
+- `O-0` ran `.venv/bin/pytest --noconftest -q tests/test_localai_chatgpt_thread_signals.py`: passed, `30 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py tests/test_localai_chatgpt_thread_signals.py`: passed, `101 passed`.
+- `O-0` ran `.venv/bin/ruff check scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py`: passed.
+- `O-0` ran `git diff --check -- scripts/localai_chatgpt_thread_signals.py tests/test_localai_chatgpt_thread_signals.py`: passed.
+- `V-1` no-edit verification returned green for flags, legacy preservation, no-publish refusal, disabled publish checkpoint, strict atlas-input loading before provider calls, canonical default run-root child behavior, durable extraction artifacts/checkpoints, fake-provider coverage, and no delete/cloud/LocalAI/MCP test paths.
+- WP-05 extraction verdict: green.
+- Checkpoint F remains active because WP-06 reconciliation/dedupe evidence is still required before the full extraction-and-reconciliation gate can close.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
