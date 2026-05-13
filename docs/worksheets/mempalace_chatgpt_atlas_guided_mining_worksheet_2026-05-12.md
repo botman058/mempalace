@@ -557,7 +557,7 @@ Each coherent package milestone requires:
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
 | I - Safety Review | green | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `L-3R5` and `L-5R` repairs landed; O-0 checks passed with 118 tests plus ruff, py_compile, bash syntax, and diff checks; `R-1R` returned green and `V-1I2` found no red issues. | WP-10 unlocked after this milestone commit/push |
-| J - Bounded Remote Smoke | active | WP-10 activated after WP-09 milestone commit `a3663e7` was pushed. | WP-11 after green verdict |
+| J - Bounded Remote Smoke | red - repair active | `L-5` promoted committed app `c2408c5` without deletes/restarts and confirmed the live wrapper, but the bounded smoke stopped before `systemd-run` because the canonical atlas run lacks guided candidate artifacts. Repair assigned to materialize the pure WP-02/WP-03 artifacts. | WP-11 only after materialization repair and green smoke |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
 | M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
@@ -579,7 +579,7 @@ Each coherent package milestone requires:
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
 | WP-09 | complete | `R-1` / `L-3R5` / `L-5R` | Safety review accepted after red/amber repairs, O-0 verification, and independent green re-review. |
-| WP-10 | active | `L-5` | Bounded no-publish remote smoke activated; must use the snow-white wrapper, remain no-publish, and produce reviewable run artifacts before WP-11. |
+| WP-10 | repair active | `L-5` / `L-2R3` | Bounded smoke failed before unit creation because the canonical atlas run lacks `candidate_bridge_records.jsonl`, `atlas_thread_candidates.jsonl`, and `atlas_candidate_coverage.json`. Repair must materialize pure guided inputs, then rerun bounded no-publish smoke. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
 | WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
@@ -602,6 +602,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | `V-1H` found a WP-08 amber blocker: direct `--atlas-guided` CLI runs used the legacy LocalAI blocklist guard instead of the snow-white-only allowlist enforced by the systemd wrapper. | Repaired by `L-3R4`; direct atlas-guided runs now require `http://snow-white-iii:8080/v1` or `http://snow-white-iii.local:8080/v1` before provider creation, while legacy localhost behavior remains unchanged. `V-1H2` returned green. |
 | 2026-05-12 | closed | `R-1` returned WP-09 red: direct atlas-guided CLI can accept arbitrary `--run-dir` or env run dirs and overwrite existing diagnostic artifacts. `V-1` independently found this amber. | Repaired by `L-3R5`; explicit/env atlas-guided CLI run dirs must resolve to child directories under the canonical guided run root and must not use `/media/u0/Extreme SSD`. O-0 verification passed and `R-1R` returned green. |
 | 2026-05-12 | closed | `V-1` and `R-1` found wrapper host-guard amber: `MEMPALACE_INSTALL_ALLOW_OTHER_HOST=1` bypasses the snow-white host check. | Repaired by `L-5R`; the live wrapper now refuses any host other than `snow-white-iii` or `snow-white-iii.local`, and the static test asserts the bypass variable is absent. O-0 verification passed and `R-1R` returned green. |
+| 2026-05-12 | open | WP-10 bounded smoke failed before `systemd-run`: canonical atlas run `atlas_full2_20260512T0412Z_2fc8ac5` has `topic_clusters.jsonl` and `thread_index.jsonl`, but lacks the guided candidate artifacts required by the wrapper. | Repair assigned to `L-2R3`: add a repeatable pure materialization script for `candidate_bridge_records.jsonl`, `atlas_thread_candidates.jsonl`, and `atlas_candidate_coverage.json`, then promote and rerun the bounded smoke. |
 | 2026-05-12 | monitored | Parallel activation notes conflict: the overview table blocks WP-08 on WP-02 through WP-07, while one activation-plan bullet says to activate WP-08 after WP-05. | Follow the detailed package dependencies and WP-05 exit: activate WP-06 and WP-07; keep WP-08 blocked until WP-06/WP-07 evidence exists. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
@@ -879,6 +880,17 @@ Each coherent package milestone requires:
 - WP-10 must use `scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh` on `snow-white-iii`.
 - WP-10 must remain bounded and no-publish, must not call cloud APIs, must not call MCP publish tools, must not delete data, and must not use `/media/u0/Extreme SSD`.
 - WP-10 acceptance requires a limited run directory with progress, checkpoints, coverage/candidate copies, extraction, reconciliation, disabled publish checkpoint, service/resource-cap evidence, and no-publish evidence.
+
+### 2026-05-12 - WP-10 Smoke Red And Materialization Repair
+
+- `L-5` staged committed `HEAD` `c2408c5` to `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260513T023023Z-c2408c5/app` using `git archive` and excluded `.agents/plugins/marketplace.json`.
+- `L-5` promoted the staged app with the live `promote_snow_white_iii_app_update.sh`; promotion reported no file deletion, no service restart, and no palace data touch.
+- `L-5` confirmed the live wrapper exists at `/media/u0/OneDrive_Backup/mempalace/app/scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh` owned by `mempalace:mempalace`.
+- `L-5` attempted bounded no-publish smoke with run id `atlas_guided_smoke_20260513T023135Z_l5`, `--limit 2`, and `--provider-max-attempts 1`.
+- The wrapper stopped before `systemd-run`; no transient unit, journal entries, guided run directory, or guided smoke artifacts were created.
+- Failure reason: canonical atlas run `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5` is complete as a pre-LLM atlas and has `topic_clusters.jsonl` plus `thread_index.jsonl`, but lacks `candidate_bridge_records.jsonl`, `atlas_thread_candidates.jsonl`, and `atlas_candidate_coverage.json`.
+- Checkpoint J verdict: red.
+- Checkpoint J disposition: WP-11 remains blocked. Repair assigned to `L-2R3` to add a repeatable pure materialization path for the missing guided candidate artifacts, with no LocalAI, no MCP, no cloud calls, no deletion, and no `/media/u0/Extreme SSD`.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
