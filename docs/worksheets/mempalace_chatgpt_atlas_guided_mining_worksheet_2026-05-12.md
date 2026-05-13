@@ -556,7 +556,7 @@ Each coherent package milestone requires:
 | F - Extraction And Reconciliation | green | WP-05 extraction mode and WP-06 reconciliation/dedupe are accepted; combined tests, ruff, py_compile, diff check, and `V-1F` no-edit verification passed. | WP-08 cross-package verification after WP-07 milestone commit/push |
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
-| I - Safety Review | active | WP-09 activated after WP-08 milestone commit `bd126cc` was pushed. | WP-10 after green verdict |
+| I - Safety Review | red - repair active | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `V-1` independently found the same amber plus wrapper host-bypass amber. Repair assigned to `L-3R5` and `L-5R`; WP-10 remains blocked. | WP-10 only after repair and green re-review |
 | J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
@@ -578,7 +578,7 @@ Each coherent package milestone requires:
 | WP-06 | complete | `L-4` | Candidate-aware reconciliation accepted after repair and independent green verification. |
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
-| WP-09 | active | `R-1` | Independent safety review activated after WP-08 milestone commit/push; no live run, no LocalAI calls, no cloud calls, no palace mutation. |
+| WP-09 | repair active | `R-1` / `L-3R5` / `L-5R` | Safety review found a red direct CLI run-dir confinement blocker and wrapper host-bypass amber. Scoped repairs are active; no live run, no LocalAI calls, no cloud calls, no palace mutation. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
@@ -600,6 +600,8 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | O-0 review found WP-05 amber risks: required atlas JSONL inputs could be silently tolerated through the generic reader, and implicit atlas-guided runs wrote directly to the run-root instead of a `<run_id>` child. | Repaired by `L-3R2`; strict atlas input loading now fails before provider calls, checkpoint readers remain tolerant, and implicit atlas run dirs use a deterministic child under the canonical root. |
 | 2026-05-12 | closed | O-0 review found a WP-06 amber issue: reconciliation candidate provenance was nested only under `candidate_metadata`, making candidate identity less directly inspectable in review artifacts. | Repaired by `L-4`; reconciliation provenance now includes direct `candidate_id`, `candidate_key`, `canonical_wing`, `canonical_room`, `atlas_candidate_ids`, and `atlas_candidate_keys` fields while preserving nested metadata. |
 | 2026-05-12 | closed | `V-1H` found a WP-08 amber blocker: direct `--atlas-guided` CLI runs used the legacy LocalAI blocklist guard instead of the snow-white-only allowlist enforced by the systemd wrapper. | Repaired by `L-3R4`; direct atlas-guided runs now require `http://snow-white-iii:8080/v1` or `http://snow-white-iii.local:8080/v1` before provider creation, while legacy localhost behavior remains unchanged. `V-1H2` returned green. |
+| 2026-05-12 | open | `R-1` returned WP-09 red: direct atlas-guided CLI can accept arbitrary `--run-dir` or env run dirs and overwrite existing diagnostic artifacts. `V-1` independently found this amber. | Repair assigned to `L-3R5`; direct CLI atlas-guided run dirs must be confined to the canonical guided run root and refuse `/media/u0/Extreme SSD`. WP-10 remains blocked. |
+| 2026-05-12 | open | `V-1` and `R-1` found wrapper host-guard amber: `MEMPALACE_INSTALL_ALLOW_OTHER_HOST=1` bypasses the snow-white host check. | Repair assigned to `L-5R`; live wrapper bypass must be removed or hard-disabled before Checkpoint I can be green. WP-10 remains blocked. |
 | 2026-05-12 | monitored | Parallel activation notes conflict: the overview table blocks WP-08 on WP-02 through WP-07, while one activation-plan bullet says to activate WP-08 after WP-05. | Follow the detailed package dependencies and WP-05 exit: activate WP-06 and WP-07; keep WP-08 blocked until WP-06/WP-07 evidence exists. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
@@ -836,6 +838,17 @@ Each coherent package milestone requires:
 - WP-10 through WP-14 remain blocked.
 - WP-09 scope is review-only across atlas-guided modules, scripts, tests, docs, and wrapper surfaces.
 - WP-09 must not call LocalAI, cloud APIs, MCP, Chroma services, remote SSH, or mutate palace data; it must not touch `.agents/plugins/marketplace.json`, `docs/reference/`, or `/media/u0/Extreme SSD`.
+
+### 2026-05-12 - WP-09 Review Red And Repair Activation
+
+- `V-1` returned green overall with two amber gaps: direct atlas-guided CLI run dirs can be arbitrary, and the snow-white wrapper has an explicit `MEMPALACE_INSTALL_ALLOW_OTHER_HOST` bypass.
+- `R-1` returned red: direct atlas-guided CLI can write outside the canonical guided run root and overwrite existing diagnostic artifacts through explicit `--run-dir` or `LOCALAI_THREAD_SIGNAL_RUN_DIR`.
+- `R-1` also confirmed no delete primitives, atlas-guided `--publish` refusal, disabled publish checkpoint, strict snow-white LocalAI URL allowlisting, and prompt parser rejection of control/provider/path/publish keys.
+- Checkpoint I verdict: red.
+- Checkpoint I disposition: WP-10 remains blocked.
+- `O-0` entered scoped repair mode and assigned `L-3R5` using `gpt-5.4` high to repair direct CLI atlas-guided run-dir confinement in `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- `O-0` assigned `L-5R` using `gpt-5.4` high to remove or hard-disable the live wrapper host-bypass in `scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh` and `tests/test_chatgpt_atlas_guided_systemd_wrapper.py`.
+- `L-3R5` and `L-5R` must not touch docs, changelog, `.agents/plugins/marketplace.json`, `docs/reference/`, `/media/u0/Extreme SSD`, or live/remote services.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
