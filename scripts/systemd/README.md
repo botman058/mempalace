@@ -205,6 +205,84 @@ The script only publishes when `--publish` is present. It does not delete or
 rewrite palace data, does not restart services, and refuses any path under
 `/media/u0/Extreme SSD`.
 
+## Atlas-guided ChatGPT extraction (WP-05 no-publish pass)
+
+This wrapper runs the atlas-guided LocalAI extraction pass on
+`snow-white-iii` as the `mempalace` service user with bounded resources:
+
+```text
+MemoryMax=16G
+CPUQuota=200%
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+```
+
+Canonical defaults:
+
+```text
+ROOT              /media/u0/OneDrive_Backup/mempalace
+SOURCE            /media/u0/OneDrive_Backup/mempalace/sources/chatgpt
+ATLAS RUN         /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5
+GUIDED RUN ROOT   /media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals
+LOCALAI           http://snow-white-iii:8080/v1
+TOKEN FILE        /media/u0/OneDrive_Backup/mempalace/secrets/localai_token
+```
+
+Run a bounded smoke pass:
+
+```bash
+scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
+  --run-id atlas_guided_smoke_20260512 \
+  --limit 25 \
+  --provider-max-attempts 2
+```
+
+Resume an existing guided run directory and retry only prior provider errors:
+
+```bash
+scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
+  --run-dir /media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals/<run_id> \
+  --retry-errors \
+  --provider-max-attempts 2
+```
+
+Use a different atlas artifact set under the canonical atlas root:
+
+```bash
+scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
+  --atlas-run-dir /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<atlas_run_id> \
+  --candidate-records /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<atlas_run_id>/candidate_bridge_records.jsonl
+```
+
+The wrapper always passes `--atlas-guided`, always supplies the host-local
+LocalAI URL and token file, and never passes `--publish`. It rejects non-local
+provider URLs, rejects non-canonical token paths, refuses `/media/u0/Extreme SSD`,
+and aborts on non-`snow-white-iii` hosts unless `MEMPALACE_INSTALL_ALLOW_OTHER_HOST=1`
+is explicitly set in the existing wrapper style.
+
+Before submitting the transient unit it verifies the expected atlas inputs are
+present under the selected atlas run directory:
+
+```text
+candidate_bridge_records.jsonl
+atlas_thread_candidates.jsonl
+atlas_candidate_coverage.json
+thread_index.jsonl
+```
+
+The unit writes only under the selected guided run directory and leaves palace
+drawers untouched. After launch it prints the transient unit name plus the
+progress and artifact paths:
+
+```text
+progress.json
+extraction_records.jsonl
+invalid_outputs.jsonl
+reconciled_signals.jsonl
+publish_checkpoint.jsonl
+```
+
 ## ChatGPT archive atlas runner (pre-LLM, artifact-only)
 
 This wrapper runs the pre-LLM ChatGPT archive atlas pass on `snow-white-iii`

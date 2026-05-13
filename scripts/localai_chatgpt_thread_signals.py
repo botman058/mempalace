@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 from mempalace import chatgpt_archive_atlas_contract as atlas_contract
 from mempalace import chatgpt_atlas_guided_contract as guided_contract
 from mempalace import chatgpt_atlas_guided_prompt as guided_prompt
+from mempalace import chatgpt_atlas_guided_reconciliation as guided_reconciliation
 from mempalace.chatgpt_thread_segments import ChatGPTThreadSegment, build_chatgpt_thread_segments
 
 DEFAULT_SOURCE_DIR = "/media/u0/OneDrive_Backup/mempalace/sources/chatgpt"
@@ -916,6 +917,7 @@ def _atlas_counts_snapshot(
     synthetic_unmapped_segments: int,
     source_files_total: int,
     source_files_processed: int,
+    reconciliation_stats: dict[str, int] | None = None,
 ) -> dict[str, int]:
     counts: dict[str, int] = {
         "candidate_bridge_records": len(candidate_rows),
@@ -936,6 +938,9 @@ def _atlas_counts_snapshot(
         "invalid_output_records": 0,
         "provider_error_records": 0,
         "reconciled_signals": 0,
+        "reconciled_accepted_signals": 0,
+        "reconciled_duplicate_signals": 0,
+        "reconciled_source_extractions": len(extraction_rows),
         "publish_checkpoint": 0,
     }
     for row in extraction_rows:
@@ -948,6 +953,8 @@ def _atlas_counts_snapshot(
             counts["invalid_output_records"] += 1
         elif status == "provider_error":
             counts["provider_error_records"] += 1
+    if reconciliation_stats:
+        counts.update(reconciliation_stats)
     return counts
 
 
@@ -1100,6 +1107,7 @@ def _atlas_write_state(
     current_phase: str,
     phase_status: str,
     message: str,
+    reconciliation_stats: dict[str, int] | None = None,
 ) -> dict[str, int]:
     counts = _atlas_counts_snapshot(
         candidate_rows=atlas_inputs["candidate_rows"],
@@ -1114,6 +1122,7 @@ def _atlas_write_state(
         synthetic_unmapped_segments=synthetic_unmapped_segments,
         source_files_total=source_files_total,
         source_files_processed=source_files_processed,
+        reconciliation_stats=reconciliation_stats,
     )
     counts["publish_checkpoint"] = publish_checkpoint_count
     _write_atlas_progress(
@@ -1703,6 +1712,7 @@ def _run_atlas_guided(
     coverage_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["atlas_candidate_coverage"]
     extraction_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["extraction_records"]
     invalid_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["invalid_outputs"]
+    reconciled_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["reconciled_signals"]
     publish_checkpoint_path = run_dir / guided_contract.CANONICAL_ARTIFACT_PATHS["publish_checkpoint"]
     checkpoint_path = run_dir / "segment_checkpoint.jsonl"
     source_checkpoint_path = run_dir / "source_checkpoint.jsonl"
@@ -1910,6 +1920,16 @@ def _run_atlas_guided(
         if stop:
             break
 
+    try:
+        reconciliation = guided_reconciliation.build_chatgpt_atlas_guided_reconciliation(
+            extraction_rows,
+            run_id=run_id,
+            atlas_run_id=atlas_run_id,
+        )
+    except ValueError as exc:
+        raise FatalRemoteError(f"Atlas-guided reconciliation failed: {exc}") from exc
+    _write_jsonl_rows(reconciled_path, list(reconciliation.rows))
+
     counts = _atlas_write_state(
         progress_path=progress_path,
         artifacts_index_path=artifacts_index_path,
@@ -1932,7 +1952,8 @@ def _run_atlas_guided(
         status="complete",
         current_phase="finalize",
         phase_status="complete",
-        message="Atlas-guided extraction artifacts are complete for this invocation.",
+        message="Atlas-guided extraction and reconciliation artifacts are complete for this invocation.",
+        reconciliation_stats=reconciliation.stats,
     )
     print(
         json.dumps(
@@ -1946,6 +1967,9 @@ def _run_atlas_guided(
                 "null_signal_records": counts["null_signal_records"],
                 "invalid_output_records": counts["invalid_output_records"],
                 "provider_error_records": counts["provider_error_records"],
+                "reconciled_signals": counts["reconciled_signals"],
+                "reconciled_duplicate_signals": counts["reconciled_duplicate_signals"],
+                "reconciled_source_extractions": counts["reconciled_source_extractions"],
                 "source_file_error_count": source_file_errors,
                 "warnings": warnings,
                 "no_publish": True,
