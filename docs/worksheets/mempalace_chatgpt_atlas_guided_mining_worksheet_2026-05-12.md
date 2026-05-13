@@ -550,7 +550,7 @@ Each coherent package milestone requires:
 |---|---|---|---|
 | A - Worksheet Baseline | green | Worksheet saved at `docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`; branch/head/status, atlas run, old diagnostic run, dirty scope, and corrected model-role assignments recorded. | WP-01 |
 | B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
-| C - Atlas Bridge | blocked | Waiting on WP-01/WP-02. | WP-03 after green verdict |
+| C - Atlas Bridge | active | WP-02 activated after WP-01 milestone commit `e3a4748` was pushed. | WP-03 after green verdict |
 | D - Candidate Coverage | blocked | Waiting on WP-03. | WP-04/WP-05 after green verdict |
 | E - Prompt/Parser | blocked | Waiting on WP-04. | WP-05 after green verdict |
 | F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
@@ -571,7 +571,7 @@ Each coherent package milestone requires:
 |---|---|---|---|
 | WP-00 | complete | `O-0` | Worksheet and baseline freeze are complete; Checkpoint A is green. |
 | WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
-| WP-02 | unlocked | `L-2` | Unlocked by Checkpoint B; activate after WP-01 milestone commit/push. |
+| WP-02 | active | `L-2` | Atlas cluster-to-candidate bridge activated after WP-01 milestone commit/push. |
 | WP-03 | blocked | `L-2` | Requires Checkpoint C green. |
 | WP-04 | blocked | `L-3` | Requires Checkpoint B/C/D sequencing as recorded in package table. |
 | WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
@@ -642,6 +642,19 @@ Each coherent package milestone requires:
 - `V-1` repair verifier returned green with file/line evidence for candidate/mixed/noise semantics, publish checkpoint gating, and forbidden LocalAI/MCP/Chroma/palace-write fields.
 - Checkpoint B verdict: green.
 - Checkpoint B disposition: WP-02 is unlocked after this milestone is committed and pushed. WP-04 design skeleton is deferred until WP-02/WP-03 bridge shape is accepted.
+- `git commit -m "Add atlas-guided mining contract"` created milestone commit `e3a4748`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `e3a4748` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+
+### 2026-05-12 - WP-02 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint C.
+- Activated package: WP-02 only.
+- Assigned `L-2` as atlas bridge lead using `gpt-5.4` high.
+- Assigned `H-1` as bounded implementation helper using `gpt-5.3-codex` medium.
+- Assigned `T-1` as focused test helper using `gpt-5.3-codex-spark` high.
+- WP-03 through WP-14 remain blocked.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
