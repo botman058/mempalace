@@ -551,8 +551,8 @@ Each coherent package milestone requires:
 | A - Worksheet Baseline | green | Worksheet saved at `docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`; branch/head/status, atlas run, old diagnostic run, dirty scope, and corrected model-role assignments recorded. | WP-01 |
 | B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
 | C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
-| D - Candidate Coverage | active | WP-03 activated after WP-02 milestone commit `a2eeda3` was pushed. | WP-04/WP-05 after green verdict |
-| E - Prompt/Parser | blocked | Waiting on WP-04. | WP-05 after green verdict |
+| D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
+| E - Prompt/Parser | blocked | Waiting on WP-04 activation after Checkpoint D milestone commit/push. | WP-05 after green verdict |
 | F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
@@ -572,8 +572,8 @@ Each coherent package milestone requires:
 | WP-00 | complete | `O-0` | Worksheet and baseline freeze are complete; Checkpoint A is green. |
 | WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
 | WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
-| WP-03 | active | `L-2R` | Thread candidate lookup and coverage report activated after WP-02 milestone commit/push. |
-| WP-04 | blocked | `L-3` | Requires Checkpoint B/C/D sequencing as recorded in package table. |
+| WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
+| WP-04 | unlocked | `L-3` | Unlocked by Checkpoint D; activate after WP-03 milestone commit/push. |
 | WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
 | WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
 | WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
@@ -678,6 +678,16 @@ Each coherent package milestone requires:
 - Assigned replacement `L-2R` as atlas coverage lead using `gpt-5.4` high.
 - Assigned `H-1R` as bounded implementation helper using `gpt-5.3-codex` medium.
 - WP-04 through WP-14 remain blocked.
+- `H-1R` completed a read-only checklist for thread-index fields, source refs, duplicate/missing thread-ref shapes, and coverage math.
+- `L-2R` implemented `mempalace/chatgpt_atlas_guided_coverage.py` and `tests/test_chatgpt_atlas_guided_coverage.py`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_coverage.py`: passed, `6 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py`: passed, `46 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_coverage.py`: passed.
+- `V-1` no-edit verification returned green for pure/no external writes, validated inputs, lookup/report schema emission, one row per thread-index row, mapped/mixed/noise/unmapped behavior, duplicate/missing refs, exact coverage math, and aligned tests.
+- Checkpoint D verdict: green.
+- Checkpoint D disposition: WP-04 is unlocked after this milestone is committed and pushed.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
