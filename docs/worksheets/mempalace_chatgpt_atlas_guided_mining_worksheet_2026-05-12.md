@@ -554,7 +554,7 @@ Each coherent package milestone requires:
 | D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
 | E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
 | F - Extraction And Reconciliation | active | WP-05 extraction-mode work is green after `L-3`, `L-3R`, `L-3R2`, O-0 checks, and `V-1` no-edit verification; reconciliation remains blocked until WP-06 evidence exists. | WP-06 and WP-07 after WP-05 milestone commit/push; Checkpoint F green only after WP-06 reconciliation evidence |
-| G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
+| G - Ops Wrapper | active | WP-07 activated in parallel with WP-06 after WP-05 milestone commit `6e36e3c` was pushed. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
 | I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
 | J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
@@ -575,8 +575,8 @@ Each coherent package milestone requires:
 | WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
 | WP-04 | complete | `L-3` / `L-3R` | Atlas-guided LocalAI prompt/parser contract accepted at Checkpoint E after repair and independent green verification. |
 | WP-05 | complete | `L-3` / `L-3R2` | Atlas-guided no-publish extraction mode accepted after repair and independent green verification. |
-| WP-06 | unlocked | `L-4` | Candidate-aware reconciliation may be activated after the WP-05 milestone commit/push. |
-| WP-07 | unlocked | `L-5` | Snow-white wrapper may be activated after the WP-05 milestone commit/push, within the recorded ops wrapper scope. |
+| WP-06 | active | `L-4` | Candidate-aware reconciliation activated after WP-05 milestone commit/push. |
+| WP-07 | active | `L-5` | Snow-white wrapper activated after WP-05 milestone commit/push, within the recorded ops wrapper scope. |
 | WP-08 | blocked | `T-1` | Requires WP-02 through WP-07 evidence. |
 | WP-09 | blocked | `R-1` | Independent safety review only after cross-package verification. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
@@ -598,6 +598,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | `V-1` found a WP-04 amber blocker: model outputs containing `localai_base_url` or related control keys could still be accepted. | Repaired by `L-3R` with recursive forbidden-key rejection and regression tests; `V-1R2` returned green. |
 | 2026-05-12 | closed | `V-1R` initially returned environment-amber because it used ambient `pytest`/`ruff` instead of the repo venv. | Replaced with `V-1R2` using explicit `.venv/bin/...` commands; no functional blocker remained. |
 | 2026-05-12 | closed | O-0 review found WP-05 amber risks: required atlas JSONL inputs could be silently tolerated through the generic reader, and implicit atlas-guided runs wrote directly to the run-root instead of a `<run_id>` child. | Repaired by `L-3R2`; strict atlas input loading now fails before provider calls, checkpoint readers remain tolerant, and implicit atlas run dirs use a deterministic child under the canonical root. |
+| 2026-05-12 | monitored | Parallel activation notes conflict: the overview table blocks WP-08 on WP-02 through WP-07, while one activation-plan bullet says to activate WP-08 after WP-05. | Follow the detailed package dependencies and WP-05 exit: activate WP-06 and WP-07; keep WP-08 blocked until WP-06/WP-07 evidence exists. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
 
@@ -615,6 +616,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | Defer WP-04 design skeleton until WP-02/WP-03 bridge shape is accepted. | The worksheet allowed WP-04 design skeleton after WP-01 only if write scopes do not overlap; the prompt/parser contract depends on exact bridge/coverage record semantics. | Activate WP-02 next; keep WP-04 blocked until bridge evidence is available. |
 | 2026-05-12 | WP-04 parser rejects forbidden control keys by JSON key, not by scanning free-text values. | The model may legitimately mention LocalAI, MCP, URLs, or paths in grounded text; the unsafe path is structured control/config output that could steer tools or writes. | Reject `localai*`, `chroma*`, `mcp*`, `network*`, `provider*`, `vector*`, `tool*`, `publish*`, `palace*`, `drawer*`, `write*`, URL/path/root-style keys anywhere in model JSON. |
 | 2026-05-12 | Implicit atlas-guided extraction runs use a deterministic child under the canonical atlas-guided run root. | The worksheet requires artifacts under `/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals/<run_id>/`, while resumability requires stable paths rather than timestamp-only run directories. | `--atlas-guided` without explicit `--run-dir` derives a child from `--atlas-run-dir`; explicit run dirs remain operator-owned. |
+| 2026-05-12 | WP-06 and WP-07 run in parallel after WP-05; WP-08 stays blocked. | Reconciliation and ops wrapper write scopes are disjoint, but cross-package verification depends on both. | `L-4` owns reconciliation, `L-5` owns wrapper/runbook, helpers are assigned read-only or scoped test work. |
 
 ---
 
@@ -759,6 +761,24 @@ Each coherent package milestone requires:
 - `V-1` no-edit verification returned green for flags, legacy preservation, no-publish refusal, disabled publish checkpoint, strict atlas-input loading before provider calls, canonical default run-root child behavior, durable extraction artifacts/checkpoints, fake-provider coverage, and no delete/cloud/LocalAI/MCP test paths.
 - WP-05 extraction verdict: green.
 - Checkpoint F remains active because WP-06 reconciliation/dedupe evidence is still required before the full extraction-and-reconciliation gate can close.
+- `git commit -m "Add atlas-guided extraction mode"` created milestone commit `6e36e3c`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `6e36e3c` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+
+### 2026-05-12 - WP-06 And WP-07 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gates: Checkpoint F for WP-06 reconciliation and Checkpoint G for WP-07 ops wrapper.
+- Activated package set: WP-06 and WP-07 in parallel because their write scopes are disjoint.
+- WP-08 remains blocked until WP-06 and WP-07 evidence exists.
+- Assigned `L-4` as reconciliation lead using `gpt-5.4` high; agent `019e1efb-7775-7c92-b29b-d44d041c0141` / Huygens.
+- Assigned `H-3` as read-only reconciliation helper using `gpt-5.3-codex` medium; agent `019e1efb-7a16-70c1-b7c3-68e3e9fa6594` / Lagrange the 2nd.
+- Assigned `T-1` as focused reconciliation test helper using `gpt-5.3-codex-spark` high; agent `019e1efb-7e69-78f0-a36e-490ef13ec09b` / Pasteur the 2nd.
+- Assigned `L-5` as ops wrapper lead using `gpt-5.4` high; agent `019e1efb-836d-7670-bb8e-eac3bb68b58b` / Confucius the 2nd.
+- Assigned `H-4` as read-only ops helper using `gpt-5.3-codex` medium; agent `019e1efb-8a53-7940-9972-208c2fd03a83` / Planck the 2nd.
+- WP-06 write scope is limited to candidate-aware reconciliation helpers, focused tests, and minimal atlas-runner integration needed to materialize `reconciled_signals.jsonl` without publishing.
+- WP-07 write scope is limited to a snow-white-iii atlas-guided extraction wrapper, static wrapper tests, and `scripts/systemd/README.md`.
+- WP-06 and WP-07 must not call LocalAI in tests, publish drawers, mutate existing `chatgpt`, `chatgpt_signals`, or `chatgpt_thread_signals`, touch `.agents/plugins/marketplace.json`, touch `docs/reference/`, or use `/media/u0/Extreme SSD`.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
