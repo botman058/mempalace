@@ -558,7 +558,7 @@ Each coherent package milestone requires:
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
 | I - Safety Review | green | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `L-3R5` and `L-5R` repairs landed; O-0 checks passed with 118 tests plus ruff, py_compile, bash syntax, and diff checks; `R-1R` returned green and `V-1I2` found no red issues. | WP-10 unlocked after this milestone commit/push |
 | J - Bounded Remote Smoke | green | `L-5R2` promoted committed app `73285d6` without deletes/restarts, materialized guided inputs, and completed bounded wrapper run `wp10smoke20260513t025130z`; `V-1J` independently verified complete/no-publish artifacts and resource caps. | WP-11 unlocked after this milestone commit/push |
-| K - Full No-Publish Extraction | active | WP-11 activated on 2026-05-13 after WP-10 milestone commit `e7dc898` was pushed. | WP-12 after green verdict |
+| K - Full No-Publish Extraction | active | WP-11 activated on 2026-05-13 after WP-10 milestone commit `e7dc898` was pushed. Full no-publish run `atlas_guided_full_20260513T190934Z` is active on `snow-white-iii` as `mempalace`. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
 | M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
 | N - Closure | blocked | Waiting on final docs/devlog/tests/run evidence and commit/push. | Tranche closed |
@@ -580,7 +580,7 @@ Each coherent package milestone requires:
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
 | WP-09 | complete | `R-1` / `L-3R5` / `L-5R` | Safety review accepted after red/amber repairs, O-0 verification, and independent green re-review. |
 | WP-10 | complete | `L-5` / `L-2R3` | Bounded no-publish smoke accepted after materialization repair, live promotion, successful wrapper run, and independent artifact verification. |
-| WP-11 | active | `L-5` | Full atlas-guided no-publish extraction activated; must run through the snow-white wrapper as `mempalace`, with no publish, no cloud calls, no deletes, no `/media/u0/Extreme SSD`, and resource caps intact. |
+| WP-11 | active | `L-5` | Full atlas-guided no-publish extraction run `atlas_guided_full_20260513T190934Z` is active under unit `mempalace-chatgpt-atlas-guided-atlas_guided_full_20260513T190934Z.service`; no-publish/resource-cap evidence recorded. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
 | WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
 | WP-14 | blocked | `O-0` | Closure docs/devlog/commit/push after publish smoke or explicit no-publish closure. |
@@ -931,6 +931,22 @@ Each coherent package milestone requires:
 - WP-11 must run no-publish, must not call cloud APIs, must not call MCP publish tools, must not delete data, and must not use `/media/u0/Extreme SSD`.
 - WP-11 should use the already-materialized guided inputs under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5`.
 - WP-11 acceptance requires a completed or cleanly resumable run directory with progress, checkpoints, extraction, reconciliation, disabled publish checkpoint, service/resource-cap evidence, and no-publish evidence.
+
+### 2026-05-13 - WP-11 Full No-Publish Run Started
+
+- `O-0` confirmed no active `mempalace-chatgpt-atlas-guided*` unit existed before launch.
+- `O-0` confirmed no `localai_chatgpt_thread_signals.py` process was running before launch.
+- `O-0` confirmed the guided atlas inputs exist in the canonical atlas run: `candidate_bridge_records.jsonl`, `atlas_thread_candidates.jsonl`, `atlas_candidate_coverage.json`, and `thread_index.jsonl`.
+- `O-0` launched the full no-publish extraction through the live wrapper on `snow-white-iii` using `bash /media/u0/OneDrive_Backup/mempalace/app/scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh --atlas-run-dir /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5 --run-id atlas_guided_full_20260513T190934Z --provider-max-attempts 2`.
+- No `--limit` and no `--publish` were passed.
+- Run id: `atlas_guided_full_20260513T190934Z`.
+- Unit: `mempalace-chatgpt-atlas-guided-atlas_guided_full_20260513T190934Z.service`.
+- Run directory: `/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals/atlas_guided_full_20260513T190934Z`.
+- Initial systemd evidence: `ActiveState=active`, `SubState=running`, `ExecMainPID=3518439`, `MemoryCurrent=322711552`, `MemoryPeak=396595200`.
+- Process evidence: `/media/u0/OneDrive_Backup/mempalace/venv/bin/python /media/u0/OneDrive_Backup/mempalace/app/scripts/localai_chatgpt_thread_signals.py` is running as `mempalace` with `--atlas-guided`, canonical `--atlas-run-dir`, canonical `--candidate-records`, canonical `--localai-base-url http://snow-white-iii:8080/v1`, canonical token file, and `--provider-max-attempts 2`.
+- Initial artifact evidence: `progress.json`, `artifacts_index.json`, copied `candidate_bridge_records.jsonl`, `atlas_thread_candidates.jsonl`, `atlas_candidate_coverage.json`, `publish_checkpoint.jsonl`, and `source_checkpoint.jsonl` are present in the run directory.
+- Initial progress evidence: `status=running`, `current_phase=load_inputs`, `phase_status=complete`, `no_publish=true`, and `publish_enabled=false`. Extraction/checkpoint/reconciliation counts were not yet populated at the first poll.
+- Checkpoint K remains active until the run is complete or cleanly resumable and independently verified.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
