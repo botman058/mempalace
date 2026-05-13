@@ -552,7 +552,7 @@ Each coherent package milestone requires:
 | B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
 | C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
 | D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
-| E - Prompt/Parser | blocked | Waiting on WP-04 activation after Checkpoint D milestone commit/push. | WP-05 after green verdict |
+| E - Prompt/Parser | active | WP-04 activated after WP-03 milestone commit `a971c73` was pushed. | WP-05 after green verdict |
 | F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
@@ -573,7 +573,7 @@ Each coherent package milestone requires:
 | WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
 | WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
 | WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
-| WP-04 | unlocked | `L-3` | Unlocked by Checkpoint D; activate after WP-03 milestone commit/push. |
+| WP-04 | active | `L-3` | Atlas-guided LocalAI prompt/parser contract activated after WP-03 milestone commit/push. |
 | WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
 | WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
 | WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
@@ -688,6 +688,18 @@ Each coherent package milestone requires:
 - `V-1` no-edit verification returned green for pure/no external writes, validated inputs, lookup/report schema emission, one row per thread-index row, mapped/mixed/noise/unmapped behavior, duplicate/missing refs, exact coverage math, and aligned tests.
 - Checkpoint D verdict: green.
 - Checkpoint D disposition: WP-04 is unlocked after this milestone is committed and pushed.
+- `git commit -m "Add atlas-guided coverage mapping"` created milestone commit `a971c73`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `a971c73` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+
+### 2026-05-12 - WP-04 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint E.
+- Activated package: WP-04 only.
+- Assigned `L-3` as extraction prompt lead using `gpt-5.4` high.
+- Assigned `T-1R` as focused parser/test helper using `gpt-5.3-codex-spark` high if agent capacity permits.
+- WP-05 through WP-14 remain blocked.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
