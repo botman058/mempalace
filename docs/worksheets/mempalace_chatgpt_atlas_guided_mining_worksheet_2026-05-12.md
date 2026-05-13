@@ -555,7 +555,7 @@ Each coherent package milestone requires:
 | E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
 | F - Extraction And Reconciliation | green | WP-05 extraction mode and WP-06 reconciliation/dedupe are accepted; combined tests, ruff, py_compile, diff check, and `V-1F` no-edit verification passed. | WP-08 cross-package verification after WP-07 milestone commit/push |
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
-| H - Cross-Package Verification | unlocked | Waiting on WP-08 activation after WP-06/WP-07 milestone commit/push. | WP-09 after green verdict |
+| H - Cross-Package Verification | active | WP-08 activated after WP-06/WP-07 milestone commit `c68a785` was pushed. | WP-09 after green verdict |
 | I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
 | J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
@@ -577,7 +577,7 @@ Each coherent package milestone requires:
 | WP-05 | complete | `L-3` / `L-3R2` | Atlas-guided no-publish extraction mode accepted after repair and independent green verification. |
 | WP-06 | complete | `L-4` | Candidate-aware reconciliation accepted after repair and independent green verification. |
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
-| WP-08 | unlocked | `T-1` | May activate after WP-06/WP-07 milestone commit/push. |
+| WP-08 | active | `T-1` | Cross-package verification activated after WP-06/WP-07 milestone commit/push. |
 | WP-09 | blocked | `R-1` | Independent safety review only after cross-package verification. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
@@ -798,6 +798,20 @@ Each coherent package milestone requires:
 - Checkpoint F verdict: green.
 - Checkpoint G verdict: green.
 - Checkpoint H / WP-08 is unlocked after this milestone is committed and pushed.
+- `git commit -m "Add atlas-guided reconciliation and runner"` created milestone commit `c68a785`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `c68a785` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+
+### 2026-05-12 - WP-08 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint H.
+- Activated package: WP-08 only.
+- Assigned `T-1` as cross-package verification lead using `gpt-5.3-codex-spark` high.
+- Assigned `V-1` as no-edit verification support using `gpt-5.3-codex-spark` high.
+- WP-09 through WP-14 remain blocked.
+- WP-08 write scope is limited to focused cross-package tests/fixtures if a concrete gap is found; otherwise it is no-edit verification evidence only.
+- WP-08 must not call LocalAI, cloud APIs, MCP, Chroma services, remote SSH, or mutate palace data; it must not touch `.agents/plugins/marketplace.json`, `docs/reference/`, or `/media/u0/Extreme SSD`.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
