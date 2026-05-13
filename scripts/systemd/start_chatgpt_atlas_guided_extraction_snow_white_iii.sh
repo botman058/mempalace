@@ -91,7 +91,7 @@ while (($#)); do
 done
 
 host_lc="$(hostname | tr '[:upper:]' '[:lower:]')"
-if [[ "$host_lc" != "snow-white-iii" && "$host_lc" != "snow-white-iii.local" && "${MEMPALACE_INSTALL_ALLOW_OTHER_HOST:-}" != "1" ]]; then
+if [[ "$host_lc" != "snow-white-iii" && "$host_lc" != "snow-white-iii.local" ]]; then
   echo "refusing atlas-guided extraction start on host '$(hostname)'; expected snow-white-iii" >&2
   exit 2
 fi

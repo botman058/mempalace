@@ -72,7 +72,8 @@ def test_wrapper_has_expected_cli_surface_and_never_passes_publish() -> None:
 
 def test_wrapper_has_host_path_and_run_id_guards() -> None:
     text = _script_text()
-    assert "MEMPALACE_INSTALL_ALLOW_OTHER_HOST" in text
+    assert 'if [[ "$host_lc" != "snow-white-iii" && "$host_lc" != "snow-white-iii.local" ]]; then' in text
+    assert "MEMPALACE_INSTALL_ALLOW_OTHER_HOST" not in text
     assert "/media/u0/Extreme\\ SSD" in text
     assert 'if [[ -n "$RUN_DIR_ARG" && -n "$RUN_ID" ]]; then' in text
     assert 'if [[ "$RUN_ID" == "." || "$RUN_ID" == ".." || "$RUN_ID" == *"/"* || "$RUN_ID" == *"\\\\"* ]]; then' in text

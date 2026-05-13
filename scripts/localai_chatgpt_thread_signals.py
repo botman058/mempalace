@@ -26,6 +26,7 @@ from mempalace.chatgpt_thread_segments import ChatGPTThreadSegment, build_chatgp
 DEFAULT_SOURCE_DIR = "/media/u0/OneDrive_Backup/mempalace/sources/chatgpt"
 DEFAULT_RUN_DIR = "/media/u0/OneDrive_Backup/mempalace/data/localai_chatgpt_thread_signals"
 DEFAULT_ATLAS_GUIDED_RUN_DIR = "/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals"
+_BLOCKED_ATLAS_GUIDED_RUN_DIR_ROOT = "/media/u0/Extreme SSD"
 DEFAULT_MEMPALACE_URL = "http://100.112.179.49:8765"
 DEFAULT_MEMPALACE_TOKEN_FILE = "/media/u0/OneDrive_Backup/mempalace/secrets/http_token"
 DEFAULT_LOCALAI_BASE_URL = "http://snow-white-iii:8080/v1"
@@ -291,6 +292,31 @@ def _default_atlas_guided_run_dir(atlas_run_dir_value: str | None) -> Path:
         slug = "atlas_guided"
     child_name = f"{slug}_{_text_digest(digest_source)}"
     return Path(DEFAULT_ATLAS_GUIDED_RUN_DIR) / child_name
+
+
+def _resolve_path_for_guard(path_value: str) -> Path:
+    return Path(path_value).expanduser().resolve(strict=False)
+
+
+def _validate_atlas_guided_cli_run_dir(run_dir_value: str) -> None:
+    resolved_run_dir = _resolve_path_for_guard(run_dir_value)
+    atlas_root = _resolve_path_for_guard(DEFAULT_ATLAS_GUIDED_RUN_DIR)
+    blocked_root = _resolve_path_for_guard(_BLOCKED_ATLAS_GUIDED_RUN_DIR_ROOT)
+
+    if resolved_run_dir == blocked_root or blocked_root in resolved_run_dir.parents:
+        raise FatalRemoteError(
+            f"Atlas-guided --run-dir must not use {_BLOCKED_ATLAS_GUIDED_RUN_DIR_ROOT}"
+        )
+    if resolved_run_dir == atlas_root:
+        raise FatalRemoteError(
+            "Atlas-guided --run-dir must use a child directory under "
+            f"{DEFAULT_ATLAS_GUIDED_RUN_DIR}"
+        )
+    if atlas_root not in resolved_run_dir.parents:
+        raise FatalRemoteError(
+            "Atlas-guided --run-dir must resolve under "
+            f"{DEFAULT_ATLAS_GUIDED_RUN_DIR}"
+        )
 
 
 def _normalize_room(value: Any) -> str:
@@ -2091,8 +2117,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Maximum LocalAI classify attempts per segment for transient provider failures.",
     )
     args = parser.parse_args(argv)
-    if args.atlas_guided and not explicit_run_dir and not run_dir_from_env:
-        args.run_dir = str(_default_atlas_guided_run_dir(args.atlas_run_dir))
+    if args.atlas_guided:
+        if explicit_run_dir or run_dir_from_env:
+            try:
+                _validate_atlas_guided_cli_run_dir(str(args.run_dir))
+            except FatalRemoteError as exc:
+                parser.error(str(exc))
+        else:
+            args.run_dir = str(_default_atlas_guided_run_dir(args.atlas_run_dir))
     return args
 
 

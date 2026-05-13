@@ -1018,16 +1018,80 @@ def test_parse_args_atlas_guided_default_run_dir_uses_deterministic_child(monkey
     assert parsed_run_dir != Path(DEFAULT_ATLAS_GUIDED_RUN_DIR)
     assert parsed_run_dir.name
 
+    safe_child = f"{DEFAULT_ATLAS_GUIDED_RUN_DIR}/cli-safe-child"
     explicit = parse_args(
         [
             "--atlas-guided",
             "--atlas-run-dir",
             atlas_run_dir,
             "--run-dir",
-            "/tmp/custom-atlas-guided-run",
+            safe_child,
         ]
     )
-    assert explicit.run_dir == "/tmp/custom-atlas-guided-run"
+    assert explicit.run_dir == safe_child
+
+
+def test_parse_args_atlas_guided_rejects_unsafe_explicit_run_dir_before_side_effects(
+    monkeypatch, tmp_path
+):
+    monkeypatch.delenv("LOCALAI_THREAD_SIGNAL_RUN_DIR", raising=False)
+    monkeypatch.delenv("CHATGPT_ATLAS_RUN_DIR", raising=False)
+    atlas_run_dir = "/tmp/atlas-runs/wp-09"
+    unsafe_run_dir = tmp_path / "atlas-guided-outside-root"
+
+    assert not unsafe_run_dir.exists()
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--atlas-guided",
+                "--atlas-run-dir",
+                atlas_run_dir,
+                "--run-dir",
+                str(unsafe_run_dir),
+            ]
+        )
+    assert not unsafe_run_dir.exists()
+
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--atlas-guided",
+                "--atlas-run-dir",
+                atlas_run_dir,
+                "--run-dir",
+                DEFAULT_ATLAS_GUIDED_RUN_DIR,
+            ]
+        )
+
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--atlas-guided",
+                "--atlas-run-dir",
+                atlas_run_dir,
+                "--run-dir",
+                "/media/u0/Extreme SSD",
+            ]
+        )
+
+
+def test_parse_args_atlas_guided_rejects_unsafe_env_run_dir(monkeypatch):
+    monkeypatch.setenv("LOCALAI_THREAD_SIGNAL_RUN_DIR", "/tmp/atlas-guided-env-outside-root")
+    monkeypatch.delenv("CHATGPT_ATLAS_RUN_DIR", raising=False)
+
+    with pytest.raises(SystemExit):
+        parse_args(["--atlas-guided", "--atlas-run-dir", "/tmp/atlas-runs/wp-09"])
+
+
+def test_parse_args_non_atlas_keeps_legacy_run_dir_behavior(monkeypatch, tmp_path):
+    legacy_run_dir = tmp_path / "legacy-run"
+    monkeypatch.setenv("LOCALAI_THREAD_SIGNAL_RUN_DIR", str(legacy_run_dir))
+    monkeypatch.delenv("LOCALAI_THREAD_SIGNAL_ATLAS_GUIDED", raising=False)
+
+    args = parse_args([])
+
+    assert args.atlas_guided is False
+    assert args.run_dir == str(legacy_run_dir)
 
 
 def test_publish_string_only_fields_never_receive_dict_or_list(tmp_path):
