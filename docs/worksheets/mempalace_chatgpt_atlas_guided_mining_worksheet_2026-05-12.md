@@ -557,8 +557,8 @@ Each coherent package milestone requires:
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
 | I - Safety Review | green | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `L-3R5` and `L-5R` repairs landed; O-0 checks passed with 118 tests plus ruff, py_compile, bash syntax, and diff checks; `R-1R` returned green and `V-1I2` found no red issues. | WP-10 unlocked after this milestone commit/push |
-| J - Bounded Remote Smoke | repair landed - rerun pending | `L-5` promoted committed app `c2408c5` without deletes/restarts and confirmed the live wrapper, but smoke stopped before `systemd-run` because the canonical atlas run lacks guided candidate artifacts. `L-2R3` materialization repair landed and O-0 checks passed; bounded smoke rerun is pending after commit/push/promote. | WP-11 only after green smoke |
-| K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
+| J - Bounded Remote Smoke | green | `L-5R2` promoted committed app `73285d6` without deletes/restarts, materialized guided inputs, and completed bounded wrapper run `wp10smoke20260513t025130z`; `V-1J` independently verified complete/no-publish artifacts and resource caps. | WP-11 unlocked after this milestone commit/push |
+| K - Full No-Publish Extraction | unlocked | Waiting on WP-11 activation after the WP-10 milestone commit/push. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
 | M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
 | N - Closure | blocked | Waiting on final docs/devlog/tests/run evidence and commit/push. | Tranche closed |
@@ -579,8 +579,8 @@ Each coherent package milestone requires:
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
 | WP-09 | complete | `R-1` / `L-3R5` / `L-5R` | Safety review accepted after red/amber repairs, O-0 verification, and independent green re-review. |
-| WP-10 | rerun pending | `L-5` / `L-2R3` | Bounded smoke failed before unit creation because the canonical atlas run lacks guided candidate artifacts. `L-2R3` added the pure materialization CLI and docs; O-0 verification passed. Commit/push/promote, materialize inputs, then rerun bounded no-publish smoke. |
-| WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
+| WP-10 | complete | `L-5` / `L-2R3` | Bounded no-publish smoke accepted after materialization repair, live promotion, successful wrapper run, and independent artifact verification. |
+| WP-11 | unlocked | `L-5` | Full no-publish extraction activation after WP-10 milestone commit/push. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
 | WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
 | WP-14 | blocked | `O-0` | Closure docs/devlog/commit/push after publish smoke or explicit no-publish closure. |
@@ -902,6 +902,22 @@ Each coherent package milestone requires:
 - `O-0` ran the full atlas-guided suite including the new materializer tests: 124 passed.
 - `O-0` ran scoped ruff checks, py_compile checks, `bash -n scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh`, direct materializer `--help`, and `git diff --check`; all passed.
 - Checkpoint J disposition remains blocked until the repaired app is promoted, the canonical atlas guided inputs are materialized, and the bounded no-publish smoke rerun is green.
+
+### 2026-05-12 - WP-10 / Checkpoint J Green
+
+- `L-5R2` staged committed `HEAD` `73285d6cbd6519bc2cf23c67331fbe42a6d4e110` to `/media/u0/OneDrive_Backup/tmp-mempalace/codex-mempalace-app-20260513T024832Z-73285d6/app` using `git archive`; `.agents/plugins/marketplace.json` was excluded.
+- `L-5R2` promoted the staged app with the live promotion wrapper. Promotion reported no deletion, no service restart, and no palace data touch.
+- `L-5R2` materialized guided inputs on `snow-white-iii` with the live materializer as `mempalace`: `candidate_bridge_records.jsonl` has 3120 rows, `atlas_thread_candidates.jsonl` has 4746 rows, `atlas_candidate_coverage.json` exists, and coverage status is `needs_review`.
+- `L-5R2` ran bounded no-publish smoke through the live wrapper with run id `wp10smoke20260513t025130z`, `--limit 2`, and `--provider-max-attempts 1`.
+- The transient unit was `mempalace-chatgpt-atlas-guided-wp10smoke20260513t025130z.service`; it completed with `Result=success` and `ExecMainStatus=0` before being collected by `systemd-run --collect`.
+- Smoke run directory: `/media/u0/OneDrive_Backup/mempalace/data/atlas_guided_chatgpt_signals/wp10smoke20260513t025130z`.
+- `progress.json` reports `status=complete`, `phase_status=complete`, `no_publish=true`, `publish_enabled=false`, `segments_processed_this_run=2`, `accepted_records=16`, `extraction_records=16`, `reconciled_signals=16`, `invalid_outputs=0`, and `provider_error_records=0`.
+- Artifact counts in the smoke run: `candidate_bridge_records.jsonl` 3120, `atlas_thread_candidates.jsonl` 4746, `extraction_records.jsonl` 16, `reconciled_signals.jsonl` 16, `publish_checkpoint.jsonl` 1, `segment_checkpoint.jsonl` 2, and `source_checkpoint.jsonl` 1; `invalid_outputs.jsonl` was absent with zero invalid output counts.
+- `publish_checkpoint.jsonl` row has `status=disabled`, `publish_enabled=false`, `publish_gate_open=false`, and `record_count=0`.
+- Live wrapper evidence remains `--property=User=mempalace`, `--property=Group=mempalace`, `--property=ReadWritePaths="$RUN_DIR"`, `--property=MemoryMax=16G`, `--property=CPUQuota=200%`, `--atlas-guided`, and no `--publish`.
+- `V-1J` independently verified the smoke run artifacts, no-publish evidence, row counts, transient unit/journal evidence, and wrapper resource caps; verdict: green.
+- Checkpoint J verdict: green.
+- Checkpoint J disposition: WP-11 full atlas-guided no-publish extraction is unlocked after this milestone commit/push.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
