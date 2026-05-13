@@ -549,7 +549,7 @@ Each coherent package milestone requires:
 | Checkpoint | Status | Evidence | Next gate |
 |---|---|---|---|
 | A - Worksheet Baseline | green | Worksheet saved at `docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`; branch/head/status, atlas run, old diagnostic run, dirty scope, and corrected model-role assignments recorded. | WP-01 |
-| B - Atlas-Guided Contract | active | Not started; contract work is unlocked after Checkpoint A. | WP-02/WP-04 design skeleton after green verdict |
+| B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
 | C - Atlas Bridge | blocked | Waiting on WP-01/WP-02. | WP-03 after green verdict |
 | D - Candidate Coverage | blocked | Waiting on WP-03. | WP-04/WP-05 after green verdict |
 | E - Prompt/Parser | blocked | Waiting on WP-04. | WP-05 after green verdict |
@@ -570,8 +570,8 @@ Each coherent package milestone requires:
 | Package | Status | Owner/lead | Notes |
 |---|---|---|---|
 | WP-00 | complete | `O-0` | Worksheet and baseline freeze are complete; Checkpoint A is green. |
-| WP-01 | unlocked | `L-1` | Artifact contract is the active next package; no implementation package may bypass it. |
-| WP-02 | blocked | `L-2` | Requires Checkpoint B green. |
+| WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
+| WP-02 | unlocked | `L-2` | Unlocked by Checkpoint B; activate after WP-01 milestone commit/push. |
 | WP-03 | blocked | `L-2` | Requires Checkpoint C green. |
 | WP-04 | blocked | `L-3` | Requires Checkpoint B/C/D sequencing as recorded in package table. |
 | WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
@@ -592,6 +592,9 @@ Each coherent package milestone requires:
 | Date | Status | Drift item | Disposition |
 |---|---|---|---|
 | 2026-05-12 | closed | Initial WP-00 worksheet draft omitted explicit checkpoint/package/drift/decision ledger sections. | Recovered in worksheet/status mode before the second WP-00 evidence commit; no implementation package was activated and no code was touched. |
+| 2026-05-12 | closed | WP-01 support helper `T-1` exhausted context before returning evidence. | Evidence discarded; no files landed from that lane. |
+| 2026-05-12 | closed | Original WP-01 lead `L-1` stalled without returning files or evidence. | Lane was closed and WP-01 reassigned to bounded replacement lead `L-1R`; no implementation files had landed before reassignment. |
+| 2026-05-12 | closed | `V-1` found WP-01 amber blockers: candidate bridge rows force canonical room identity for `noise` rows, tests do not cover mixed/noise bridge semantics, and publish checkpoint cannot represent explicit future `chatgpt_atlas_signals` gate. | Repaired by `L-1R2`; follow-up `V-1` verification returned green and Checkpoint B is green. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
 
@@ -606,10 +609,39 @@ Each coherent package milestone requires:
 | 2026-05-12 | Any later publish targets `chatgpt_atlas_signals`. | Existing `chatgpt`, `chatgpt_signals`, and partial `chatgpt_thread_signals` must remain protected. | Publish smoke cannot write to old wings. |
 | 2026-05-12 | `gpt-5.3-codex` and `gpt-5.3-codex-spark` are helpers, not leads. | User explicitly rejected low/medium-depth lead assignment for architecture ownership. | Lead roles use `gpt-5.5 high` or `gpt-5.4 high`; bounded helpers use smaller models. |
 | 2026-05-12 | Checkpoint B is the active hard gate. | Artifact contracts must precede runner/prompt/live work. | WP-01 is the only unlocked implementation package after WP-00. |
+| 2026-05-12 | Defer WP-04 design skeleton until WP-02/WP-03 bridge shape is accepted. | The worksheet allowed WP-04 design skeleton after WP-01 only if write scopes do not overlap; the prompt/parser contract depends on exact bridge/coverage record semantics. | Activate WP-02 next; keep WP-04 blocked until bridge evidence is available. |
 
 ---
 
 ## execution log
+
+### 2026-05-12 - WP-01 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint B.
+- Activated package: WP-01 only.
+- Assigned `L-1` as contract lead using `gpt-5.5` high.
+- Assigned `T-1` as focused test helper using `gpt-5.3-codex-spark` high.
+- Write scope is limited to the atlas-guided artifact contract module/tests/docs selected by WP-01.
+- WP-02 through WP-14 remain blocked.
+- `T-1` errored due to context exhaustion before returning evidence; no `T-1` work was accepted.
+- Original `L-1` stalled without landing files and was closed.
+- WP-01 was reassigned to replacement lead `L-1R` using `gpt-5.5` high with narrowed write scope: `mempalace/chatgpt_atlas_guided_contract.py` and `tests/test_chatgpt_atlas_guided_contract.py`.
+- `L-1R` returned a bounded patch in `mempalace/chatgpt_atlas_guided_contract.py` and `tests/test_chatgpt_atlas_guided_contract.py`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py`: passed, `31 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_contract.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_contract.py docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`: passed.
+- `V-1` independent no-edit review returned amber, not green.
+- Checkpoint B remains amber because candidate bridge rows cannot represent `noise` rows without canonical room identity and publish checkpoints cannot encode future explicit `chatgpt_atlas_signals` gate evidence.
+- WP-01 repair assigned to replacement lead `L-1R2` using `gpt-5.5` high with the same bounded write scope.
+- `L-1R2` repaired the contract so candidate bridge rows support `candidate`, `mixed`, and `noise`; `noise` rows preserve atlas evidence without candidate/canonical identity; `mixed` rows are either unresolved or complete candidate-backed; and publish checkpoint rows can encode an explicit approved/open gate only for `chatgpt_atlas_signals`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py`: passed, `33 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_contract.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_contract.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_contract.py docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`: passed.
+- `V-1` repair verifier returned green with file/line evidence for candidate/mixed/noise semantics, publish checkpoint gating, and forbidden LocalAI/MCP/Chroma/palace-write fields.
+- Checkpoint B verdict: green.
+- Checkpoint B disposition: WP-02 is unlocked after this milestone is committed and pushed. WP-04 design skeleton is deferred until WP-02/WP-03 bridge shape is accepted.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
