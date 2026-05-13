@@ -232,6 +232,9 @@ TOKEN FILE        /media/u0/OneDrive_Backup/mempalace/secrets/localai_token
 Run a bounded smoke pass:
 
 ```bash
+scripts/materialize_chatgpt_atlas_guided_inputs.py \
+  --atlas-run-dir /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5
+
 scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
   --run-id atlas_guided_smoke_20260512 \
   --limit 25 \
@@ -250,6 +253,9 @@ scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
 Use a different atlas artifact set under the canonical atlas root:
 
 ```bash
+scripts/materialize_chatgpt_atlas_guided_inputs.py \
+  --atlas-run-dir /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<atlas_run_id>
+
 scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
   --atlas-run-dir /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<atlas_run_id> \
   --candidate-records /media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/<atlas_run_id>/candidate_bridge_records.jsonl
@@ -258,11 +264,12 @@ scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh \
 The wrapper always passes `--atlas-guided`, always supplies the host-local
 LocalAI URL and token file, and never passes `--publish`. It rejects non-local
 provider URLs, rejects non-canonical token paths, refuses `/media/u0/Extreme SSD`,
-and aborts on non-`snow-white-iii` hosts unless `MEMPALACE_INSTALL_ALLOW_OTHER_HOST=1`
-is explicitly set in the existing wrapper style.
+and aborts on non-`snow-white-iii` hosts.
 
 Before submitting the transient unit it verifies the expected atlas inputs are
-present under the selected atlas run directory:
+present under the selected atlas run directory. The bounded wrapper does not
+materialize them itself; run `scripts/materialize_chatgpt_atlas_guided_inputs.py`
+first when the atlas run only has `topic_clusters.jsonl` and `thread_index.jsonl`:
 
 ```text
 candidate_bridge_records.jsonl
