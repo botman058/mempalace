@@ -557,7 +557,7 @@ Each coherent package milestone requires:
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
 | I - Safety Review | green | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `L-3R5` and `L-5R` repairs landed; O-0 checks passed with 118 tests plus ruff, py_compile, bash syntax, and diff checks; `R-1R` returned green and `V-1I2` found no red issues. | WP-10 unlocked after this milestone commit/push |
-| J - Bounded Remote Smoke | unlocked | Waiting on WP-10 activation after the WP-09 milestone commit/push. | WP-11 after green verdict |
+| J - Bounded Remote Smoke | active | WP-10 activated after WP-09 milestone commit `a3663e7` was pushed. | WP-11 after green verdict |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
 | M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
@@ -579,7 +579,7 @@ Each coherent package milestone requires:
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
 | WP-09 | complete | `R-1` / `L-3R5` / `L-5R` | Safety review accepted after red/amber repairs, O-0 verification, and independent green re-review. |
-| WP-10 | unlocked | `L-5` | Bounded no-publish remote smoke activation after WP-09 milestone commit/push. |
+| WP-10 | active | `L-5` | Bounded no-publish remote smoke activated; must use the snow-white wrapper, remain no-publish, and produce reviewable run artifacts before WP-11. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
 | WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
@@ -867,6 +867,18 @@ Each coherent package milestone requires:
 - `R-1R` returned green with file/line evidence for direct atlas-guided CLI run-dir confinement, `/media/u0/Extreme SSD` refusal, validation before provider creation or artifact writes, test coverage, wrapper host-bypass removal, no default publish, no old-wing mutation, publish gate constraints, strict snow-white LocalAI constraints, and no delete primitive in reviewed surfaces.
 - Checkpoint I verdict: green.
 - Checkpoint I disposition: WP-10 bounded no-publish remote smoke is unlocked after this milestone commit/push.
+
+### 2026-05-12 - WP-10 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint J.
+- Activated package: WP-10 only.
+- Assigned `L-5` as live ops lead using `gpt-5.4` high.
+- Assigned `V-1` as no-edit smoke verification support using `gpt-5.3-codex-spark` high.
+- WP-11 through WP-14 remain blocked.
+- WP-10 must use `scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh` on `snow-white-iii`.
+- WP-10 must remain bounded and no-publish, must not call cloud APIs, must not call MCP publish tools, must not delete data, and must not use `/media/u0/Extreme SSD`.
+- WP-10 acceptance requires a limited run directory with progress, checkpoints, coverage/candidate copies, extraction, reconciliation, disabled publish checkpoint, service/resource-cap evidence, and no-publish evidence.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
