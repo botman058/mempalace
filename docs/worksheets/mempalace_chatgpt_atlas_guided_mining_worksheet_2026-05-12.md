@@ -558,7 +558,7 @@ Each coherent package milestone requires:
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
 | I - Safety Review | green | `R-1` returned red on direct atlas-guided CLI run-dir confinement; `L-3R5` and `L-5R` repairs landed; O-0 checks passed with 118 tests plus ruff, py_compile, bash syntax, and diff checks; `R-1R` returned green and `V-1I2` found no red issues. | WP-10 unlocked after this milestone commit/push |
 | J - Bounded Remote Smoke | green | `L-5R2` promoted committed app `73285d6` without deletes/restarts, materialized guided inputs, and completed bounded wrapper run `wp10smoke20260513t025130z`; `V-1J` independently verified complete/no-publish artifacts and resource caps. | WP-11 unlocked after this milestone commit/push |
-| K - Full No-Publish Extraction | unlocked | Waiting on WP-11 activation after the WP-10 milestone commit/push. | WP-12 after green verdict |
+| K - Full No-Publish Extraction | active | WP-11 activated on 2026-05-13 after WP-10 milestone commit `e7dc898` was pushed. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
 | M - Publish Smoke | blocked | Optional; waiting on WP-13 activation and explicit review recommendation. | WP-14 after green verdict |
 | N - Closure | blocked | Waiting on final docs/devlog/tests/run evidence and commit/push. | Tranche closed |
@@ -580,7 +580,7 @@ Each coherent package milestone requires:
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
 | WP-09 | complete | `R-1` / `L-3R5` / `L-5R` | Safety review accepted after red/amber repairs, O-0 verification, and independent green re-review. |
 | WP-10 | complete | `L-5` / `L-2R3` | Bounded no-publish smoke accepted after materialization repair, live promotion, successful wrapper run, and independent artifact verification. |
-| WP-11 | unlocked | `L-5` | Full no-publish extraction activation after WP-10 milestone commit/push. |
+| WP-11 | active | `L-5` | Full atlas-guided no-publish extraction activated; must run through the snow-white wrapper as `mempalace`, with no publish, no cloud calls, no deletes, no `/media/u0/Extreme SSD`, and resource caps intact. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
 | WP-13 | blocked | `L-5` | Optional tiny publish smoke only after explicit green recommendation. |
 | WP-14 | blocked | `O-0` | Closure docs/devlog/commit/push after publish smoke or explicit no-publish closure. |
@@ -918,6 +918,19 @@ Each coherent package milestone requires:
 - `V-1J` independently verified the smoke run artifacts, no-publish evidence, row counts, transient unit/journal evidence, and wrapper resource caps; verdict: green.
 - Checkpoint J verdict: green.
 - Checkpoint J disposition: WP-11 full atlas-guided no-publish extraction is unlocked after this milestone commit/push.
+
+### 2026-05-13 - WP-11 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint K.
+- Activated package: WP-11 only.
+- Assigned `L-5` as live ops lead using `gpt-5.4` high.
+- Assigned `V-1` as no-edit run verification support using `gpt-5.3-codex-spark` high.
+- WP-12 through WP-14 remain blocked.
+- WP-11 must use `scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh` on `snow-white-iii`.
+- WP-11 must run no-publish, must not call cloud APIs, must not call MCP publish tools, must not delete data, and must not use `/media/u0/Extreme SSD`.
+- WP-11 should use the already-materialized guided inputs under `/media/u0/OneDrive_Backup/mempalace/data/chatgpt_archive_atlas/atlas_full2_20260512T0412Z_2fc8ac5`.
+- WP-11 acceptance requires a completed or cleanly resumable run directory with progress, checkpoints, extraction, reconciliation, disabled publish checkpoint, service/resource-cap evidence, and no-publish evidence.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
