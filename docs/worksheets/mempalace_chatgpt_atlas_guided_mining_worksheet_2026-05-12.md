@@ -555,8 +555,8 @@ Each coherent package milestone requires:
 | E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
 | F - Extraction And Reconciliation | green | WP-05 extraction mode and WP-06 reconciliation/dedupe are accepted; combined tests, ruff, py_compile, diff check, and `V-1F` no-edit verification passed. | WP-08 cross-package verification after WP-07 milestone commit/push |
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
-| H - Cross-Package Verification | active | WP-08 activated after WP-06/WP-07 milestone commit `c68a785` was pushed. | WP-09 after green verdict |
-| I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
+| H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
+| I - Safety Review | unlocked | Waiting on WP-09 activation after the WP-08 milestone commit/push. | WP-10 after green verdict |
 | J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
@@ -577,8 +577,8 @@ Each coherent package milestone requires:
 | WP-05 | complete | `L-3` / `L-3R2` | Atlas-guided no-publish extraction mode accepted after repair and independent green verification. |
 | WP-06 | complete | `L-4` | Candidate-aware reconciliation accepted after repair and independent green verification. |
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
-| WP-08 | active | `T-1` | Cross-package verification activated after WP-06/WP-07 milestone commit/push. |
-| WP-09 | blocked | `R-1` | Independent safety review only after cross-package verification. |
+| WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
+| WP-09 | unlocked | `R-1` | Independent safety review activation after WP-08 milestone commit/push. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
@@ -599,6 +599,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | `V-1R` initially returned environment-amber because it used ambient `pytest`/`ruff` instead of the repo venv. | Replaced with `V-1R2` using explicit `.venv/bin/...` commands; no functional blocker remained. |
 | 2026-05-12 | closed | O-0 review found WP-05 amber risks: required atlas JSONL inputs could be silently tolerated through the generic reader, and implicit atlas-guided runs wrote directly to the run-root instead of a `<run_id>` child. | Repaired by `L-3R2`; strict atlas input loading now fails before provider calls, checkpoint readers remain tolerant, and implicit atlas run dirs use a deterministic child under the canonical root. |
 | 2026-05-12 | closed | O-0 review found a WP-06 amber issue: reconciliation candidate provenance was nested only under `candidate_metadata`, making candidate identity less directly inspectable in review artifacts. | Repaired by `L-4`; reconciliation provenance now includes direct `candidate_id`, `candidate_key`, `canonical_wing`, `canonical_room`, `atlas_candidate_ids`, and `atlas_candidate_keys` fields while preserving nested metadata. |
+| 2026-05-12 | closed | `V-1H` found a WP-08 amber blocker: direct `--atlas-guided` CLI runs used the legacy LocalAI blocklist guard instead of the snow-white-only allowlist enforced by the systemd wrapper. | Repaired by `L-3R4`; direct atlas-guided runs now require `http://snow-white-iii:8080/v1` or `http://snow-white-iii.local:8080/v1` before provider creation, while legacy localhost behavior remains unchanged. `V-1H2` returned green. |
 | 2026-05-12 | monitored | Parallel activation notes conflict: the overview table blocks WP-08 on WP-02 through WP-07, while one activation-plan bullet says to activate WP-08 after WP-05. | Follow the detailed package dependencies and WP-05 exit: activate WP-06 and WP-07; keep WP-08 blocked until WP-06/WP-07 evidence exists. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
@@ -812,6 +813,18 @@ Each coherent package milestone requires:
 - WP-09 through WP-14 remain blocked.
 - WP-08 write scope is limited to focused cross-package tests/fixtures if a concrete gap is found; otherwise it is no-edit verification evidence only.
 - WP-08 must not call LocalAI, cloud APIs, MCP, Chroma services, remote SSH, or mutate palace data; it must not touch `.agents/plugins/marketplace.json`, `docs/reference/`, or `/media/u0/Extreme SSD`.
+
+### 2026-05-12 - WP-08 Repair And Green Verification
+
+- `T-1` completed cross-package verification in no-edit mode and returned green on the scoped suite with 113 passing tests plus ruff, py_compile, bash syntax, and diff checks.
+- `V-1H` completed independent no-edit verification and returned amber because direct `scripts/localai_chatgpt_thread_signals.py --atlas-guided` runs still used the permissive legacy LocalAI URL guard; the snow-white-only guard existed only in the wrapper path.
+- `O-0` kept WP-09 blocked, entered worksheet/status repair mode, and assigned `L-3R4` to the smallest repair scope: `scripts/localai_chatgpt_thread_signals.py` and `tests/test_localai_chatgpt_thread_signals.py`.
+- `L-3R4` added strict direct atlas-guided LocalAI allowlisting for `http://snow-white-iii:8080/v1` and `http://snow-white-iii.local:8080/v1` before provider creation, while preserving legacy thread-signal localhost behavior outside atlas-guided mode.
+- `O-0` ran the repaired WP-08 suite: `tests/test_chatgpt_atlas_guided_contract.py`, `tests/test_chatgpt_atlas_guided_bridge.py`, `tests/test_chatgpt_atlas_guided_coverage.py`, `tests/test_chatgpt_atlas_guided_prompt.py`, `tests/test_chatgpt_atlas_guided_reconciliation.py`, `tests/test_localai_chatgpt_thread_signals.py`, and `tests/test_chatgpt_atlas_guided_systemd_wrapper.py`; result: 115 passed.
+- `O-0` ran scoped ruff checks, py_compile checks, `bash -n scripts/systemd/start_chatgpt_atlas_guided_extraction_snow_white_iii.sh`, and `git diff --check`; all passed.
+- `V-1H2` completed independent no-edit repair verification and returned green with 115 passing tests plus ruff, py_compile, bash syntax, and diff checks.
+- Checkpoint H verdict: green.
+- Checkpoint H disposition: WP-09 independent safety review is unlocked after this milestone commit/push.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 

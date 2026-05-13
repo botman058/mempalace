@@ -243,6 +243,7 @@ def test_invalid_output_writes_invalid_record_and_failed_status(tmp_path):
 
 def test_ensure_localai_base_url_accepts_local_and_refuses_cloud_urls():
     assert ensure_localai_base_url("http://snow-white-iii:8080/v1") == "http://snow-white-iii:8080/v1"
+    assert ensure_localai_base_url("http://localhost:8080/v1") == "http://localhost:8080/v1"
     with pytest.raises(Exception):
         ensure_localai_base_url("https://api.openai.com/v1")
     with pytest.raises(Exception):
@@ -949,6 +950,40 @@ def test_atlas_guided_thread_index_non_object_row_is_strict_before_provider_call
                 run_dir,
                 atlas_guided=True,
                 atlas_run_dir=str(atlas_run_dir),
+            ),
+            provider=provider,
+        )
+
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://localhost:8080/v1",
+        "http://example.test:8080/v1",
+    ],
+)
+def test_atlas_guided_localai_base_url_is_strict_before_provider_calls(tmp_path, base_url):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_dir.joinpath("conversations.json").write_text(
+        json.dumps([_conversation_from_messages([("user", "hello"), ("assistant", "hi")], "conv-atlas-url-guard")]),
+        encoding="utf-8",
+    )
+    run_dir = tmp_path / "run"
+    atlas_run_dir = tmp_path / "atlas_run"
+    _write_atlas_guided_input_artifacts(atlas_run_dir, conversation_id="conv-atlas-url-guard")
+    provider = _FakeProvider([_atlas_guided_payload(signal_status="accepted")])
+
+    with pytest.raises(FatalRemoteError, match="Atlas-guided LocalAI base URL must target snow-white-iii"):
+        run(
+            _base_args(
+                source_dir,
+                run_dir,
+                atlas_guided=True,
+                atlas_run_dir=str(atlas_run_dir),
+                localai_base_url=base_url,
             ),
             provider=provider,
         )

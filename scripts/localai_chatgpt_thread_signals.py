@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from mempalace import chatgpt_archive_atlas_contract as atlas_contract
@@ -47,6 +48,11 @@ _PROVIDER_BLOCKLIST = (
     "generativelanguage.googleapis.com",
     "vertexai.googleapis.com",
 )
+_ATLAS_GUIDED_ALLOWED_LOCALAI_BASE_URLS = (
+    "http://snow-white-iii:8080/v1",
+    "http://snow-white-iii.local:8080/v1",
+)
+_ATLAS_GUIDED_ALLOWED_LOCALAI_HOSTS = {"snow-white-iii", "snow-white-iii.local"}
 
 
 class FatalRemoteError(RuntimeError):
@@ -84,6 +90,31 @@ def ensure_localai_base_url(base_url: str) -> str:
     for blocked in _PROVIDER_BLOCKLIST:
         if blocked in lowered:
             raise FatalRemoteError(f"Refusing non-local LocalAI provider URL: {blocked}")
+    return value
+
+
+def ensure_atlas_guided_localai_base_url(base_url: str) -> str:
+    value = ensure_localai_base_url(base_url)
+    parsed = urlsplit(value)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise FatalRemoteError(f"Invalid LocalAI base URL: {value}") from exc
+    if (
+        parsed.scheme.lower() != "http"
+        or parsed.hostname is None
+        or parsed.hostname.lower() not in _ATLAS_GUIDED_ALLOWED_LOCALAI_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or port != 8080
+        or parsed.path != "/v1"
+        or parsed.query
+        or parsed.fragment
+    ):
+        allowed = " or ".join(_ATLAS_GUIDED_ALLOWED_LOCALAI_BASE_URLS)
+        raise FatalRemoteError(
+            f"Atlas-guided LocalAI base URL must target snow-white-iii: {allowed}"
+        )
     return value
 
 
@@ -1724,7 +1755,7 @@ def _run_atlas_guided(
         candidate_records_path=candidate_records_path,
     )
 
-    localai_base = ensure_localai_base_url(args.localai_base_url)
+    localai_base = ensure_atlas_guided_localai_base_url(args.localai_base_url)
     if provider is None:
         token = read_token(args.localai_token, args.localai_token_file, "LocalAI")
         provider = HttpSegmentProvider(
