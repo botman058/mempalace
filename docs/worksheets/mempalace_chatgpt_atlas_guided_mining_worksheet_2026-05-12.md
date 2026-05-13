@@ -550,8 +550,8 @@ Each coherent package milestone requires:
 |---|---|---|---|
 | A - Worksheet Baseline | green | Worksheet saved at `docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md`; branch/head/status, atlas run, old diagnostic run, dirty scope, and corrected model-role assignments recorded. | WP-01 |
 | B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
-| C - Atlas Bridge | active | WP-02 activated after WP-01 milestone commit `e3a4748` was pushed. | WP-03 after green verdict |
-| D - Candidate Coverage | blocked | Waiting on WP-03. | WP-04/WP-05 after green verdict |
+| C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
+| D - Candidate Coverage | blocked | Waiting on WP-03 activation after Checkpoint C milestone commit/push. | WP-04/WP-05 after green verdict |
 | E - Prompt/Parser | blocked | Waiting on WP-04. | WP-05 after green verdict |
 | F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
@@ -571,8 +571,8 @@ Each coherent package milestone requires:
 |---|---|---|---|
 | WP-00 | complete | `O-0` | Worksheet and baseline freeze are complete; Checkpoint A is green. |
 | WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
-| WP-02 | active | `L-2` | Atlas cluster-to-candidate bridge activated after WP-01 milestone commit/push. |
-| WP-03 | blocked | `L-2` | Requires Checkpoint C green. |
+| WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
+| WP-03 | unlocked | `L-2` | Unlocked by Checkpoint C; activate after WP-02 milestone commit/push. |
 | WP-04 | blocked | `L-3` | Requires Checkpoint B/C/D sequencing as recorded in package table. |
 | WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
 | WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
@@ -655,6 +655,17 @@ Each coherent package milestone requires:
 - Assigned `H-1` as bounded implementation helper using `gpt-5.3-codex` medium.
 - Assigned `T-1` as focused test helper using `gpt-5.3-codex-spark` high.
 - WP-03 through WP-14 remain blocked.
+- `T-1` support spawn was not available because the agent thread limit was reached; no `T-1` evidence was used for WP-02.
+- `H-1` completed a read-only fixture/edge-case brief for atlas `topic_clusters.jsonl` rows and bridge mapping expectations.
+- `L-2` implemented `mempalace/chatgpt_atlas_guided_bridge.py` and `tests/test_chatgpt_atlas_guided_bridge.py`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_bridge.py`: passed, `7 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py`: passed, `40 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_bridge.py`: passed.
+- `V-1` no-edit verification returned green for pure/no external side effects, atlas topic-cluster row validation, candidate bridge contract emission, candidate/mixed/noise handling, deterministic keys/IDs, preserved evidence fields, and focused tests.
+- Checkpoint C verdict: green.
+- Checkpoint C disposition: WP-03 is unlocked after this milestone is committed and pushed.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
