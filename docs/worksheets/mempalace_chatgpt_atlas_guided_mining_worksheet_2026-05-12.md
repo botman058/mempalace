@@ -556,7 +556,7 @@ Each coherent package milestone requires:
 | F - Extraction And Reconciliation | green | WP-05 extraction mode and WP-06 reconciliation/dedupe are accepted; combined tests, ruff, py_compile, diff check, and `V-1F` no-edit verification passed. | WP-08 cross-package verification after WP-07 milestone commit/push |
 | G - Ops Wrapper | green | WP-07 snow-white wrapper/runbook accepted; bash syntax, static wrapper tests, ruff, py_compile, diff check, and `V-1G` no-edit verification passed. | WP-08 cross-package verification |
 | H - Cross-Package Verification | green | `T-1` returned green, `V-1H` found an amber direct-CLI LocalAI URL gap, `L-3R4` repaired strict atlas-guided snow-white allowlisting, O-0 checks passed, and `V-1H2` returned green with 115 tests passing plus ruff, py_compile, bash syntax, and diff checks. | WP-09 unlocked after this milestone commit/push |
-| I - Safety Review | unlocked | Waiting on WP-09 activation after the WP-08 milestone commit/push. | WP-10 after green verdict |
+| I - Safety Review | active | WP-09 activated after WP-08 milestone commit `bd126cc` was pushed. | WP-10 after green verdict |
 | J - Bounded Remote Smoke | blocked | Waiting on WP-10. | WP-11 after green verdict |
 | K - Full No-Publish Extraction | blocked | Waiting on WP-11. | WP-12 after green verdict |
 | L - Publish Readiness | blocked | Waiting on WP-12. | WP-13 or no-publish closure |
@@ -578,7 +578,7 @@ Each coherent package milestone requires:
 | WP-06 | complete | `L-4` | Candidate-aware reconciliation accepted after repair and independent green verification. |
 | WP-07 | complete | `L-5` | Snow-white atlas-guided no-publish wrapper accepted after independent green verification. |
 | WP-08 | complete | `T-1` / `L-3R4` | Cross-package verification accepted after amber direct-CLI LocalAI URL repair and independent green re-verification. |
-| WP-09 | unlocked | `R-1` | Independent safety review activation after WP-08 milestone commit/push. |
+| WP-09 | active | `R-1` | Independent safety review activated after WP-08 milestone commit/push; no live run, no LocalAI calls, no cloud calls, no palace mutation. |
 | WP-10 | blocked | `L-5` | Bounded no-publish remote smoke only after safety review. |
 | WP-11 | blocked | `L-5` | Full no-publish extraction only after bounded smoke. |
 | WP-12 | blocked | `L-4` | Publish-readiness review only after full no-publish artifacts exist. |
@@ -825,6 +825,17 @@ Each coherent package milestone requires:
 - `V-1H2` completed independent no-edit repair verification and returned green with 115 passing tests plus ruff, py_compile, bash syntax, and diff checks.
 - Checkpoint H verdict: green.
 - Checkpoint H disposition: WP-09 independent safety review is unlocked after this milestone commit/push.
+
+### 2026-05-12 - WP-09 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint I.
+- Activated package: WP-09 only.
+- Assigned `R-1` as independent safety review lead using `gpt-5.5` high.
+- Assigned `V-1` as no-edit verification support using `gpt-5.3-codex-spark` high.
+- WP-10 through WP-14 remain blocked.
+- WP-09 scope is review-only across atlas-guided modules, scripts, tests, docs, and wrapper surfaces.
+- WP-09 must not call LocalAI, cloud APIs, MCP, Chroma services, remote SSH, or mutate palace data; it must not touch `.agents/plugins/marketplace.json`, `docs/reference/`, or `/media/u0/Extreme SSD`.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
