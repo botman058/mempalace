@@ -552,7 +552,7 @@ Each coherent package milestone requires:
 | B - Atlas-Guided Contract | green | `L-1R2` repaired candidate/mixed/noise bridge semantics and publish-checkpoint gating; `V-1` repair verification returned green; targeted tests, ruff, py_compile, and diff check passed. | WP-02 unlocked after this milestone commit/push |
 | C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
 | D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
-| E - Prompt/Parser | active | WP-04 activated after WP-03 milestone commit `a971c73` was pushed. | WP-05 after green verdict |
+| E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
 | F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
@@ -573,8 +573,8 @@ Each coherent package milestone requires:
 | WP-01 | complete | `L-1R2` | Artifact contract accepted at Checkpoint B after repair and independent green verification. |
 | WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
 | WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
-| WP-04 | active | `L-3` | Atlas-guided LocalAI prompt/parser contract activated after WP-03 milestone commit/push. |
-| WP-05 | blocked | `L-3` | Requires Checkpoint E green. |
+| WP-04 | complete | `L-3` / `L-3R` | Atlas-guided LocalAI prompt/parser contract accepted at Checkpoint E after repair and independent green verification. |
+| WP-05 | blocked | `L-3` | Unlocked after the WP-04 milestone commit/push; not yet activated. |
 | WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
 | WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
 | WP-08 | blocked | `T-1` | Requires WP-02 through WP-07 evidence. |
@@ -595,6 +595,8 @@ Each coherent package milestone requires:
 | 2026-05-12 | closed | WP-01 support helper `T-1` exhausted context before returning evidence. | Evidence discarded; no files landed from that lane. |
 | 2026-05-12 | closed | Original WP-01 lead `L-1` stalled without returning files or evidence. | Lane was closed and WP-01 reassigned to bounded replacement lead `L-1R`; no implementation files had landed before reassignment. |
 | 2026-05-12 | closed | `V-1` found WP-01 amber blockers: candidate bridge rows force canonical room identity for `noise` rows, tests do not cover mixed/noise bridge semantics, and publish checkpoint cannot represent explicit future `chatgpt_atlas_signals` gate. | Repaired by `L-1R2`; follow-up `V-1` verification returned green and Checkpoint B is green. |
+| 2026-05-12 | closed | `V-1` found a WP-04 amber blocker: model outputs containing `localai_base_url` or related control keys could still be accepted. | Repaired by `L-3R` with recursive forbidden-key rejection and regression tests; `V-1R2` returned green. |
+| 2026-05-12 | closed | `V-1R` initially returned environment-amber because it used ambient `pytest`/`ruff` instead of the repo venv. | Replaced with `V-1R2` using explicit `.venv/bin/...` commands; no functional blocker remained. |
 | 2026-05-12 | monitored | Modified `.agents/plugins/marketplace.json` is present in the worktree but out of scope. | Must remain unstaged and unmodified by this tranche unless user explicitly changes scope. |
 | 2026-05-12 | monitored | Untracked `docs/reference/` is present but unaccepted. | Must remain unstaged and unrevised by this tranche until a package explicitly owns it. |
 
@@ -610,6 +612,7 @@ Each coherent package milestone requires:
 | 2026-05-12 | `gpt-5.3-codex` and `gpt-5.3-codex-spark` are helpers, not leads. | User explicitly rejected low/medium-depth lead assignment for architecture ownership. | Lead roles use `gpt-5.5 high` or `gpt-5.4 high`; bounded helpers use smaller models. |
 | 2026-05-12 | Checkpoint B is the active hard gate. | Artifact contracts must precede runner/prompt/live work. | WP-01 is the only unlocked implementation package after WP-00. |
 | 2026-05-12 | Defer WP-04 design skeleton until WP-02/WP-03 bridge shape is accepted. | The worksheet allowed WP-04 design skeleton after WP-01 only if write scopes do not overlap; the prompt/parser contract depends on exact bridge/coverage record semantics. | Activate WP-02 next; keep WP-04 blocked until bridge evidence is available. |
+| 2026-05-12 | WP-04 parser rejects forbidden control keys by JSON key, not by scanning free-text values. | The model may legitimately mention LocalAI, MCP, URLs, or paths in grounded text; the unsafe path is structured control/config output that could steer tools or writes. | Reject `localai*`, `chroma*`, `mcp*`, `network*`, `provider*`, `vector*`, `tool*`, `publish*`, `palace*`, `drawer*`, `write*`, URL/path/root-style keys anywhere in model JSON. |
 
 ---
 
@@ -700,6 +703,26 @@ Each coherent package milestone requires:
 - Assigned `L-3` as extraction prompt lead using `gpt-5.4` high.
 - Assigned `T-1R` as focused parser/test helper using `gpt-5.3-codex-spark` high if agent capacity permits.
 - WP-05 through WP-14 remain blocked.
+- `T-1R` returned a read-only acceptance checklist covering shortlist-only prompt scope, valid candidate selection, null/no-signal, unknown candidate rejection, canonical mismatch rejection, invalid JSON, publish-control rejection, bounded provenance, and regression coverage.
+- `L-3` implemented `mempalace/chatgpt_atlas_guided_prompt.py` and `tests/test_chatgpt_atlas_guided_prompt.py`.
+- `L-3` delivered a pure-stdlib prompt/parser contract: prompts include bounded segment text and thread-relevant candidate shortlist only; parser emits contract-backed `accepted`, `null_signal`, and durable `invalid_output` extraction records; invalid JSON, unknown candidate IDs/keys, candidate ID/key mismatch, invalid canonical fields, missing accepted fields, bad confidence, and publish attempts fail closed.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_prompt.py`: passed, `13 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed, `59 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed.
+- `O-0` ran `git diff --check -- mempalace/chatgpt_atlas_guided_prompt.py tests/test_chatgpt_atlas_guided_prompt.py docs/worksheets/mempalace_chatgpt_atlas_guided_mining_worksheet_2026-05-12.md CHANGELOG.md`: passed.
+- `V-1` no-edit verification returned amber: most Checkpoint E requirements passed, but model output containing `localai_base_url` was still accepted.
+- WP-04 repair was assigned to `L-3R` using `gpt-5.4` high with the same bounded write scope.
+- `L-3R` repaired the forbidden-output gate so structured control/provider/network/vector/tool/publish/palace/write/path-style keys are rejected recursively anywhere in model JSON while preserving the existing invalid-output `publish_attempt` path.
+- `L-3R` added regression coverage for `localai_base_url`, `localai_model`, `chroma_collection`, `mcp`, `mcp_tool`, `network_url`, `palace_root`, `palace_write_path`, `drawer_write_path`, `write_drawer`, `publish_enabled`, and `target_wing`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_prompt.py`: passed, `25 passed`.
+- `O-0` ran `.venv/bin/pytest tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed, `71 passed`.
+- `O-0` ran `.venv/bin/ruff check mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed.
+- `O-0` ran `.venv/bin/python -m py_compile mempalace/chatgpt_atlas_guided_contract.py mempalace/chatgpt_atlas_guided_bridge.py mempalace/chatgpt_atlas_guided_coverage.py mempalace/chatgpt_atlas_guided_prompt.py tests/test_chatgpt_atlas_guided_contract.py tests/test_chatgpt_atlas_guided_bridge.py tests/test_chatgpt_atlas_guided_coverage.py tests/test_chatgpt_atlas_guided_prompt.py`: passed.
+- `V-1R` returned functional green evidence but command-runner amber because it used ambient Python tooling rather than the repo venv.
+- `V-1R2` no-edit verification used explicit `.venv/bin/...` commands and returned green: `25 passed`, ruff passed, py_compile passed, diff check passed, and no network/LocalAI/MCP/Chroma/service calls were run.
+- Checkpoint E verdict: green.
+- Checkpoint E disposition: WP-05 is unlocked after this milestone is committed and pushed.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
