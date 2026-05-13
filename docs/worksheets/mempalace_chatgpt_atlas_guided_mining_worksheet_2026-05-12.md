@@ -553,7 +553,7 @@ Each coherent package milestone requires:
 | C - Atlas Bridge | green | `L-2` bridge patch accepted; combined contract+bridge tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-03 unlocked after this milestone commit/push |
 | D - Candidate Coverage | green | `L-2R` coverage patch accepted; targeted and combined tests, ruff, py_compile, diff check, and `V-1` verification passed. | WP-04 unlocked after this milestone commit/push |
 | E - Prompt/Parser | green | `L-3` prompt/parser patch accepted after `L-3R` repaired the forbidden output-key blocker; targeted and combined tests, ruff, py_compile, diff check, and `V-1R2` no-edit verification passed. | WP-05 unlocked after this milestone commit/push |
-| F - Extraction And Reconciliation | blocked | Waiting on WP-05/WP-06. | WP-07/WP-08 after green verdict |
+| F - Extraction And Reconciliation | active | WP-05 extraction-mode work activated after WP-04 milestone commit `ee6dbac` was pushed; reconciliation remains blocked until WP-05 evidence exists. | WP-06 after WP-05 evidence; WP-07/WP-08 after green verdict |
 | G - Ops Wrapper | blocked | Waiting on WP-07. | WP-09 after Checkpoint H also green |
 | H - Cross-Package Verification | blocked | Waiting on WP-08. | WP-09 after green verdict |
 | I - Safety Review | blocked | Waiting on WP-09. | WP-10 after green verdict |
@@ -574,7 +574,7 @@ Each coherent package milestone requires:
 | WP-02 | complete | `L-2` | Atlas cluster-to-candidate bridge accepted at Checkpoint C. |
 | WP-03 | complete | `L-2R` | Thread candidate lookup and coverage report accepted at Checkpoint D. |
 | WP-04 | complete | `L-3` / `L-3R` | Atlas-guided LocalAI prompt/parser contract accepted at Checkpoint E after repair and independent green verification. |
-| WP-05 | blocked | `L-3` | Unlocked after the WP-04 milestone commit/push; not yet activated. |
+| WP-05 | active | `L-3` | Atlas-guided no-publish extraction mode activated after WP-04 milestone commit/push. |
 | WP-06 | blocked | `L-4` | Requires WP-05 extraction mode. |
 | WP-07 | blocked | `L-5` | May only proceed within the recorded ops wrapper scope. |
 | WP-08 | blocked | `T-1` | Requires WP-02 through WP-07 evidence. |
@@ -723,6 +723,21 @@ Each coherent package milestone requires:
 - `V-1R2` no-edit verification used explicit `.venv/bin/...` commands and returned green: `25 passed`, ruff passed, py_compile passed, diff check passed, and no network/LocalAI/MCP/Chroma/service calls were run.
 - Checkpoint E verdict: green.
 - Checkpoint E disposition: WP-05 is unlocked after this milestone is committed and pushed.
+- `git commit -m "Add atlas-guided prompt parser"` created milestone commit `ee6dbac`.
+- `git push git@github.com:botman058/mempalace.git HEAD:refs/heads/codex/mempalace-http-mcp-closure` pushed `ee6dbac` to the fork branch.
+- Out-of-scope dirty `.agents/plugins/marketplace.json` and untracked `docs/reference/` remained unstaged.
+
+### 2026-05-12 - WP-05 Activation
+
+- `O-0` reread this worksheet before package activation.
+- Current gate: Checkpoint F.
+- Activated package: WP-05 only.
+- Assigned `L-3` as extraction-mode lead using `gpt-5.4` high.
+- Assigned `H-2` as bounded runner plumbing helper using `gpt-5.3-codex` medium if agent capacity permits.
+- Assigned `T-1` as focused fake-provider/checkpoint test helper using `gpt-5.3-codex-spark` high if agent capacity permits.
+- WP-06 through WP-14 remain blocked.
+- WP-05 write scope is limited to the thread-signal extraction runner, atlas-guided artifact plumbing, and focused tests needed for `--atlas-guided`, `--atlas-run-dir`, `--candidate-records`, no-publish defaults, progressive artifacts, retry/idempotency, and resume behavior.
+- WP-05 must not call LocalAI in tests, publish drawers, mutate existing `chatgpt`, `chatgpt_signals`, or `chatgpt_thread_signals`, or touch `.agents/plugins/marketplace.json` or `docs/reference/`.
 
 ### 2026-05-12 - WP-00 / Checkpoint A Green
 
