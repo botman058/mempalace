@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Conversation mining gets a richer room taxonomy and per-chunk room detection.** `convo_miner`'s `TOPIC_KEYWORDS` is expanded from the old coarse set (the catch-all `technical`/`problems` rooms are gone) into finer-grained rooms — `implementation`, `debugging`, `tests`, `docs`, `git`, `ops`, `data`, `ui`, `memory`, `review`, `architecture`, `planning`, `decisions`. A room is now detected per exchange chunk instead of once per file, so a single mixed-topic transcript no longer collapses into one room. `detect_convo_room` pads its scan window so keyword matches respect word boundaries.
+- **`mempalace mine --wing-by-cwd` and `--force-rebuild`.** `--wing-by-cwd` derives the wing from a Codex transcript's `session_meta.cwd` (per-project wings from a single sessions directory); `--force-rebuild` refiles matching sources even when already mined at the current schema version.
+
+### Bug Fixes
+
+- **Concurrent multi-process HNSW writes corrupted the palace and segfaulted the stdio MCP server.** A hook-spawned `mempalace mine` and the MCP server's own `tool_diary_write` `col.add()` wrote the same ChromaDB HNSW index from two processes with no shared lock; under memory pressure this corrupted the drawers vector segment and SIGSEGV-killed the server on every `diary_write` (uncatchable by the function's `try/except`), and `mempalace repair` could not self-heal because its first call was the crashing `count()`. `mine_palace_lock` gains an optional `blocking_timeout` (merged with the upstream re-entrancy/holder-diagnostics lock); `tool_diary_write` now holds the per-palace write lock around its insert (waits ≤120 s, then returns a clean WAL-logged error instead of racing the index).
+- **ChatGPT `conversations.json` exports followed the wrong branch and collapsed multi-conversation files into one room.** A real privacy export is a *list* of conversations and each conversation's `mapping` is a branching tree; the old parser walked root → first-child of a single dict, so it ignored every conversation but the first and followed the wrong branch whenever a message had been edited/regenerated. `normalize()` now parses the list form, follows `current_node` back to root (the actually-selected path) with a first-child fallback for old fixtures, and joins independent threads with a transcript separator that `convo_miner` splits on so each thread is chunked and room-detected independently. Message text is kept verbatim (newline-joined parts, no summarization). `NORMALIZE_VERSION` is bumped 2 → 3, so the next mine re-processes conversation transcripts to pick up this fix and the new per-chunk room detection; the new write lock and the upstream mine throttle keep that re-mine crash-safe and bounded.
+
+---
+
 ## [3.3.5] — 2026-05-09
 
 ### Bug Fixes
