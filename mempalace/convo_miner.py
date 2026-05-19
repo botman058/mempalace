@@ -748,9 +748,7 @@ def mine_convos(
                 )
             else:
                 room_counts_for_file = Counter(c.get("room", "general") for c in chunks)
-                rooms_str = ", ".join(
-                    f"{r}:{n}" for r, n in room_counts_for_file.most_common(4)
-                )
+                rooms_str = ", ".join(f"{r}:{n}" for r, n in room_counts_for_file.most_common(4))
                 print(
                     f"    [DRY RUN] {filepath.name} → wing:{file_wing} "
                     f"{len(chunks)} drawers ({rooms_str})"
