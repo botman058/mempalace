@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
-from .normalize import normalize
+from .normalize import TRANSCRIPT_SEPARATOR, normalize
 from .palace import (
     NORMALIZE_VERSION,
     SKIP_DIRS,
@@ -454,6 +454,18 @@ def wing_from_codex_cwd(filepath: Path, fallback: str) -> str:
     return _sanitize_label(project, fallback=fallback)
 
 
+def _split_normalized_transcripts(content: str) -> list:
+    """Return one or more independent transcript blocks from normalized text.
+
+    normalize() joins multi-thread privacy exports with TRANSCRIPT_SEPARATOR
+    so a whole export is not classified into a single room. Splitting here
+    lets each thread get its own per-chunk room detection.
+    """
+    parts = [part.strip() for part in content.split(TRANSCRIPT_SEPARATOR)]
+    parts = [part for part in parts if part]
+    return parts or [content]
+
+
 # =============================================================================
 # PALACE OPERATIONS
 # =============================================================================
@@ -691,20 +703,31 @@ def mine_convos(
                 _register_file(collection, source_file, file_wing, agent, extract_mode)
             continue
 
-        # Chunk — either exchange pairs or general extraction
+        # Chunk — either exchange pairs or general extraction. Split
+        # multi-thread exports first so each thread is chunked (and, in
+        # exchange mode, room-detected per chunk) independently instead of
+        # collapsing into one room. chunk_index stays unique per file so
+        # drawer IDs don't collide across blocks.
+        transcript_blocks = _split_normalized_transcripts(content)
+        chunks = []
         if extract_mode == "general":
             from .general_extractor import extract_memories
 
-            chunks = extract_memories(content)
+            for block in transcript_blocks:
+                for chunk in extract_memories(block):
+                    chunk["chunk_index"] = len(chunks)
+                    chunks.append(chunk)
             # Each chunk already has memory_type; use it as the room name
         else:
-            chunks = chunk_exchanges(
-                content,
-                chunk_size=cfg_chunk_size,
-                min_chunk_size=cfg_min_chunk_size,
-            )
-            for chunk in chunks:
-                chunk["room"] = detect_convo_room(chunk["content"])
+            for block in transcript_blocks:
+                for chunk in chunk_exchanges(
+                    block,
+                    chunk_size=cfg_chunk_size,
+                    min_chunk_size=cfg_min_chunk_size,
+                ):
+                    chunk["chunk_index"] = len(chunks)
+                    chunk["room"] = detect_convo_room(chunk["content"])
+                    chunks.append(chunk)
 
         if not chunks:
             if not dry_run:

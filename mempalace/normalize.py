@@ -27,6 +27,11 @@ _SLACK_PROVENANCE_FOOTER = (
     "\n[source: slack-export | multi-party chat — speaker roles are positional, not verified]"
 )
 
+# Separator used when one export file contains multiple independent chat
+# threads. normalize() still returns a string, but convo_miner can split on
+# this marker and avoid classifying a whole privacy export as one room.
+TRANSCRIPT_SEPARATOR = "\n\n<<<MEMPALACE_TRANSCRIPT_BOUNDARY>>>\n\n"
+
 
 # ─── Noise stripping ─────────────────────────────────────────────────────
 # Claude Code and other tools inject system tags, hook output, and UI chrome
@@ -372,7 +377,7 @@ def _try_claude_ai_json(data) -> Optional[str]:
             if len(messages) >= 2:
                 transcripts.append(_messages_to_transcript(messages))
         if transcripts:
-            return "\n\n".join(transcripts)
+            return TRANSCRIPT_SEPARATOR.join(transcripts)
         return None
 
     # Flat messages list
@@ -404,14 +409,81 @@ def _collect_claude_messages(items) -> list:
 
 def _try_chatgpt_json(data) -> Optional[str]:
     """ChatGPT conversations.json with mapping tree."""
+    if isinstance(data, list):
+        transcripts = []
+        for convo in data:
+            if not isinstance(convo, dict) or "mapping" not in convo:
+                continue
+            messages = _collect_chatgpt_messages(convo)
+            if len(messages) >= 2:
+                transcripts.append(_messages_to_transcript(messages))
+        if transcripts:
+            return TRANSCRIPT_SEPARATOR.join(transcripts)
+        return None
+
     if not isinstance(data, dict) or "mapping" not in data:
         return None
-    mapping = data["mapping"]
+
+    messages = _collect_chatgpt_messages(data)
+    if len(messages) >= 2:
+        return _messages_to_transcript(messages)
+    return None
+
+
+def _collect_chatgpt_messages(conversation: dict) -> list:
+    """Extract the selected ChatGPT conversation path as (role, text) pairs."""
+    mapping = conversation.get("mapping")
+    if not isinstance(mapping, dict):
+        return []
+
+    current_node = conversation.get("current_node")
+    if isinstance(current_node, str) and current_node in mapping:
+        node_ids = _walk_chatgpt_current_path(mapping, current_node)
+    else:
+        node_ids = _walk_chatgpt_first_child_path(mapping)
+
     messages = []
+    for node_id in node_ids:
+        node = mapping.get(node_id, {})
+        if not isinstance(node, dict):
+            continue
+        msg = node.get("message")
+        if not isinstance(msg, dict):
+            continue
+        role = msg.get("author", {}).get("role", "")
+        if role not in ("user", "assistant"):
+            continue
+        content = msg.get("content", {})
+        text = _extract_chatgpt_content(content)
+        if text:
+            messages.append((role, text))
+    return messages
+
+
+def _walk_chatgpt_current_path(mapping: dict, current_node: str) -> list:
+    """Follow ChatGPT's selected path from current_node back to root."""
+    node_ids = []
+    visited = set()
+    node_id = current_node
+    while node_id and node_id not in visited:
+        visited.add(node_id)
+        node = mapping.get(node_id)
+        if not isinstance(node, dict):
+            break
+        node_ids.append(node_id)
+        node_id = node.get("parent")
+    node_ids.reverse()
+    return node_ids
+
+
+def _walk_chatgpt_first_child_path(mapping: dict) -> list:
+    """Fallback for older fixtures without current_node: root then first child."""
     # Find root: prefer node with parent=None AND no message (synthetic root)
     root_id = None
     fallback_root = None
     for node_id, node in mapping.items():
+        if not isinstance(node, dict):
+            continue
         if node.get("parent") is None:
             if node.get("message") is None:
                 root_id = node_id
@@ -420,27 +492,28 @@ def _try_chatgpt_json(data) -> Optional[str]:
                 fallback_root = node_id
     if not root_id:
         root_id = fallback_root
-    if root_id:
-        current_id = root_id
-        visited = set()
-        while current_id and current_id not in visited:
-            visited.add(current_id)
-            node = mapping.get(current_id, {})
-            msg = node.get("message")
-            if msg:
-                role = msg.get("author", {}).get("role", "")
-                content = msg.get("content", {})
-                parts = content.get("parts", []) if isinstance(content, dict) else []
-                text = " ".join(str(p) for p in parts if isinstance(p, str) and p).strip()
-                if role == "user" and text:
-                    messages.append(("user", text))
-                elif role == "assistant" and text:
-                    messages.append(("assistant", text))
-            children = node.get("children", [])
-            current_id = children[0] if children else None
-    if len(messages) >= 2:
-        return _messages_to_transcript(messages)
-    return None
+    node_ids = []
+    current_id = root_id
+    visited = set()
+    while current_id and current_id not in visited:
+        visited.add(current_id)
+        node = mapping.get(current_id, {})
+        if not isinstance(node, dict):
+            break
+        node_ids.append(current_id)
+        children = node.get("children", [])
+        current_id = children[0] if children else None
+    return node_ids
+
+
+def _extract_chatgpt_content(content) -> str:
+    """Extract text from ChatGPT message content without summarizing it."""
+    if not isinstance(content, dict):
+        return ""
+    parts = content.get("parts", [])
+    if not isinstance(parts, list):
+        return ""
+    return "\n".join(p for p in parts if isinstance(p, str) and p).strip()
 
 
 def _try_slack_json(data) -> Optional[str]:

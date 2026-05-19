@@ -6,7 +6,13 @@ from pathlib import Path
 
 import chromadb
 
-from mempalace.convo_miner import detect_convo_room, mine_convos, wing_from_codex_cwd
+from mempalace.convo_miner import (
+    _split_normalized_transcripts,
+    detect_convo_room,
+    mine_convos,
+    wing_from_codex_cwd,
+)
+from mempalace.normalize import TRANSCRIPT_SEPARATOR
 from mempalace.palace import file_already_mined
 
 
@@ -97,6 +103,76 @@ def test_mine_codex_convos_can_use_cwd_wings_and_chunk_rooms():
         metas = result["metadatas"]
         assert {m["wing"] for m in metas} == {"tako"}
         assert {"tests", "git"}.issubset({m["room"] for m in metas})
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_split_normalized_transcripts():
+    one = "just one thread"
+    assert _split_normalized_transcripts(one) == [one]
+
+    joined = f"thread A{TRANSCRIPT_SEPARATOR}thread B{TRANSCRIPT_SEPARATOR}  "
+    assert _split_normalized_transcripts(joined) == ["thread A", "thread B"]
+
+
+def test_mine_chatgpt_multi_conversation_export_does_not_collapse_rooms():
+    """A conversations.json list is split per thread, not filed as one room."""
+    tmpdir = tempfile.mkdtemp()
+    try:
+
+        def convo(node, user_text, asst_text):
+            return {
+                "current_node": node,
+                "mapping": {
+                    "root": {"parent": None, "message": None, "children": ["u"]},
+                    "u": {
+                        "parent": "root",
+                        "message": {
+                            "author": {"role": "user"},
+                            "content": {"parts": [user_text]},
+                        },
+                        "children": [node],
+                    },
+                    node: {
+                        "parent": "u",
+                        "message": {
+                            "author": {"role": "assistant"},
+                            "content": {"parts": [asst_text]},
+                        },
+                        "children": [],
+                    },
+                },
+            }
+
+        export = Path(tmpdir) / "conversations.json"
+        export.write_text(
+            json.dumps(
+                [
+                    convo(
+                        "a1",
+                        "How do I write a pytest fixture with assertion coverage?",
+                        "Use a pytest fixture and assert on the result for coverage.",
+                    ),
+                    convo(
+                        "a2",
+                        "How do I commit and push this branch as a pull request?",
+                        "Run git commit, then git push the branch and open the diff PR.",
+                    ),
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        palace_path = os.path.join(tmpdir, "palace")
+        mine_convos(tmpdir, palace_path)
+
+        client = chromadb.PersistentClient(path=palace_path)
+        col = client.get_collection("mempalace_drawers")
+        result = col.get()
+        rooms = {m["room"] for m in result["metadatas"]}
+        # Two distinct-topic threads must not collapse into one room.
+        assert len(rooms) >= 2
+        assert {"tests", "git"}.issubset(rooms)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
