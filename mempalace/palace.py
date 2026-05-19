@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import threading
+import time
 from typing import Optional
 
 from .backends import BackendClosedError, CollectionNotInitializedError, PalaceNotFoundError
@@ -484,8 +485,8 @@ def _write_lock_holder(lock_file) -> None:
 
 
 @contextlib.contextmanager
-def mine_palace_lock(palace_path: str):
-    """Per-palace non-blocking lock around the full `mine` pipeline.
+def mine_palace_lock(palace_path: str, *, blocking_timeout: float | None = None):
+    """Per-palace lock around any HNSW-writing palace operation.
 
     The per-file `mine_lock` only protects delete+insert interleave for a
     single source; it does not prevent N copies of `mempalace mine <dir>`
@@ -504,9 +505,15 @@ def mine_palace_lock(palace_path: str):
     normcase, `C:\\Palace` and `c:\\palace` would hash to different keys
     on Windows and let two concurrent mines touch the same on-disk palace.
 
-    Non-blocking: if another `mine` is already writing to this palace,
+    Non-blocking by default: if another writer already holds this palace,
     raise MineAlreadyRunning so the caller can exit cleanly instead of
     piling up as a waiting worker.
+
+    `blocking_timeout` (seconds): when set, the caller instead waits up to
+    that long for the lock before raising MineAlreadyRunning. This is for
+    interactive single writes (e.g. `diary_write`) that must serialize
+    *behind* a running `mine` rather than fail — the correctness fix for
+    concurrent multi-process HNSW writes that segfault the store.
 
     Re-entrant: if the current thread already holds the lock for the same
     palace, the context manager passes through without re-acquiring. This
@@ -547,30 +554,39 @@ def mine_palace_lock(palace_path: str):
         # Lock byte 0 explicitly. msvcrt.locking is byte-position dependent;
         # fcntl.flock is whole-file but the seek is harmless there.
         lf.seek(0)
+        deadline = None if blocking_timeout is None else time.monotonic() + blocking_timeout
         if os.name == "nt":
             import msvcrt
 
-            try:
-                msvcrt.locking(lf.fileno(), msvcrt.LK_NBLCK, 1)
-                acquired = True
-            except OSError as exc:
-                holder = _read_lock_holder(lf)
-                raise MineAlreadyRunning(
-                    f"palace {resolved} is held by {holder}; "
-                    "wait for it to finish or stop the holder before retrying"
-                ) from exc
+            while True:
+                try:
+                    msvcrt.locking(lf.fileno(), msvcrt.LK_NBLCK, 1)
+                    acquired = True
+                    break
+                except OSError as exc:
+                    if deadline is None or time.monotonic() >= deadline:
+                        holder = _read_lock_holder(lf)
+                        raise MineAlreadyRunning(
+                            f"palace {resolved} is held by {holder}; "
+                            "wait for it to finish or stop the holder before retrying"
+                        ) from exc
+                    time.sleep(0.5)
         else:
             import fcntl
 
-            try:
-                fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                acquired = True
-            except BlockingIOError as exc:
-                holder = _read_lock_holder(lf)
-                raise MineAlreadyRunning(
-                    f"palace {resolved} is held by {holder}; "
-                    "wait for it to finish or stop the holder before retrying"
-                ) from exc
+            while True:
+                try:
+                    fcntl.flock(lf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                    break
+                except BlockingIOError as exc:
+                    if deadline is None or time.monotonic() >= deadline:
+                        holder = _read_lock_holder(lf)
+                        raise MineAlreadyRunning(
+                            f"palace {resolved} is held by {holder}; "
+                            "wait for it to finish or stop the holder before retrying"
+                        ) from exc
+                    time.sleep(0.5)
         # Record our own identity for any later contender's diagnostic message.
         _write_lock_holder(lf)
         _mark_held(palace_key)

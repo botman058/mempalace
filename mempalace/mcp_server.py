@@ -82,6 +82,7 @@ from .palace_graph import (  # noqa: E402
     delete_tunnel,
     follow_tunnels,
 )
+from .palace import mine_palace_lock, MineAlreadyRunning  # noqa: E402
 
 from .knowledge_graph import KnowledgeGraph, DEFAULT_KG_PATH  # noqa: E402
 
@@ -1554,22 +1555,39 @@ def tool_diary_write(agent_name: str, entry: str, topic: str = "general", wing: 
         # semantic search quality. For now, store raw AAAK in metadata so it's
         # preserved, and keep the document as-is for embedding (even though
         # compressed AAAK degrades embedding quality).
-        col.add(
-            ids=[entry_id],
-            documents=[entry],
-            metadatas=[
-                {
-                    "wing": wing,
-                    "room": room,
-                    "hall": "hall_diary",
-                    "topic": topic,
-                    "type": "diary_entry",
-                    "agent": agent_name,
-                    "filed_at": now.isoformat(),
-                    "date": now.strftime("%Y-%m-%d"),
-                }
-            ],
-        )
+        #
+        # Hold the per-palace write lock around the HNSW insert. Without this,
+        # a hook-spawned `mempalace mine` and this raw col.add() write the
+        # same HNSW graph from two processes concurrently, which corrupts the
+        # index and segfaults the (stdio) MCP server. Block up to 120s so we
+        # serialize *behind* a running mine instead of failing the write.
+        try:
+            with mine_palace_lock(_config.palace_path, blocking_timeout=120):
+                col.add(
+                    ids=[entry_id],
+                    documents=[entry],
+                    metadatas=[
+                        {
+                            "wing": wing,
+                            "room": room,
+                            "hall": "hall_diary",
+                            "topic": topic,
+                            "type": "diary_entry",
+                            "agent": agent_name,
+                            "filed_at": now.isoformat(),
+                            "date": now.strftime("%Y-%m-%d"),
+                        }
+                    ],
+                )
+        except MineAlreadyRunning:
+            return {
+                "success": False,
+                "error": (
+                    "palace is busy (a `mempalace mine` held the write lock "
+                    "for >120s); diary entry not written — retry shortly. "
+                    "The entry was WAL-logged and not lost."
+                ),
+            }
         logger.info(f"Diary entry: {entry_id} → {wing}/diary/{topic}")
         return {
             "success": True,
