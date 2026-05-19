@@ -514,8 +514,8 @@ def cmd_mine(args):
                 limit=args.limit,
                 dry_run=args.dry_run,
                 extract_mode=args.extract,
-                wing_by_cwd=args.wing_by_cwd,
-                force_rebuild=args.force_rebuild,
+                wing_by_cwd=getattr(args, "wing_by_cwd", False),
+                force_rebuild=getattr(args, "force_rebuild", False),
             )
         else:
             from .miner import mine
