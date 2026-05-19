@@ -252,9 +252,9 @@ class TestEmitBounded:
 
 
 class TestDetectConvoRoom:
-    def test_technical_room(self):
+    def test_debugging_room(self):
         content = "Let me debug this python function and fix the code error in the api"
-        assert detect_convo_room(content) == "technical"
+        assert detect_convo_room(content) == "debugging"
 
     def test_planning_room(self):
         content = "We need to plan the roadmap for the next sprint and set milestone deadlines"
@@ -402,6 +402,8 @@ class TestFileChunksLocked:
         )
 
         assert drawers == 5
-        assert dict(room_counts) == {}
+        # convo_miner now tracks a room count per chunk in every mode; chunks
+        # with no memory_type/room fall back to the passed-in room ("general").
+        assert dict(room_counts) == {"general": 5}
         assert skipped is False
         assert col.batch_sizes == [2, 2, 1]
