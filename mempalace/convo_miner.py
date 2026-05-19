@@ -10,6 +10,7 @@ Same palace as project mining. Different ingest strategy.
 
 import os
 import sys
+import json
 import hashlib
 import logging
 from pathlib import Path
@@ -248,35 +249,10 @@ def _chunk_by_paragraph(content: str, chunk_size: int, min_chunk_size: int) -> l
 # =============================================================================
 
 TOPIC_KEYWORDS = {
-    "technical": [
-        "code",
-        "python",
-        "function",
-        "bug",
-        "error",
-        "api",
-        "database",
-        "server",
-        "deploy",
-        "git",
-        "test",
-        "debug",
-        "refactor",
-    ],
-    "architecture": [
-        "architecture",
-        "design",
-        "pattern",
-        "structure",
-        "schema",
-        "interface",
-        "module",
-        "component",
-        "service",
-        "layer",
-    ],
     "planning": [
         "plan",
+        "worksheet",
+        "tranche",
         "roadmap",
         "milestone",
         "deadline",
@@ -286,6 +262,131 @@ TOPIC_KEYWORDS = {
         "scope",
         "requirement",
         "spec",
+    ],
+    "architecture": [
+        "architecture",
+        "contract",
+        "invariant",
+        "schema",
+        "interface",
+        "registry",
+        "provider",
+        "module",
+        "component",
+        "route",
+        "payload",
+    ],
+    "implementation": [
+        "implement",
+        "implementation",
+        "patch",
+        "apply_patch",
+        "function",
+        "class",
+        "method",
+        "parser",
+        "handler",
+        "component",
+        "refactor",
+    ],
+    "debugging": [
+        "debug",
+        "bug",
+        "error",
+        "exception",
+        "traceback",
+        "failed",
+        "failing",
+        "failure",
+        "crash",
+        "regression",
+        "fix",
+    ],
+    "tests": [
+        "test",
+        "pytest",
+        "fixture",
+        "assert",
+        "coverage",
+        "smoke",
+        "snapshot",
+        "unit test",
+        "integration",
+    ],
+    "docs": [
+        "docs",
+        "documentation",
+        "readme",
+        "devlog",
+        "handoff",
+        "status",
+        "briefing",
+        "markdown",
+    ],
+    "git": [
+        "git",
+        "commit",
+        "branch",
+        "push",
+        "pull request",
+        " pr ",
+        "diff",
+        "staged",
+        "untracked",
+    ],
+    "ops": [
+        "docker",
+        "systemd",
+        "nginx",
+        "service",
+        "deploy",
+        "server",
+        "port",
+        "process",
+        "curl",
+    ],
+    "data": [
+        "sqlite",
+        "database",
+        "migration",
+        "qdrant",
+        "chroma",
+        "index",
+        "query",
+        "embedding",
+        "metadata",
+    ],
+    "ui": [
+        "ui",
+        "css",
+        "react",
+        "tsx",
+        "button",
+        "layout",
+        "drawer",
+        "page",
+        "modal",
+        "viewport",
+    ],
+    "memory": [
+        "mempalace",
+        "memory",
+        "palace",
+        "wing",
+        "room",
+        "drawer",
+        "hook",
+        "recall",
+        "backfill",
+    ],
+    "review": [
+        "review",
+        "audit",
+        "finding",
+        "risk",
+        "stale",
+        "contradictory",
+        "verify",
     ],
     "decisions": [
         "decided",
@@ -299,24 +400,12 @@ TOPIC_KEYWORDS = {
         "option",
         "approach",
     ],
-    "problems": [
-        "problem",
-        "issue",
-        "broken",
-        "failed",
-        "crash",
-        "stuck",
-        "workaround",
-        "fix",
-        "solved",
-        "resolved",
-    ],
 }
 
 
 def detect_convo_room(content: str) -> str:
     """Score conversation content against topic keywords."""
-    content_lower = content[:3000].lower()
+    content_lower = f" {content[:3000].lower()} "
     scores = {}
     for room, keywords in TOPIC_KEYWORDS.items():
         score = sum(1 for kw in keywords if kw in content_lower)
@@ -325,6 +414,44 @@ def detect_convo_room(content: str) -> str:
     if scores:
         return max(scores, key=scores.get)
     return "general"
+
+
+def _sanitize_label(value: str, fallback: str = "general") -> str:
+    """Turn a path/project name into a stable wing/room label."""
+    label = "".join(ch.lower() if ch.isalnum() else "_" for ch in str(value or ""))
+    label = "_".join(part for part in label.split("_") if part)
+    return label or fallback
+
+
+def _codex_cwd_from_jsonl(filepath: Path):
+    """Return the Codex session cwd from the session_meta payload, if present."""
+    try:
+        with open(filepath, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(entry, dict) or entry.get("type") != "session_meta":
+                    continue
+                payload = entry.get("payload", {})
+                if isinstance(payload, dict):
+                    cwd = payload.get("cwd")
+                    if isinstance(cwd, str) and cwd.strip():
+                        return cwd.strip()
+                return None
+    except OSError:
+        return None
+    return None
+
+
+def wing_from_codex_cwd(filepath: Path, fallback: str) -> str:
+    """Derive a project wing from a Codex transcript cwd."""
+    cwd = _codex_cwd_from_jsonl(filepath)
+    if not cwd:
+        return fallback
+    project = Path(cwd).name
+    return _sanitize_label(project, fallback=fallback)
 
 
 # =============================================================================
@@ -375,7 +502,16 @@ def scan_convos(convo_dir: str) -> list:
 # =============================================================================
 
 
-def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extract_mode):
+def _file_chunks_locked(
+    collection,
+    source_file,
+    chunks,
+    wing,
+    room,
+    agent,
+    extract_mode,
+    force_rebuild=False,
+):
     """Lock the source file, purge stale drawers, and upsert fresh chunks.
 
     Combines the per-file serialization that prevents concurrent agents from
@@ -390,7 +526,9 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
         # Re-check after lock — another agent may have just finished this file
         # at the current schema. A stale-version hit here returns False, so we
         # still fall through to the purge+rebuild path below.
-        if file_already_mined(collection, source_file, extract_mode=extract_mode):
+        if not force_rebuild and file_already_mined(
+            collection, source_file, extract_mode=extract_mode
+        ):
             return 0, room_counts_delta, True
 
         # Purge stale drawers first. When the normalize schema bumps,
@@ -413,9 +551,12 @@ def _file_chunks_locked(collection, source_file, chunks, wing, room, agent, extr
             batch_ids: list = []
             batch_metas: list = []
             for chunk in chunks[batch_start : batch_start + DRAWER_UPSERT_BATCH_SIZE]:
-                chunk_room = chunk.get("memory_type", room) if extract_mode == "general" else room
-                if extract_mode == "general":
-                    room_counts_delta[chunk_room] += 1
+                # Per-chunk room (richer taxonomy / general memory_type),
+                # with the extract_mode-scoped stable drawer key from #1505
+                # so exchange vs general drawers for the same source never
+                # collide.
+                chunk_room = chunk.get("memory_type", chunk.get("room", room))
+                room_counts_delta[chunk_room] += 1
                 drawer_key = f"{source_file}:{extract_mode}:{chunk['chunk_index']}"
                 drawer_id = (
                     f"drawer_{wing}_{chunk_room}_"
@@ -458,6 +599,8 @@ def mine_convos(
     limit: int = 0,
     dry_run: bool = False,
     extract_mode: str = "exchange",
+    wing_by_cwd: bool = False,
+    force_rebuild: bool = False,
 ):
     """Mine a directory of conversation files into the palace.
 
@@ -489,10 +632,9 @@ def mine_convos(
     cfg_min_chunk_size = explicit_min if explicit_min is not None else MIN_CHUNK_SIZE
 
     convo_path = Path(convo_dir).expanduser().resolve()
-    if not wing:
-        from .config import normalize_wing_name
+    from .config import normalize_wing_name
 
-        wing = normalize_wing_name(convo_path.name)
+    default_wing = normalize_wing_name(wing or convo_path.name)
 
     files = scan_convos(convo_dir)
     if limit > 0:
@@ -501,7 +643,7 @@ def mine_convos(
     print(f"\n{'=' * 55}")
     print("  MemPalace Mine — Conversations")
     print(f"{'=' * 55}")
-    print(f"  Wing:    {wing}")
+    print(f"  Wing:    {default_wing}{' (by Codex cwd)' if wing_by_cwd else ''}")
     print(f"  Source:  {convo_path}")
     print(f"  Files:   {len(files)}")
     print(f"  Palace:  {palace_path}")
@@ -526,9 +668,13 @@ def mine_convos(
 
     for i, filepath in enumerate(files, 1):
         source_file = str(filepath)
+        file_wing = (
+            wing_from_codex_cwd(filepath, fallback=default_wing) if wing_by_cwd else default_wing
+        )
 
-        # Skip if already filed at current NORMALIZE_VERSION
-        if not dry_run and source_file in mined_set:
+        # Skip if already filed at current NORMALIZE_VERSION (force_rebuild
+        # overrides). mined_set is the O(1) prefetched skip set.
+        if not dry_run and not force_rebuild and source_file in mined_set:
             files_skipped += 1
             continue
 
@@ -537,12 +683,12 @@ def mine_convos(
             content = normalize(str(filepath))
         except (OSError, ValueError):
             if not dry_run:
-                _register_file(collection, source_file, wing, agent, extract_mode)
+                _register_file(collection, source_file, file_wing, agent, extract_mode)
             continue
 
         if not content or len(content.strip()) < cfg_min_chunk_size:
             if not dry_run:
-                _register_file(collection, source_file, wing, agent, extract_mode)
+                _register_file(collection, source_file, file_wing, agent, extract_mode)
             continue
 
         # Chunk — either exchange pairs or general extraction
@@ -557,43 +703,52 @@ def mine_convos(
                 chunk_size=cfg_chunk_size,
                 min_chunk_size=cfg_min_chunk_size,
             )
+            for chunk in chunks:
+                chunk["room"] = detect_convo_room(chunk["content"])
 
         if not chunks:
             if not dry_run:
-                _register_file(collection, source_file, wing, agent, extract_mode)
+                _register_file(collection, source_file, file_wing, agent, extract_mode)
             continue
 
-        # Detect room from content (general mode uses memory_type instead)
-        if extract_mode != "general":
-            room = detect_convo_room(content)
-        else:
-            room = None  # set per-chunk below
+        room = None
 
         if dry_run:
-            if extract_mode == "general":
-                from collections import Counter
+            from collections import Counter
 
+            if extract_mode == "general":
                 type_counts = Counter(c.get("memory_type", "general") for c in chunks)
                 types_str = ", ".join(f"{t}:{n}" for t, n in type_counts.most_common())
-                print(f"    [DRY RUN] {filepath.name} → {len(chunks)} memories ({types_str})")
+                print(
+                    f"    [DRY RUN] {filepath.name} → wing:{file_wing} "
+                    f"{len(chunks)} memories ({types_str})"
+                )
             else:
-                print(f"    [DRY RUN] {filepath.name} → room:{room} ({len(chunks)} drawers)")
+                room_counts_for_file = Counter(c.get("room", "general") for c in chunks)
+                rooms_str = ", ".join(
+                    f"{r}:{n}" for r, n in room_counts_for_file.most_common(4)
+                )
+                print(
+                    f"    [DRY RUN] {filepath.name} → wing:{file_wing} "
+                    f"{len(chunks)} drawers ({rooms_str})"
+                )
             total_drawers += len(chunks)
             # Track room counts
-            if extract_mode == "general":
-                for c in chunks:
-                    room_counts[c.get("memory_type", "general")] += 1
-            else:
-                room_counts[room] += 1
+            for c in chunks:
+                room_counts[c.get("memory_type", c.get("room", "general"))] += 1
             continue
-
-        if extract_mode != "general":
-            room_counts[room] += 1
 
         # Lock + purge stale + file fresh chunks. Lock serializes concurrent
         # agents; purge removes pre-v2 drawers so the schema bump applies.
         drawers_added, room_delta, skipped = _file_chunks_locked(
-            collection, source_file, chunks, wing, room, agent, extract_mode
+            collection,
+            source_file,
+            chunks,
+            file_wing,
+            room,
+            agent,
+            extract_mode,
+            force_rebuild=force_rebuild,
         )
         if skipped:
             files_skipped += 1

@@ -514,6 +514,8 @@ def cmd_mine(args):
                 limit=args.limit,
                 dry_run=args.dry_run,
                 extract_mode=args.extract,
+                wing_by_cwd=args.wing_by_cwd,
+                force_rebuild=args.force_rebuild,
             )
         else:
             from .miner import mine
@@ -1265,6 +1267,16 @@ def main():
         help="Ingest mode: 'projects' for code/docs (default), 'convos' for chat exports",
     )
     p_mine.add_argument("--wing", default=None, help="Wing name (default: directory name)")
+    p_mine.add_argument(
+        "--wing-by-cwd",
+        action="store_true",
+        help="For Codex conversation JSONL, derive the wing from session_meta.cwd",
+    )
+    p_mine.add_argument(
+        "--force-rebuild",
+        action="store_true",
+        help="Refile matching sources even if they were already mined",
+    )
     p_mine.add_argument(
         "--no-gitignore",
         action="store_true",

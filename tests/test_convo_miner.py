@@ -1,11 +1,12 @@
 import os
 import tempfile
 import shutil
+import json
 from pathlib import Path
 
 import chromadb
 
-from mempalace.convo_miner import mine_convos
+from mempalace.convo_miner import detect_convo_room, mine_convos, wing_from_codex_cwd
 from mempalace.palace import file_already_mined
 
 
@@ -28,6 +29,76 @@ def test_convo_mining():
     assert len(results["documents"][0]) > 0
 
     shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_codex_wing_from_cwd():
+    tmpdir = tempfile.mkdtemp()
+    try:
+        transcript = Path(tmpdir) / "rollout.jsonl"
+        transcript.write_text(
+            json.dumps(
+                {
+                    "type": "session_meta",
+                    "payload": {"cwd": "/home/app/repos/mempalace"},
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        assert wing_from_codex_cwd(transcript, fallback="sessions") == "mempalace"
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_detect_convo_room_prefers_specific_rooms():
+    assert detect_convo_room("pytest fixture assertion coverage smoke") == "tests"
+    assert detect_convo_room("commit branch push pull request diff") == "git"
+    assert detect_convo_room("README docs devlog handoff markdown") == "docs"
+
+
+def test_mine_codex_convos_can_use_cwd_wings_and_chunk_rooms():
+    tmpdir = tempfile.mkdtemp()
+    try:
+        transcript = Path(tmpdir) / "rollout.jsonl"
+        lines = [
+            {"type": "session_meta", "payload": {"cwd": "/home/app/repos/tako"}},
+            {
+                "type": "event_msg",
+                "payload": {"type": "user_message", "message": "Please update pytest fixtures"},
+            },
+            {
+                "type": "event_msg",
+                "payload": {
+                    "type": "agent_message",
+                    "message": "I added a pytest fixture and assertion coverage.",
+                },
+            },
+            {
+                "type": "event_msg",
+                "payload": {"type": "user_message", "message": "Now commit and push the branch"},
+            },
+            {
+                "type": "event_msg",
+                "payload": {
+                    "type": "agent_message",
+                    "message": "I checked git diff, committed, and pushed the branch.",
+                },
+            },
+        ]
+        transcript.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+
+        palace_path = os.path.join(tmpdir, "palace")
+        mine_convos(tmpdir, palace_path, wing_by_cwd=True)
+
+        client = chromadb.PersistentClient(path=palace_path)
+        col = client.get_collection("mempalace_drawers")
+        result = col.get()
+        metas = result["metadatas"]
+        assert {m["wing"] for m in metas} == {"tako"}
+        assert {"tests", "git"}.issubset({m["room"] for m in metas})
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def test_mine_convos_does_not_reprocess_short_files(capsys):
